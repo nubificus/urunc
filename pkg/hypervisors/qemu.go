@@ -41,19 +41,25 @@ func (q *Qemu) Path() string {
 }
 
 func (q *Qemu) Execve(data ExecData) error {
-	cmdString := q.Path() + " --mem=16"
-	if data.BlkDev != "" {
-		cmdString += " --disk=" + data.BlkDev
-	}
+	cmdString := q.Path() + " -cpu host -m 512 -enable-kvm -nographic -vga none"
+	cmdString += " -kernel " + data.Unikernel
 	if data.TapDev != "" {
-		cmdString += " --net=" + data.TapDev
+		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + data.TapDev
+		//cmdString += " --net=" + data.TapDev
 	}
-	// TODO: Add cmdline
+	if data.BlkDev != "" {
+		cmdString += " -initrd " + data.BlkDev
+	}
+	guest_cli_opts, err := UnikraftCli(data)
+	if err != nil {
+		return err
+	}
 
-	cmdString += " " + data.Unikernel
 	vmmLog.Info(cmdString)
 
 	args := strings.Split(cmdString, " ")
+	args = append(args, "-append", guest_cli_opts)
+	vmmLog.Info(guest_cli_opts)
 	vmmLog.Info(args)
 	return syscall.Exec(q.Path(), args, data.Environment) //nolint: gosec
 }

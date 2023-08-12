@@ -226,6 +226,8 @@ func (u *Unikernel) Execve() error {
 
 	Log.Info("vmm.Path:", vmm.Path())
 	unikernelPath := filepath.Join(u.State.Bundle, "rootfs")
+	BlockPath := filepath.Join(unikernelPath, "/initrd")
+	Log.Info("BlockPath", BlockPath)
 	Log.Info("unikernelPath", unikernelPath)
 	Log.Info("Annotation com.urunc.unikernel.binary: ", u.State.Annotations["com.urunc.unikernel.binary"])
 
@@ -235,25 +237,34 @@ func (u *Unikernel) Execve() error {
 	// pass cmdline
 	execData.CmdLine = u.State.Annotations["com.urunc.unikernel.cmdline"]
 
-	// let's check if rootfs is block or not
-	block, err := GetBlockDevice(filepath.Join(u.State.Bundle, "rootfs"))
-	if err != nil {
-		return err
-	}
-	if block.IsBlock {
-		Log.WithFields(logrus.Fields{"fstype": block.BlkDevice.Fstype,
-			"mountpoint": block.BlkDevice.Mountpoint,
-			"device":     block.BlkDevice.Device,
-		}).Info("Found block device")
-		err = u.handleBlkDevice(block)
+	if u.State.Annotations["com.urunc.unikernel.unikernelType"] == "unikraft" {
+		if _, err := os.Stat(BlockPath); err == nil {
+			execData.BlkDev = BlockPath
+		} else {
+			execData.BlkDev = ""
+		}
+	} else {
+		// let's check if rootfs is block or not
+		block, err := GetBlockDevice(filepath.Join(u.State.Bundle, "rootfs"))
 		if err != nil {
-			Log.WithError(err).Error("failed to handle block device")
 			return err
 		}
-		Log.Info("succeeded to handle block device")
+		if block.IsBlock {
+			Log.WithFields(logrus.Fields{"fstype": block.BlkDevice.Fstype,
+				"mountpoint": block.BlkDevice.Mountpoint,
+				"device":     block.BlkDevice.Device,
+			}).Info("Found block device")
+			err = u.handleBlkDevice(block)
+			if err != nil {
+				Log.WithError(err).Error("failed to handle block device")
+				return err
+			}
+			Log.Info("succeeded to handle block device")
 
-		execData.BlkDev = block.BlkDevice.Device
+			execData.BlkDev = block.BlkDevice.Device
+		}
 	}
+
 	Log.Info("creating tap device")
 	// let's create the tap device
 	networkInfo, err := unet.Setup()
