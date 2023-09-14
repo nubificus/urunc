@@ -1,0 +1,86 @@
+name: Build
+
+on:
+  push:
+      branches:
+        - main
+        - pre_alpha_debug
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: [ self-hosted, "${{ matrix.archconfig }}", go]
+    strategy:
+      matrix:
+        archconfig: [ x86_64, aarch64 ]
+      fail-fast: false
+    
+    steps:
+    - name: Cleanup previous jobs
+      run: |
+        echo "Cleaning up previous runs"
+        sudo rm -rf ${{ github.workspace }}/*
+        sudo rm -rf ${{ github.workspace }}/.??*
+        
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Display Go version
+      run: |
+        go version
+
+    - name: Find SHA
+      run: |
+        if [[ "${{github.event.pull_request.head.sha}}" != "" ]]
+        then
+          echo "ARTIFACT_SHA=$(echo ${{github.event.pull_request.head.ref}})" >> $GITHUB_ENV
+        else
+          echo "ARTIFACT_SHA=$(echo ${GITHUB_REF##*/})" >> $GITHUB_ENV
+        fi
+
+    - name: Build bima binaries
+      run: |
+        make all
+
+    - name: Upload urunc_aarch64 to S3
+      if: matrix.archconfig == 'aarch64'
+      uses: cloudkernels/minio-upload@v3
+      with:
+        url: https://s3.nubificus.co.uk
+        access-key: ${{ secrets.AWS_ACCESS_KEY }}
+        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        local-path: dist/urunc_aarch64
+        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        policy: 1
+
+    - name: Upload urunc_amd64 to S3
+      if: matrix.archconfig == 'x86_64'
+      uses: cloudkernels/minio-upload@v3
+      with:
+        url: https://s3.nubificus.co.uk
+        access-key: ${{ secrets.AWS_ACCESS_KEY }}
+        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        local-path: dist/urunc_amd64
+        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        policy: 1
+
+    - name: Upload containerd-shim-urunc-v2_aarch64 to S3
+      if: matrix.archconfig == 'aarch64'
+      uses: cloudkernels/minio-upload@v3
+      with:
+        url: https://s3.nubificus.co.uk
+        access-key: ${{ secrets.AWS_ACCESS_KEY }}
+        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        local-path: dist/containerd-shim-urunc-v2_aarch64
+        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        policy: 1
+
+    - name: Upload containerd-shim-urunc-v2_amd64 to S3
+      if: matrix.archconfig == 'x86_64'
+      uses: cloudkernels/minio-upload@v3
+      with:
+        url: https://s3.nubificus.co.uk
+        access-key: ${{ secrets.AWS_ACCESS_KEY }}
+        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        local-path: dist/containerd-shim-urunc-v2_amd64
+        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        policy: 1

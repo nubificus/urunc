@@ -1,0 +1,16 @@
+linters:
+  enable:
+  - errcheck
+  - gofmt
+  - goimports
+  - gosec
+  - gocritic
+  - misspell
+  - revive
+  - unused
+output:
+  uniq-by-line: false
+
+run:
+  issues-exit-code: 1
+  timeout: 5m

@@ -1,0 +1,11 @@
+[Unit]
+Description=Devmapper reload script
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/scripts/dm_reload.sh
+User=root
+
+[Install]
+WantedBy=multi-user.target
