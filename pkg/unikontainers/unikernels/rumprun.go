@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: move unikernel specific logic to a discrete pkg once the details are ironed out
-package hypervisors
+package unikernels
 
 import (
 	"encoding/json"
 	"fmt"
-
-	unet "github.com/nubificus/urunc/pkg/network"
 )
 
-type RumprunConfig struct {
+const RumprunUnikernel UnikernelType = "rumprun"
+
+type Rumprun struct {
 	Command string     `json:"cmdline"`
 	Net     RumprunNet `json:"net"`
+	Blk     RumprunBlk `json:"blk"`
+}
+
+type RumprunNoNet struct {
+	Command string     `json:"cmdline"`
 	Blk     RumprunBlk `json:"blk"`
 }
 
@@ -49,7 +53,20 @@ type RumprunBlk struct {
 	Mountpoint string `json:"mountpoint"`
 }
 
-func (r RumprunConfig) ToJSONString() (string, error) {
+func (r Rumprun) CommandString() (string, error) {
+	// if EthDeviceMask is empty, there is no network support. omit every relevant field
+	if r.Net.Mask == "" {
+		tmp := RumprunNoNet{
+			Command: r.Command,
+			Blk:     r.Blk,
+		}
+		jsonData, err := json.Marshal(tmp)
+		if err != nil {
+			return "", err
+		}
+		jsonStr := string(jsonData)
+		return jsonStr, nil
+	}
 	jsonData, err := json.Marshal(r)
 	if err != nil {
 		return "", err
@@ -58,27 +75,40 @@ func (r RumprunConfig) ToJSONString() (string, error) {
 	return jsonStr, nil
 }
 
-func NewRumprunConfig(data ExecData) (RumprunConfig, error) {
+func newRumprun(data UnikernelParams) (Rumprun, error) {
 	tempBlk := RumprunBlk{
 		Source:     "etfs",
 		Path:       "/dev/ld0a",
 		FsType:     "blk",
 		Mountpoint: "/data",
 	}
-	mask, err := unet.SubnetMaskToCIDR(data.Network.EthDevice.Mask)
+
+	// if EthDeviceMask is empty, there is no network support
+	if data.EthDeviceMask == "" {
+		return Rumprun{
+			Command: data.CmdLine,
+			Net:     RumprunNet{Mask: ""},
+			Blk:     tempBlk,
+		}, nil
+	}
+
+	// FIXME: in the case of rumprun & k8s, we need to explicitly set the mask
+	// to an inclusive value (eg 1 or 0), as NetBSD complains and does not set the default gw
+	// if it is not reachable from the IP address directly.
+	mask, err := subnetMaskToCIDR(data.EthDeviceMask)
 	if err != nil {
-		return RumprunConfig{}, err
+		return Rumprun{}, err
 	}
 	tempNet := RumprunNet{
 		Interface: "ukvmif0",
 		Cloner:    "True",
 		Type:      "inet",
 		Method:    "static",
-		Address:   data.Network.EthDevice.IP,
+		Address:   data.EthDeviceIP,
 		Mask:      fmt.Sprintf("%d", mask),
-		Gateway:   data.Network.EthDevice.DefaultGateway,
+		Gateway:   data.EthDeviceGateway,
 	}
-	return RumprunConfig{
+	return Rumprun{
 		Command: data.CmdLine,
 		Net:     tempNet,
 		Blk:     tempBlk,

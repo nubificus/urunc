@@ -49,29 +49,12 @@ func (h *HVT) Ok() error {
 	return nil
 }
 
-// Execve executes the hvt binary with the provided execution data.
-func (h *HVT) Execve(data ExecData) error {
-	// TODO: Perhaps let the user define mem value somehow (?)
+func (h *HVT) Execve(args ExecArgs) error {
 	cmdString := h.binaryPath + " --mem=512"
-	if data.TapDev != "" {
-		cmdString += " --net=" + data.TapDev
-	}
-	if data.BlkDev != "" {
-		cmdString += " --disk=" + data.BlkDev
-	}
-
-	// TODO: Implement a mechanism to distinguish between unikernel types (eg rumprun unikraft etc)
-	// Create a Rumprun configuration and convert it to JSON
-	rumprunConfig, err := NewRumprunConfig(data)
-	if err != nil {
-		return err
-	}
-	unikernelCmd, err := rumprunConfig.ToJSONString()
-	if err != nil {
-		return err
-	}
-	cmdString += " " + data.Unikernel + " " + unikernelCmd
-	vmmLog.WithField("hvt command", cmdString).WithField("IP", data.Network.EthDevice.IP).Debug("Ready to execve hvt")
-	args := strings.Split(cmdString, " ")
-	return syscall.Exec(h.binaryPath, args, data.Environment) //nolint: gosec
+	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
+	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
+	cmdString += " " + args.UnikernelPath + " " + args.Command
+	cmdArgs := strings.Split(cmdString, " ")
+	vmmLog.WithField("hvt command", cmdString).Error("Ready to execve hvt")
+	return syscall.Exec(h.binaryPath, cmdArgs, args.Environment) //nolint: gosec
 }

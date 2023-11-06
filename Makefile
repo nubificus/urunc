@@ -8,11 +8,10 @@ default: build ;
 prepare:
 	@go mod tidy
 	@go mod vendor
-	@mkdir -p bin
 	
 urunc: prepare
 	GOOS=linux CGO_ENABLED=0 go build -ldflags "-s -w" -ldflags "-w" -ldflags "-linkmode 'external' -extldflags '-static'" \
-          -ldflags "-X main.version=${VERSION}" -o dist/urunc_${ARCH}
+          -ldflags "-X main.version=${VERSION}" -o dist/urunc_${ARCH} ./cmd/urunc
 
 shim: prepare
 	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' vendor/github.com/containerd/go-runc/runc.go
@@ -34,7 +33,7 @@ uninstall:
 
 urunc_aarch64: prepare
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w" -ldflags "-w" -ldflags "-linkmode 'external' -extldflags '-static'" \
-			-ldflags "-X main.version=${VERSION}" -o dist/urunc_aarch64
+			-ldflags "-X main.version=${VERSION}" -o dist/urunc_aarch64 ./cmd/urunc
 
 shim_aarch64: prepare
 	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' vendor/github.com/containerd/go-runc/runc.go
@@ -42,7 +41,7 @@ shim_aarch64: prepare
 
 urunc_amd64: prepare
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -ldflags "-w" -ldflags "-linkmode 'external' -extldflags '-static'" \
-			-ldflags "-X main.version=${VERSION}" -o dist/urunc_amd64
+			-ldflags "-X main.version=${VERSION}" -o dist/urunc_amd64 ./cmd/urunc
 
 shim_amd64: prepare
 	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' vendor/github.com/containerd/go-runc/runc.go

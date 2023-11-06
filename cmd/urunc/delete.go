@@ -15,6 +15,10 @@
 package main
 
 import (
+	"os"
+
+	"github.com/nubificus/urunc/pkg/unikontainers"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -38,17 +42,34 @@ status of "ubuntu01" as "stopped" the following will delete resources held for
 		},
 	},
 	Action: func(context *cli.Context) error {
+		logrus.WithField("args", os.Args).Info("urunc INVOKED")
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}
-		if err := handleNonBimaContainer(context); err != nil {
+		err := handleNonBimaContainer(context)
+		if err != nil {
 			return err
 		}
-
-		if err := deleteUnikernelContainer(context); err != nil {
-			Log.WithError(err).Error("Failed to delete")
-			return err
-		}
-		return nil
+		return deleteUnikernelContainer(context)
 	},
+}
+
+func deleteUnikernelContainer(context *cli.Context) error {
+	containerID := context.Args().First()
+	rootDir := context.GlobalString("root")
+	if rootDir == "" {
+		rootDir = "/run/urunc"
+	}
+	// get Unikontainer data from state.json
+	unikontainer, err := unikontainers.Get(containerID, rootDir)
+	if err != nil {
+		return err
+	}
+	if context.Bool("force") {
+		err := unikontainer.Kill()
+		if err != nil {
+			return err
+		}
+	}
+	return unikontainer.Delete()
 }

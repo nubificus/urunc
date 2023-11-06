@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/containerd/containerd v1.6.10
 	github.com/creack/pty v1.1.11
-	github.com/hpcloud/tail v1.0.0
 	github.com/jackpal/gateway v1.0.10
 	github.com/moby/sys/mount v0.3.3
 	github.com/nubificus/hedge_cli v0.0.3
@@ -52,6 +51,4 @@ require (
 	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
 	google.golang.org/grpc v1.47.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/fsnotify.v1 v1.4.7 // indirect
-	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )

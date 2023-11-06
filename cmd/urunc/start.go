@@ -15,6 +15,10 @@
 package main
 
 import (
+	"os"
+
+	"github.com/nubificus/urunc/pkg/unikontainers"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -28,12 +32,34 @@ are starting. The name you provide for the container instance must be unique on
 your host.`,
 	Description: `The start command executes the user defined process in a created container.`,
 	Action: func(context *cli.Context) error {
+		// FIXME: Remove or change level of log
+		logrus.WithField("args", os.Args).Info("urunc INVOKED")
+
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}
-		if err := handleNonBimaContainer(context); err != nil {
+		err := handleNonBimaContainer(context)
+		if err != nil {
 			return err
 		}
-		return startUnikernelContainer(context)
+		return startUnikontainer(context)
 	},
+}
+
+func startUnikontainer(context *cli.Context) error {
+	containerID := context.Args().First()
+	rootDir := context.GlobalString("root")
+	if rootDir == "" {
+		rootDir = "/run/urunc"
+	}
+	// get Unikontainer data from state.json
+	unikontainer, err := unikontainers.Get(containerID, rootDir)
+	if err != nil {
+		return err
+	}
+	err = unikontainer.SendStartExecve()
+	if err != nil {
+		return err
+	}
+	return unikontainer.ExecuteHooks("Poststart")
 }
