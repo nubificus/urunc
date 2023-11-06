@@ -24,6 +24,14 @@ sudo apt-get update
 sudo apt-get upgrade -y
 ```
 
+### Install required apt packages
+
+The following apt packages are required to complete the installation. Depending on your specific needs, some of them may not be neccessary in your use case.
+
+```bash
+sudo apt-get install git wget bc make build-essential -y
+```
+
 ### Install Go
 
 To install Go 1.20.6:
@@ -35,6 +43,7 @@ sudo tar -C /usr/local -xzf go1.20.6.linux-$(dpkg --print-architecture).tar.gz
 sudo tee -a /etc/profile > /dev/null << 'EOT'
 export PATH=$PATH:/usr/local/go/bin
 EOT
+rm -f go1.20.6.linux-$(dpkg --print-architecture).tar.gz
 ```
 
 
@@ -185,14 +194,21 @@ Now, we are ready to build and run our unikernel images!
 
 ## Run an example unikernel
 
-### Install solo5-hvt 
+### Install solo5-hvt
 
-First, let's download and install `solo5-hvt`.
+First, let's install the apt packages required to build solo5:
 
 ```bash
-curl -L -o solo5-hvt https://s3.nubificus.co.uk/bima/$(uname -m)/solo5
-sudo mv solo5-hvt /usr/local/bin
-sudo chmod +x /usr/local/bin/solo5-hvt
+sudo apt-get install libseccomp-dev pkg-config gcc -y
+```
+
+Next, we can clone, build and install `solo5-hvt`.
+
+```bash
+git clone -b v0.6.9 https://github.com/Solo5/solo5.git
+cd solo5
+./configure.sh  && make -j$(nproc)
+sudo cp tenders/hvt/solo5-hvt /usr/local/bin
 ```
 
 ### Run a redis unikernel
@@ -200,5 +216,5 @@ sudo chmod +x /usr/local/bin/solo5-hvt
 Now, let's run a unikernel image:
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/redis-hvt:annotated unikernel
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest unikernel
 ```
