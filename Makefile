@@ -48,3 +48,21 @@ shim_amd64: prepare
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/containerd-shim-urunc-v2_amd64 ./cmd/containerd-shim-urunc-v2
 
 all: urunc_aarch64 shim_aarch64 urunc_amd64 shim_amd64
+
+test_nerdctl:
+	@echo "Testing nerdctl"
+	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/nerdctl -v
+	@echo " "
+
+test_ctr:
+	@echo "Testing ctr"
+	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/ctr -v
+	@echo " "
+
+test_crictl:
+	@echo "Testing crictl"
+	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/crictl -v
+	@echo " "
+
+test: test_nerdctl test_ctr test_crictl
+	-@echo "DONE"
