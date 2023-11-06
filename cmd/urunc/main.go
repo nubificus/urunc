@@ -17,14 +17,17 @@ package main
 import (
 	"errors"
 	"io"
+	"log"
+	"log/syslog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
-	l "github.com/nubificus/urunc/internal/log"
 	"github.com/sirupsen/logrus"
+	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
+
 	"github.com/urfave/cli"
 )
 
@@ -50,19 +53,14 @@ your host. Providing the bundle directory using "-b" is optional. The default
 value for "bundle" is the current directory.`
 )
 
-var Log = l.BaseLogEntry()
 var version string
 
 func main() {
-	Log.WithField("args", os.Args).Info("urunc INVOKED")
-	// to previous line
-
+	root := "/run/urunc"
 	app := cli.NewApp()
 	app.Name = "urunc"
 	app.Usage = usage
 	app.Version = version
-
-	root := "/run/urunc"
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "debug",
@@ -83,11 +81,6 @@ func main() {
 			Value: root,
 			Usage: "root directory for storage of container state (this should be located in tmpfs)",
 		},
-		cli.StringFlag{
-			Name:   "criu",
-			Usage:  "(obsoleted; do not use)",
-			Hidden: true,
-		},
 		cli.BoolFlag{
 			Name:  "systemd-cgroup",
 			Usage: "enable systemd cgroup support, expects cgroupsPath to be of form \"slice:prefix:name\" for e.g. \"system.slice:runc:434234\"",
@@ -98,25 +91,14 @@ func main() {
 			Usage: "ignore cgroup permission errors ('true', 'false', or 'auto')",
 		},
 	}
-
 	app.Commands = []cli.Command{
-		// checkpointCommand,
 		createCommand,
 		deleteCommand,
-		// eventsCommand,
-		// execCommand,
 		killCommand,
-		// listCommand,
-		// pauseCommand,
-		// psCommand,
-		// restoreCommand,
-		// resumeCommand,
 		runCommand,
 		// specCommand,
 		startCommand,
-		// stateCommand, TODO: Add state
-		// updateCommand,
-		// featuresCommand,
+		// stateCommand,
 	}
 	app.Before = func(context *cli.Context) error {
 		if err := reviseRootDir(context); err != nil {
@@ -131,10 +113,8 @@ func main() {
 	cli.ErrWriter = &FatalWriter{cli.ErrWriter}
 
 	if err := app.Run(os.Args); err != nil {
-		Log.Error(err.Error())
 		fatal(err)
 	}
-	Log.Info("==========================================================")
 }
 
 type FatalWriter struct {
@@ -147,6 +127,29 @@ func (f *FatalWriter) Write(p []byte) (n int, err error) {
 		return f.cliErrWriter.Write(p)
 	}
 	return len(p), nil
+}
+
+// reviseRootDir ensures that the --root option argument,
+// if specified, is converted to an absolute and cleaned path,
+// and that this path is sane.
+func reviseRootDir(context *cli.Context) error {
+	if !context.IsSet("root") {
+		return nil
+	}
+	root, err := filepath.Abs(context.GlobalString("root"))
+	if err != nil {
+		return err
+	}
+	if root == "/" {
+		// This can happen if --root argument is
+		//  - "" (i.e. empty);
+		//  - "." (and the CWD is /);
+		//  - "../../.." (enough to get to /);
+		//  - "/" (the actual /).
+		return errors.New("option --root argument should not be set to /")
+	}
+
+	return context.GlobalSet("root", root)
 }
 
 func configLogrus(context *cli.Context) error {
@@ -177,6 +180,11 @@ func configLogrus(context *cli.Context) error {
 	default:
 		return errors.New("invalid log-format: " + f)
 	}
+	hook, err := lSyslog.NewSyslogHook("", "", syslog.LOG_DEBUG, "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	logrus.AddHook(hook)
 
 	if file := context.GlobalString("log"); file != "" {
 		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0o644)

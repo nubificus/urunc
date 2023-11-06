@@ -14,10 +14,7 @@
 
 package hypervisors
 
-import (
-	"strings"
-	"syscall"
-)
+import "fmt"
 
 const (
 	QemuVmm    VmmType = "qemu"
@@ -40,20 +37,6 @@ func (q *Qemu) Path() string {
 	return q.binaryPath
 }
 
-func (q *Qemu) Execve(data ExecData) error {
-	cmdString := q.Path() + " --mem=16"
-	if data.BlkDev != "" {
-		cmdString += " --disk=" + data.BlkDev
-	}
-	if data.TapDev != "" {
-		cmdString += " --net=" + data.TapDev
-	}
-	// TODO: Add cmdline
-
-	cmdString += " " + data.Unikernel
-	vmmLog.Info(cmdString)
-
-	args := strings.Split(cmdString, " ")
-	vmmLog.Info(args)
-	return syscall.Exec(q.Path(), args, data.Environment) //nolint: gosec
+func (q *Qemu) Execve(_ ExecArgs) error {
+	return fmt.Errorf("qemu execve not implemented")
 }

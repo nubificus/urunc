@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package unikontainers
 
 import (
 	"encoding/base64"
@@ -29,7 +29,7 @@ import (
 
 var ErrEmptyAnnotations = errors.New("spec annotations are empty")
 
-// A config struct that holds the necessary info on how to execute our unikernel
+// A UnikernelConfig struct holds the info provided by bima image on how to execute our unikernel
 type UnikernelConfig struct {
 	UnikernelType   string `json:"com.urunc.unikernel.unikernelType"`
 	UnikernelCmd    string `json:"com.urunc.unikernel.cmdline,omitempty"`
@@ -37,8 +37,10 @@ type UnikernelConfig struct {
 	Hypervisor      string `json:"com.urunc.unikernel.hypervisor"`
 }
 
-// GetUnikernelConfig tries to get the Unikernel config from the bundle annotation.
+// GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
 // If that fails, it gets the Unikernel config from the urunc.json file inside the rootfs.
+// FIXME: custom annotations are unreachable, we nned to investigate why to skip adding the urunc.json file
+// For more details, see: https://github.com/nubificus/urunc/issues/12
 func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, error) {
 	conf, err := getConfigFromSpec(spec)
 	if err == nil {
@@ -73,8 +75,6 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	if conf == "" {
 		return nil, ErrEmptyAnnotations
 	}
-
-	Log.Info("Found urunc config in spec annotations")
 	return &UnikernelConfig{
 		UnikernelBinary: unikernelBinary,
 		UnikernelType:   unikernelType,
@@ -110,43 +110,43 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	Log.WithField("config", conf).Info("Found urunc config in urunc.json")
+	Log.WithFields(logrus.Fields{
+		"unikernelType":   conf.UnikernelType,
+		"unikernelCmd":    conf.UnikernelCmd,
+		"unikernelBinary": conf.UnikernelBinary,
+		"hypervisor":      conf.Hypervisor,
+	}).Info("urunc.json annotations")
 	return &conf, nil
 }
 
-// Decodes the base64 encoded values of the Unikernel config
+// decode decodes the base64 encoded values of the Unikernel config
 func (c *UnikernelConfig) decode() {
 	decoded, err := base64.StdEncoding.DecodeString(c.UnikernelCmd)
 	if err != nil {
-		Log.Error(err.Error())
-		return
+		Log.WithError(err).Fatal("failed to decode UnikernelCmd")
 	}
 	c.UnikernelCmd = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.Hypervisor)
 	if err != nil {
-		Log.Error(err.Error())
-		return
+		Log.WithError(err).Fatal("failed to decode Hypervisor")
 	}
 	c.Hypervisor = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.UnikernelType)
 	if err != nil {
-		Log.Error(err.Error())
-		return
+		Log.WithError(err).Fatal("failed to decode UnikernelType")
 	}
 	c.UnikernelType = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.UnikernelBinary)
 	if err != nil {
-		Log.Error(err.Error())
-		return
+		Log.WithError(err).Fatal("failed to decode UnikernelBinary")
 	}
 	c.UnikernelBinary = string(decoded)
 }
 
-// Returns a map containing the Unikernel config data
+// Map returns a map containing the Unikernel config data
 func (c *UnikernelConfig) Map() map[string]string {
 	myMap := make(map[string]string)
 	if c.UnikernelCmd != "" {
@@ -162,11 +162,4 @@ func (c *UnikernelConfig) Map() map[string]string {
 		myMap["com.urunc.unikernel.binary"] = c.UnikernelBinary
 	}
 	return myMap
-}
-
-type UruncConfig struct {
-	UnikernelBinary string
-	VmmType         string
-	UnikernelCmd    string
-	IsSet           bool
 }

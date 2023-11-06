@@ -12,16 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package constants
+package hypervisors
 
-const (
-	// StateCreating indicates that the container is being created.
-	StateCreating string = "creating"
-	// StateCreated indicates that the runtime has finished the create operation.
-	StateCreated string = "created"
-	// StateRunning indicates that the container process has executed the
-	// user-specified program but has not exited.
-	StateRunning string = "running"
-	// StateStopped indicates that the container process has exited.
-	StateStopped string = "stopped"
-)
+import "runtime"
+
+func cpuArch() string {
+	switch runtime.GOARCH {
+	case "arm64":
+		return "aarch64"
+	case "amd64":
+		return "x86_64"
+	default:
+		return ""
+	}
+}
+
+func appendNonEmpty(body, prefix, value string) string {
+	if value != "" {
+		return body + prefix + value
+	}
+	return body
+}

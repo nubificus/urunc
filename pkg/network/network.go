@@ -25,14 +25,17 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/jackpal/gateway"
-	"github.com/nubificus/urunc/internal/log"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
+// FIXME: Add support for more interfaces. See: https://github.com/nubificus/urunc/issues/13
+// FIXME: Discover the veth endpoint name instead of using default "eth0". See: https://github.com/nubificus/urunc/issues/14
 const DefaultInterface = "eth0"
 const DefaultTap = "tap0_urunc"
 
-var netLog = log.BaseLogEntry().WithField("subsystem", "network")
+var ErrEth0NotFound = errors.New("eth0 device not found")
+var netLog = logrus.WithField("subsystem", "network")
 
 type UnikernelNetworkInfo struct {
 	TapDevice string
@@ -95,6 +98,10 @@ func getInterfaceInfo(iface string) (InterfaceInfo, error) {
 // Setup creates a tap device and sets tc rules between veth interface inside the namespace to the tap device.
 func Setup() (*UnikernelNetworkInfo, error) {
 	vethDevName, err := GetVethDevice()
+	if err == ErrEth0NotFound {
+		netLog.Info("No eth0 device found")
+		return nil, nil
+	}
 	if err != nil {
 		netLog.WithError(err).Error("Couldn't find eth0 interface")
 		return nil, err
@@ -171,7 +178,8 @@ func GetVethDevice() (string, error) {
 			return iface.Name, nil
 		}
 	}
-	return "", errors.New("eth0 device not found")
+	return "", ErrEth0NotFound
+
 }
 
 type LinkNotFoundError struct {
@@ -285,23 +293,24 @@ func AddRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) error {
 	return err
 }
 
-func SubnetMaskToCIDR(subnetMask string) (int, error) {
-	maskParts := strings.Split(subnetMask, ".")
-	if len(maskParts) != 4 {
-		return 0, fmt.Errorf("invalid subnet mask format")
-	}
+// FIXME: Remove
+// func SubnetMaskToCIDR(subnetMask string) (int, error) {
+// 	maskParts := strings.Split(subnetMask, ".")
+// 	if len(maskParts) != 4 {
+// 		return 0, fmt.Errorf("invalid subnet mask format")
+// 	}
 
-	var cidr int
-	for _, part := range maskParts {
-		val, err := strconv.Atoi(part)
-		if err != nil || val < 0 || val > 255 {
-			return 0, fmt.Errorf("invalid subnet mask value: %s", part)
-		}
+// 	var cidr int
+// 	for _, part := range maskParts {
+// 		val, err := strconv.Atoi(part)
+// 		if err != nil || val < 0 || val > 255 {
+// 			return 0, fmt.Errorf("invalid subnet mask value: %s", part)
+// 		}
 
-		// Convert part to binary and count the number of 1 bits
-		binary := fmt.Sprintf("%08b", val)
-		cidr += strings.Count(binary, "1")
-	}
+// 		// Convert part to binary and count the number of 1 bits
+// 		binary := fmt.Sprintf("%08b", val)
+// 		cidr += strings.Count(binary, "1")
+// 	}
 
-	return cidr, nil
-}
+// 	return cidr, nil
+// }
