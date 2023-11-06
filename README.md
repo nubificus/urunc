@@ -54,7 +54,7 @@ To run a simple `urunc` example locally, you need to address a few dependencies:
 If you already have these requirements, you can run a test container using `nerdctl`:
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/redis-hvt:annotated unikernel
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest unikernel
 ```
 
 ![demo](docs/img/urunc-nerdctl-example.gif)
@@ -66,6 +66,18 @@ The setup process may differ depending on your system and requirements. A full s
 ## Running on k8s
 
 To use `urunc` with an existing Kubernetes cluster, you can follow the [instructions in the docs](docs/How-to-urunc-on-k8s.md).
+
+## Linting
+
+To locally lint the source code using Docker, run:
+
+```bash
+git clone https://github.com/nubificus/urunc.git
+cd urunc
+docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint:v1.53.3 golangci-lint run -v --timeout=5m
+# OR
+sudo nerdctl run --rm -v $(pwd):/app -w /app golangci/golangci-lint:v1.53.3 golangci-lint run -v --timeout=5m
+```
 
 ## License
 
