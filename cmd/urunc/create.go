@@ -107,6 +107,25 @@ func createUnikontainer(context *cli.Context) error {
 		return err
 	}
 
+	// Setup a listener for init socket before the creation of reexec process
+	sockAddr := unikontainer.GetInitSockAddr()
+	listener, err := unikontainers.CreateListener(sockAddr, true)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = listener.Close()
+		if err != nil {
+			logrus.WithError(err).Error("failed to close listener")
+		}
+	}()
+	defer func() {
+		err = syscall.Unlink(sockAddr)
+		if err != nil {
+			logrus.WithError(err).Errorf("failed to unlink %s", sockAddr)
+		}
+	}()
+
 	// create reexec process
 	selfBinary, err := os.Executable()
 	if err != nil {
@@ -159,8 +178,7 @@ func createUnikontainer(context *cli.Context) error {
 	}
 
 	// Wait for reexec process to notify us
-	socketPath := unikontainer.GetInitSockAddr()
-	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.ReexecStarted)
+	err = unikontainers.AwaitMessage(listener, unikontainers.ReexecStarted)
 	if err != nil {
 		return err
 	}
