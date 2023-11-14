@@ -407,25 +407,34 @@ func loadUnikontainerState(stateFilePath string) (*specs.State, error) {
 	return &state, nil
 }
 
-// AwaitReexecStarted opens a new connection to InitSock and
-// waits for a ReexecStarted message
-func (u *Unikontainer) AwaitReexecStarted() error {
-	sockAddr := getInitSockAddr(u.BaseDir)
-	return awaitMessage(sockAddr, ReexecStarted, true)
+func (u *Unikontainer) GetInitSockAddr() string {
+	return getSockAddr(u.BaseDir, initSock)
 }
 
-// AwaitAckReexec opens a new connection to UruncSock and
-// waits for a AckReexec message
-func (u *Unikontainer) AwaitAckReexec() error {
-	sockAddr := getUruncSockAddr(u.BaseDir)
-	return awaitMessage(sockAddr, AckReexec, true)
+func (u *Unikontainer) GetUruncSockAddr() string {
+	return getSockAddr(u.BaseDir, uruncSock)
 }
 
-// AwaitStartExecve opens a new connection to UruncSock and
-// waits for a StartExecve message
-func (u *Unikontainer) AwaitStartExecve() error {
-	sockAddr := getUruncSockAddr(u.BaseDir)
-	return awaitMessage(sockAddr, StartExecve, true)
+// ListeAndAwaitMsg opens a new connection to UruncSock and
+// waits for the expectedMsg message
+func (u *Unikontainer) ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error {
+	listener, err := CreateListener(sockAddr, true)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = listener.Close()
+		if err != nil {
+			logrus.WithError(err).Error("failed to close listener")
+		}
+	}()
+	defer func() {
+		err = syscall.Unlink(sockAddr)
+		if err != nil {
+			logrus.WithError(err).Errorf("failed to unlink %s", sockAddr)
+		}
+	}()
+	return AwaitMessage(listener, msg)
 }
 
 // SendReexecStarted sends an ReexecStarted message to InitSock
