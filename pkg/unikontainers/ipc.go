@@ -21,7 +21,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -124,25 +123,21 @@ func sendIPCMessageWithRetry(socketAddress string, message IPCMessage, mustBeVal
 	return err
 }
 
-// awaitMessage opens a new connection to socketAddress
-// and waits for a given message
-func awaitMessage(socketAddress string, expectedMessage IPCMessage, mustBeValid bool) error {
+// createListener sets up a listener for new connection to socketAddress
+func CreateListener(socketAddress string, mustBeValid bool) (*net.UnixListener, error) {
 	if mustBeValid {
 		err := ensureValidSockAddr(socketAddress)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: socketAddress, Net: "unix"})
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = listener.Close()
-		if err != nil {
-			logrus.WithError(err).Error("failed to close listener")
-		}
-	}()
+
+	return net.ListenUnix("unix", &net.UnixAddr{Name: socketAddress, Net: "unix"})
+}
+
+// awaitMessage opens a new connection to socketAddress
+// and waits for a given message
+func AwaitMessage(listener *net.UnixListener, expectedMessage IPCMessage) error {
 	conn, err := listener.AcceptUnix()
 	if err != nil {
 		return err
@@ -151,12 +146,6 @@ func awaitMessage(socketAddress string, expectedMessage IPCMessage, mustBeValid 
 		err = conn.Close()
 		if err != nil {
 			logrus.WithError(err).Error("failed to close connection")
-		}
-	}()
-	defer func() {
-		err = syscall.Unlink(socketAddress)
-		if err != nil {
-			logrus.WithError(err).Errorf("failed to unlink %s", socketAddress)
 		}
 	}()
 	buf := make([]byte, len(expectedMessage))

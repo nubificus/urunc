@@ -159,7 +159,8 @@ func createUnikontainer(context *cli.Context) error {
 	}
 
 	// Wait for reexec process to notify us
-	err = unikontainer.AwaitReexecStarted()
+	socketPath := unikontainer.GetInitSockAddr()
+	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.ReexecStarted)
 	if err != nil {
 		return err
 	}
@@ -216,13 +217,14 @@ func reexecUnikontainer(context *cli.Context) error {
 	}
 
 	// wait AckReexec message on urunc.sock from parent process
-	err = unikontainer.AwaitAckReexec()
+	socketPath := unikontainer.GetUruncSockAddr()
+	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.AckReexec)
 	if err != nil {
 		return err
 	}
 
 	// wait StartExecve message on urunc.sock from urunc start process
-	err = unikontainer.AwaitStartExecve()
+	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.StartExecve)
 	if err != nil {
 		return err
 	}
