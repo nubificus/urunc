@@ -14,7 +14,10 @@
 
 package hypervisors
 
-import "fmt"
+import (
+	"strings"
+	"syscall"
+)
 
 const (
 	QemuVmm    VmmType = "qemu"
@@ -37,6 +40,17 @@ func (q *Qemu) Path() string {
 	return q.binaryPath
 }
 
-func (q *Qemu) Execve(_ ExecArgs) error {
-	return fmt.Errorf("qemu execve not implemented")
+func (q *Qemu) Execve(args ExecArgs) error {
+	cmdString := q.Path() + " -cpu host -m 512 -enable-kvm -nographic -vga none"
+	cmdString += " -kernel " + args.UnikernelPath
+	if args.TapDevice != "" {
+		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + args.TapDevice
+	}
+	if args.BlockDevice != "" {
+		cmdString += " -initrd " + args.BlockDevice
+	}
+	exArgs := strings.Split(cmdString, " ")
+	exArgs = append(exArgs, "-append", args.Command)
+	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")
+	return syscall.Exec(q.Path(), exArgs, args.Environment) //nolint: gosec
 }

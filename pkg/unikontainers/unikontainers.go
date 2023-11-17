@@ -135,6 +135,9 @@ func (u *Unikontainer) Exec() error {
 	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
 	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
+	// TODO: Hardcoded, we might want to allow the user to specify the
+	// address of the initrd file
+	InitrdPath := filepath.Join(rootfsDir, "/initrd")
 	unikernelAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.binary"])
 
 	// populate vmm args
@@ -171,39 +174,50 @@ func (u *Unikontainer) Exec() error {
 	}
 
 	// handle storage
-	rootFsDevice, err := getBlockDevice(rootfsDir)
-	if err != nil {
-		return err
-	}
-	if rootFsDevice.IsBlock {
-		Log.WithFields(logrus.Fields{"fstype": rootFsDevice.BlkDevice.Fstype,
-			"mountpoint": rootFsDevice.BlkDevice.Mountpoint,
-			"device":     rootFsDevice.BlkDevice.Device,
-		}).Debug("Found block device")
+	// TODO: THis needs better handling
+	if unikernelType == "unikraft" {
+		// For the time being, we only support initrd for Unikraft
+		// Check if an initrd file exists in the container rootfs
+		if _, err := os.Stat(InitrdPath); err == nil {
+			vmmArgs.BlockDevice = InitrdPath
+		} else {
+			vmmArgs.BlockDevice = ""
+		}
+	} else {
+		rootFsDevice, err := getBlockDevice(rootfsDir)
+		if err != nil {
+			return err
+		}
+		if rootFsDevice.IsBlock {
+			Log.WithFields(logrus.Fields{"fstype": rootFsDevice.BlkDevice.Fstype,
+				"mountpoint": rootFsDevice.BlkDevice.Mountpoint,
+				"device":     rootFsDevice.BlkDevice.Device,
+			}).Debug("Found block device")
 
-		// extract unikernel
-		// FIXME: This approach fills up /run with unikernel binaries and
-		// urunc.json files for each unikernel instance we run
-		err = u.extractUnikernelFromBlock("tmp")
-		if err != nil {
-			return err
+			// extract unikernel
+			// FIXME: This approach fills up /run with unikernel binaries and
+			// urunc.json files for each unikernel instance we run
+			err = u.extractUnikernelFromBlock("tmp")
+			if err != nil {
+				return err
+			}
+			// unmount block device
+			// FIXME: umount and rm might need some retries
+			err := mount.Unmount(rootfsDir)
+			if err != nil {
+				return err
+			}
+			// rename tmp to rootfs
+			err = os.Remove(rootfsDir)
+			if err != nil {
+				return err
+			}
+			err = os.Rename(filepath.Join(u.State.Bundle, "tmp"), rootfsDir)
+			if err != nil {
+				return err
+			}
+			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
 		}
-		// unmount block device
-		// FIXME: umount and rm might need some retries
-		err := mount.Unmount(rootfsDir)
-		if err != nil {
-			return err
-		}
-		// rename tmp to rootfs
-		err = os.Remove(rootfsDir)
-		if err != nil {
-			return err
-		}
-		err = os.Rename(filepath.Join(u.State.Bundle, "tmp"), rootfsDir)
-		if err != nil {
-			return err
-		}
-		vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
 	}
 
 	// get a new vmm
