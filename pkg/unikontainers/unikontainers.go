@@ -272,18 +272,15 @@ func (u *Unikontainer) Kill() error {
 
 // Delete removes the containers base directory and its contents
 func (u *Unikontainer) Delete() error {
-	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
 	if u.isRunning() {
 		return fmt.Errorf("cannot delete running unikernel: %s", u.State.ID)
 	}
-	err := mount.Unmount(rootfsDir)
-	if err != nil {
-		return err
-	}
-	err = os.RemoveAll(u.State.Bundle)
-	if err != nil {
-		return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
-	}
+	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
+	if unikernelType != "unikraft" {
+		err := os.RemoveAll(u.State.Bundle)
+		if err != nil {
+			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
+		}
 	return os.RemoveAll(u.BaseDir)
 }
 
