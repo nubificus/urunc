@@ -175,15 +175,7 @@ func (u *Unikontainer) Exec() error {
 
 	// handle storage
 	// TODO: THis needs better handling
-	if unikernelType == "unikraft" {
-		// For the time being, we only support initrd for Unikraft
-		// Check if an initrd file exists in the container rootfs
-		if _, err := os.Stat(InitrdPath); err == nil {
-			vmmArgs.BlockDevice = InitrdPath
-		} else {
-			vmmArgs.BlockDevice = ""
-		}
-	} else {
+	if unikernelType == "rumprun" {
 		rootFsDevice, err := getBlockDevice(rootfsDir)
 		if err != nil {
 			return err
@@ -217,6 +209,14 @@ func (u *Unikontainer) Exec() error {
 				return err
 			}
 			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
+		}
+	} else {
+		// For the time being, we only support initrd for Unikraft
+		// Check if an initrd file exists in the container rootfs
+		if _, err := os.Stat(InitrdPath); err == nil {
+			vmmArgs.BlockDevice = InitrdPath
+		} else {
+			vmmArgs.BlockDevice = ""
 		}
 	}
 
@@ -276,11 +276,12 @@ func (u *Unikontainer) Delete() error {
 		return fmt.Errorf("cannot delete running unikernel: %s", u.State.ID)
 	}
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
-	if unikernelType != "unikraft" {
+	if unikernelType == "rumprun" {
 		err := os.RemoveAll(u.State.Bundle)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}
+	}
 	return os.RemoveAll(u.BaseDir)
 }
 

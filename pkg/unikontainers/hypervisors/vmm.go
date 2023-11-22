@@ -72,6 +72,8 @@ func NewVMM(vmmType VmmType) (vmm VMM, err error) {
 			return nil, ErrVMMNotInstalled
 		}
 		return &hedge, nil
+	case NativeVmm:
+		return &Native{binary: "", binaryPath: ""}, nil
 	default:
 		return nil, fmt.Errorf("vmm \"%s\" is not supported", vmmType)
 	}
