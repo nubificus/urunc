@@ -281,6 +281,7 @@ func (u *Unikontainer) Delete() error {
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}
+	}
 	return os.RemoveAll(u.BaseDir)
 }
 
