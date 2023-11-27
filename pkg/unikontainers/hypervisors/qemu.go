@@ -47,6 +47,10 @@ func (q *Qemu) Execve(args ExecArgs) error {
 		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + args.TapDevice
 	}
 	if args.BlockDevice != "" {
+		// TODO: For the time being, we only have support for initrd with
+		// QEMU and Unikraft. THis needs to change, especially when we add
+		// more Unikernels. We will also need to separate the handling of
+		// initrd from the block device
 		cmdString += " -initrd " + args.BlockDevice
 	}
 	exArgs := strings.Split(cmdString, " ")

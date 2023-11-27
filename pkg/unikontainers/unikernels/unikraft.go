@@ -34,7 +34,7 @@ type UnikraftNet struct {
 
 type UnikraftBlk struct {
 	RootFs string
-	DevTag string //Will be used for the 9pfs
+	DevTag string // Will be used for the 9pfs
 }
 
 func newUnikraftCli(data UnikernelParams) (string, error) {
@@ -46,6 +46,8 @@ func newUnikraftCli(data UnikernelParams) (string, error) {
 	cli_opts.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
 	cli_opts.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
 
+	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
+	// and sharedfs or any other Unikraft related ways to pass data to guest.
 	cli_opts.Blk.RootFs = "vfs.rootfs=" + "initrd"
 	cli_opts.Blk.DevTag = ""
 

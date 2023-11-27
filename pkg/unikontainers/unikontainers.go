@@ -175,6 +175,10 @@ func (u *Unikontainer) Exec() error {
 
 	// handle storage
 	// TODO: THis needs better handling
+	// If we simply want to use the rootfs/initrd or share the FS with the
+	// guest, we do not need to pass the container rootfs in the Unikernel.
+	// THe user might already specified a specific file (initrd, block device,
+	// or shared FS) to pass data to the guest.
 	if unikernelType == "unikraft" {
 		// For the time being, we only support initrd for Unikraft
 		// Check if an initrd file exists in the container rootfs
