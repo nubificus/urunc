@@ -14,7 +14,10 @@
 
 package hypervisors
 
-import "fmt"
+import (
+	"strings"
+	"syscall"
+)
 
 const (
 	QemuVmm    VmmType = "qemu"
@@ -37,6 +40,23 @@ func (q *Qemu) Path() string {
 	return q.binaryPath
 }
 
-func (q *Qemu) Execve(_ ExecArgs) error {
-	return fmt.Errorf("qemu execve not implemented")
+func (q *Qemu) Execve(args ExecArgs) error {
+	cmdString := q.Path() + " -cpu host -m 254 -enable-kvm -nographic -vga none"
+	cmdString += " -kernel " + args.UnikernelPath
+	if args.TapDevice != "" {
+		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + args.TapDevice
+	}
+	if args.BlockDevice != "" {
+		// TODO: For the time being, we only have support for initrd with
+		// QEMU and Unikraft. We will need to add support for block device
+		// and other storage options in QEMU (e.g. shared fs)
+		vmmLog.Warn("Block device is currently not supported in QEMU execution")
+	}
+	if args.InitrdPath != "" {
+		cmdString += " -initrd " + args.InitrdPath
+	}
+	exArgs := strings.Split(cmdString, " ")
+	exArgs = append(exArgs, "-append", args.Command)
+	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")
+	return syscall.Exec(q.Path(), exArgs, args.Environment) //nolint: gosec
 }
