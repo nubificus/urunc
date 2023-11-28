@@ -181,41 +181,50 @@ func (u *Unikontainer) Exec() error {
 	} else {
 		unikernelParams.RootFSType = ""
 	}
-
 	// handle storage
-	rootFsDevice, err := getBlockDevice(rootfsDir)
-	if err != nil {
-		return err
-	}
-	if rootFsDevice.IsBlock {
-		Log.WithFields(logrus.Fields{"fstype": rootFsDevice.BlkDevice.Fstype,
-			"mountpoint": rootFsDevice.BlkDevice.Mountpoint,
-			"device":     rootFsDevice.BlkDevice.Device,
-		}).Debug("Found block device")
+	// TODO: This needs better handling
+	// If we simply want to use the rootfs/initrd or share the FS with the
+	// guest, we do not need to pass the container rootfs in the Unikernel.
+	// The user might already specified a specific file (initrd, block device,
+	// or shared FS) to pass data to the guest.
+	// TODO: This is not only the case for Unikraft, but for all invocations
+	// without devmapper. Therefore, we need to use a different check than the
+	// Unikernel type.
+	if unikernelType != "unikraft" {
+		rootFsDevice, err := getBlockDevice(rootfsDir)
+		if err != nil {
+			return err
+		}
+		if rootFsDevice.IsBlock {
+			Log.WithFields(logrus.Fields{"fstype": rootFsDevice.BlkDevice.Fstype,
+				"mountpoint": rootFsDevice.BlkDevice.Mountpoint,
+				"device":     rootFsDevice.BlkDevice.Device,
+			}).Debug("Found block device")
 
-		// extract unikernel
-		// FIXME: This approach fills up /run with unikernel binaries and
-		// urunc.json files for each unikernel instance we run
-		err = u.extractUnikernelFromBlock("tmp")
-		if err != nil {
-			return err
+			// extract unikernel
+			// FIXME: This approach fills up /run with unikernel binaries and
+			// urunc.json files for each unikernel instance we run
+			err = u.extractUnikernelFromBlock("tmp")
+			if err != nil {
+				return err
+			}
+			// unmount block device
+			// FIXME: umount and rm might need some retries
+			err := mount.Unmount(rootfsDir)
+			if err != nil {
+				return err
+			}
+			// rename tmp to rootfs
+			err = os.Remove(rootfsDir)
+			if err != nil {
+				return err
+			}
+			err = os.Rename(filepath.Join(u.State.Bundle, "tmp"), rootfsDir)
+			if err != nil {
+				return err
+			}
+			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
 		}
-		// unmount block device
-		// FIXME: umount and rm might need some retries
-		err := mount.Unmount(rootfsDir)
-		if err != nil {
-			return err
-		}
-		// rename tmp to rootfs
-		err = os.Remove(rootfsDir)
-		if err != nil {
-			return err
-		}
-		err = os.Rename(filepath.Join(u.State.Bundle, "tmp"), rootfsDir)
-		if err != nil {
-			return err
-		}
-		vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
 	}
 
 	// get a new vmm
@@ -273,9 +282,15 @@ func (u *Unikontainer) Delete() error {
 	if u.isRunning() {
 		return fmt.Errorf("cannot delete running unikernel: %s", u.State.ID)
 	}
-	err := os.RemoveAll(u.State.Bundle)
-	if err != nil {
-		return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
+	// TODO: This is not only the case for Unikraft, but for all invocations
+	// without devmapper. Therefore, we need to use a different check than the
+	// Unikernel type.
+	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
+	if unikernelType != "unikraft" {
+		err := os.RemoveAll(u.State.Bundle)
+		if err != nil {
+			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
+		}
 	}
 	return os.RemoveAll(u.BaseDir)
 }
