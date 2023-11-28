@@ -162,6 +162,9 @@ func (u *Unikontainer) Exec() error {
 	if networkInfo != nil {
 		vmmArgs.TapDevice = networkInfo.TapDevice
 		vmmArgs.IPAddress = networkInfo.EthDevice.IP
+		// The MAC address for the guest network device is the same as the
+		// ethernet device inside the namespace
+		vmmArgs.GuestMAC = networkInfo.EthDevice.MAC
 		unikernelParams.EthDeviceIP = networkInfo.EthDevice.IP
 		unikernelParams.EthDeviceMask = networkInfo.EthDevice.Mask
 		unikernelParams.EthDeviceGateway = networkInfo.EthDevice.DefaultGateway

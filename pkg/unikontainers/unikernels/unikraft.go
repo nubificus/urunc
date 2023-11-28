@@ -16,6 +16,7 @@ package unikernels
 
 import (
 	"fmt"
+	"strings"
 )
 
 const UnikraftUnikernel UnikernelType = "unikraft"
@@ -40,7 +41,9 @@ type UnikraftBlk struct {
 func newUnikraftCli(data UnikernelParams) (string, error) {
 	var cli_opts UnikraftCliOpts
 
-	cli_opts.Command = data.CmdLine
+	appName := data.CmdLine[:strings.Index(data.CmdLine, " ")]
+	cli_opts.Command = strings.TrimLeft(data.CmdLine, appName)
+	//cli_opts.Command = data.CmdLine
 
 	cli_opts.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
 	cli_opts.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
@@ -51,7 +54,8 @@ func newUnikraftCli(data UnikernelParams) (string, error) {
 	cli_opts.Blk.RootFs = "vfs.rootfs=" + "initrd"
 	cli_opts.Blk.DevTag = ""
 
-	return fmt.Sprintf("%s %s %s %s %s -- %s", cli_opts.Net.Address,
+	return fmt.Sprintf("%s %s %s %s %s %s -- %s", appName,
+						   cli_opts.Net.Address,
 						   cli_opts.Net.Gateway,
 						   cli_opts.Net.Mask,
 						   cli_opts.Blk.RootFs,

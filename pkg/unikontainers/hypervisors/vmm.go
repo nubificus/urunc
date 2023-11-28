@@ -31,6 +31,7 @@ type ExecArgs struct {
 	BlockDevice   string   // The block device path
 	Command       string   // The unikernel's command line
 	IPAddress     string   // The IP address of the TAP device
+	GuestMAC      string   // The MAC address of the guest network device
 	Environment   []string // Environment
 }
 
@@ -65,6 +66,12 @@ func NewVMM(vmmType VmmType) (vmm VMM, err error) {
 			return nil, ErrVMMNotInstalled
 		}
 		return &Qemu{binary: QemuBinary, binaryPath: vmmPath}, nil
+	case FirecrackerVmm:
+		vmmPath, err := exec.LookPath(FirecrackerBinary + cpuArch())
+		if err != nil {
+			return nil, ErrVMMNotInstalled
+		}
+		return &Firecracker{binary: FirecrackerBinary, binaryPath: vmmPath}, nil
 	case HedgeVmm:
 		hedge := Hedge{}
 		err := hedge.Ok()
