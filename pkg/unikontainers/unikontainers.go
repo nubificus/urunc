@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"syscall"
 
 	"github.com/moby/sys/mount"
@@ -336,8 +337,92 @@ func (u *Unikontainer) saveContainerState() error {
 	return os.WriteFile(stateName, data, 0o644) //nolint: gosec
 }
 
-// ExecuteHooks executes any hooks found in spec based on name:
+// ExecuteHooks executes concurrently any hooks found in spec based on name:
 func (u *Unikontainer) ExecuteHooks(name string) error {
+	// NOTICE: It is possible that the concurrent execution of the hooks may cause
+	// some unknown problems down the line. Be sure to prioritize checking with sequential
+	// hook execution when debugging.
+
+	// More info for individual hooks can be found here:
+	// https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks
+	if u.Spec.Hooks == nil {
+		return nil
+	}
+
+	hooks := map[string][]specs.Hook{
+		"Prestart":        u.Spec.Hooks.Prestart,
+		"CreateRuntime":   u.Spec.Hooks.CreateRuntime,
+		"CreateContainer": u.Spec.Hooks.CreateContainer,
+		"StartContainer":  u.Spec.Hooks.StartContainer,
+		"Poststart":       u.Spec.Hooks.Poststart,
+		"Poststop":        u.Spec.Hooks.Poststop,
+	}[name]
+
+	if len(hooks) == 0 {
+		Log.WithFields(logrus.Fields{
+			"id":    u.State.ID,
+			"name:": name,
+		}).Debug("No hooks")
+		return nil
+	}
+
+	s, err := json.Marshal(u.State)
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(hooks))
+
+	for _, hook := range hooks {
+		wg.Add(1)
+		go u.executeHook(hook, s, &wg, errChan)
+	}
+	wg.Wait()
+	close(errChan)
+	for err := range errChan {
+		Log.WithField("error", err.Error()).Error("failed to execute hooks")
+		return err
+	}
+	return nil
+}
+
+func (u *Unikontainer) executeHook(hook specs.Hook, state []byte, wg *sync.WaitGroup, errChan chan<- error) {
+	defer wg.Done()
+
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Cmd{
+		Path:   hook.Path,
+		Args:   hook.Args,
+		Env:    hook.Env,
+		Stdin:  bytes.NewReader(state),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}
+
+	Log.WithFields(logrus.Fields{
+		"cmd":  cmd.String(),
+		"path": hook.Path,
+		"args": hook.Args,
+		"env":  hook.Env,
+	}).Info("executing hook")
+
+	if err := cmd.Run(); err != nil {
+		Log.WithFields(logrus.Fields{
+			"id":     u.State.ID,
+			"error":  err.Error(),
+			"cmd":    cmd.String(),
+			"stderr": stderr.String(),
+			"stdout": stdout.String(),
+		}).Error("failed to execute hook")
+		errChan <- fmt.Errorf("failed to execute hook '%s': %w", cmd.String(), err)
+	}
+}
+
+// ExecuteHooks executes sequentially any hooks found in spec based on name:
+func (u *Unikontainer) ExecuteHooksSequentially(name string) error {
+	// NOTICE: This function is left on purpose to aid future debugging efforts
+	// in case concurrent hook execution causes unexpected errors.
+
 	// More info for individual hooks can be found here:
 	// https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks
 	Log.Info("Executing ", name, " hooks")
