@@ -35,6 +35,7 @@ type UnikernelConfig struct {
 	UnikernelCmd    string `json:"com.urunc.unikernel.cmdline,omitempty"`
 	UnikernelBinary string `json:"com.urunc.unikernel.binary"`
 	Hypervisor      string `json:"com.urunc.unikernel.hypervisor"`
+	Initrd          string `json:"com.urunc.unikernel.initrd,omitempty"`
 }
 
 // GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
@@ -63,15 +64,17 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	unikernelCmd := spec.Annotations["com.urunc.unikernel.cmdline"]
 	unikernelBinary := spec.Annotations["com.urunc.unikernel.binary"]
 	hypervisor := spec.Annotations["com.urunc.unikernel.hypervisor"]
+	initrd := spec.Annotations["com.urunc.unikernel.initrd"]
 
 	Log.WithFields(logrus.Fields{
 		"unikernelType":   unikernelType,
 		"unikernelCmd":    unikernelCmd,
 		"unikernelBinary": unikernelBinary,
 		"hypervisor":      hypervisor,
+		"initrd":          initrd,
 	}).Info("urunc annotations")
 
-	conf := fmt.Sprintf("%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor)
+	conf := fmt.Sprintf("%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd)
 	if conf == "" {
 		return nil, ErrEmptyAnnotations
 	}
@@ -80,6 +83,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		UnikernelType:   unikernelType,
 		UnikernelCmd:    unikernelCmd,
 		Hypervisor:      hypervisor,
+		Initrd:          initrd,
 	}, nil
 }
 
@@ -115,6 +119,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		"unikernelCmd":    conf.UnikernelCmd,
 		"unikernelBinary": conf.UnikernelBinary,
 		"hypervisor":      conf.Hypervisor,
+		"initrd":          conf.Initrd,
 	}).Info("urunc.json annotations")
 	return &conf, nil
 }
@@ -144,6 +149,12 @@ func (c *UnikernelConfig) decode() {
 		Log.WithError(err).Fatal("failed to decode UnikernelBinary")
 	}
 	c.UnikernelBinary = string(decoded)
+
+	decoded, err = base64.StdEncoding.DecodeString(c.Initrd)
+	if err != nil {
+		Log.WithError(err).Fatal("failed to decode Initrd")
+	}
+	c.Initrd = string(decoded)
 }
 
 // Map returns a map containing the Unikernel config data
@@ -160,6 +171,9 @@ func (c *UnikernelConfig) Map() map[string]string {
 	}
 	if c.UnikernelBinary != "" {
 		myMap["com.urunc.unikernel.binary"] = c.UnikernelBinary
+	}
+	if c.Initrd != "" {
+		myMap["com.urunc.unikernel.initrd"] = c.Initrd
 	}
 	return myMap
 }
