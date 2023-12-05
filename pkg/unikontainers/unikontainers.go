@@ -136,11 +136,16 @@ func (u *Unikontainer) Exec() error {
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
 	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
 	unikernelAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.binary"])
+	initrdAbsPath := ""
+	if u.State.Annotations["com.urunc.unikernel.initrd"] != "" {
+		initrdAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.initrd"])
+	}
 
 	// populate vmm args
 	vmmArgs := hypervisors.ExecArgs{
 		Container:     u.State.ID,
 		UnikernelPath: unikernelAbsPath,
+		InitrdPath:    initrdAbsPath,
 		Environment:   os.Environ(),
 	}
 
