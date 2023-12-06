@@ -138,7 +138,7 @@ func (u *Unikontainer) Exec() error {
 	unikernelAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.binary"])
 	initrdAbsPath := ""
 	if u.State.Annotations["com.urunc.unikernel.initrd"] != "" {
-		initrdAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.initrd"])
+		initrdAbsPath = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.initrd"])
 	}
 
 	// populate vmm args
@@ -173,6 +173,12 @@ func (u *Unikontainer) Exec() error {
 		unikernelParams.EthDeviceIP = ""
 		unikernelParams.EthDeviceMask = ""
 		unikernelParams.EthDeviceGateway = ""
+	}
+
+	if initrdAbsPath != "" {
+		unikernelParams.RootFSType = "initrd"
+	} else {
+		unikernelParams.RootFSType = ""
 	}
 
 	// handle storage
