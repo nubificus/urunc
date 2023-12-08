@@ -29,3 +29,6 @@ bundles/
 
 # 
 dev.md
+
+# python-related directories
+__pycache__/

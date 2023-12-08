@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	m "github.com/nubificus/urunc/pkg/metrics"
 	"github.com/sirupsen/logrus"
 	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 
@@ -54,6 +55,9 @@ value for "bundle" is the current directory.`
 )
 
 var version string
+
+// FIXME: We need to find a way to set the output file
+var metrics = m.NewZerologMetrics("/tmp/urunc.zlog")
 
 func main() {
 	root := "/run/urunc"
