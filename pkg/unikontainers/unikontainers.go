@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/moby/sys/mount"
 	"github.com/nubificus/urunc/pkg/network"
@@ -31,6 +32,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
+	m "github.com/nubificus/urunc/pkg/metrics"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -129,10 +131,16 @@ func (u *Unikontainer) Create(pid int) error {
 }
 
 func (u *Unikontainer) Exec() error {
+	// FIXME: We need to find a way to set the output file
+	var metrics = m.NewZerologMetrics("/tmp/urunc.zlog")
 	err := u.joinSandboxNetNs()
 	if err != nil {
 		return err
 	}
+
+	nowTime := time.Now().UnixNano()
+	metrics.Log(fmt.Sprintf("%s,TS16,%d", u.State.ID, nowTime))
+
 	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
 	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
@@ -160,6 +168,8 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		return err
 	}
+	nowTime = time.Now().UnixNano()
+	metrics.Log(fmt.Sprintf("%s,TS17,%d", u.State.ID, nowTime))
 
 	// if network info is nil, we didn't find eth0, so we are running with ctr
 	if networkInfo != nil {
@@ -226,6 +236,8 @@ func (u *Unikontainer) Exec() error {
 			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
 		}
 	}
+	nowTime = time.Now().UnixNano()
+	metrics.Log(fmt.Sprintf("%s,TS18,%d", u.State.ID, nowTime))
 
 	// get a new vmm
 	vmm, err := hypervisors.NewVMM(hypervisors.VmmType(vmmType))
@@ -254,6 +266,10 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 	Log.Info("calling vmm execve")
+	nowTime = time.Now().UnixNano()
+	metrics.Log(fmt.Sprintf("%s,TS19,%d", u.State.ID, nowTime))
+
+	// metrics.Wait()
 	return vmm.Execve(vmmArgs)
 }
 
