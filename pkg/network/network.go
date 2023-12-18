@@ -47,6 +47,7 @@ type InterfaceInfo struct {
 	DefaultGateway string
 	Mask           string
 	Interface      string
+	MAC            string
 }
 
 func getInterfaceInfo(iface string) (InterfaceInfo, error) {
@@ -54,6 +55,12 @@ func getInterfaceInfo(iface string) (InterfaceInfo, error) {
 	if err != nil {
 		return InterfaceInfo{}, err
 	}
+
+	IfMAC := ief.HardwareAddr.String()
+	if IfMAC == "" {
+		return InterfaceInfo{}, fmt.Errorf("failed to get MAC address of %q", iface)
+	}
+
 	addrs, err := ief.Addrs()
 	if err != nil {
 		return InterfaceInfo{}, err
@@ -92,6 +99,7 @@ func getInterfaceInfo(iface string) (InterfaceInfo, error) {
 		DefaultGateway: gateway.String(),
 		Mask:           mask,
 		Interface:      iface,
+		MAC:            IfMAC,
 	}, nil
 }
 
