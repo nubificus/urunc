@@ -1,21 +1,22 @@
 package urunc
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/go-ping/ping"
 	common "github.com/nubificus/urunc/tests"
+
+	"time"
 )
 
 const NotImplemented = "Not implemented"
 
 func TestNerdctlHvtRumprunHello(t *testing.T) {
-	params := strings.Split("nerdctl run --name hello --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest", " ")
+	params := strings.Fields("nerdctl run --name hello --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest")
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -27,217 +28,190 @@ func TestNerdctlHvtRumprunHello(t *testing.T) {
 }
 
 func TestNerdctlHvtRumprunRedis(t *testing.T) {
-	params := strings.Split("nerdctl run --name redis-test -d --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest", " ")
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	containerIDBytes, err := cmd.CombinedOutput()
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+	containerName := "hvt-rumprun-redis-test"
+	err := nerdctlTest(containerName, containerImage, true)
 	if err != nil {
-		t.Fatalf("%v: Error executing redis rumprun unikernel with solo5-hvt using nerdctl: %s", err, containerIDBytes)
+		t.Fatal(err.Error())
 	}
-	time.Sleep(2 * time.Second)
-	// Get the container ID
-	containerID := string(containerIDBytes)
-	containerID = strings.TrimSpace(containerID)
-
-	// Find the solo5-hvt process
-	proc, err := common.FindProc("solo5-hvt")
-	if err != nil {
-		t.Fatalf("Failed to find solo5-hvt process: %v", err)
-	}
-	cmdLine, err := proc.Cmdline()
-	if err != nil {
-		t.Fatalf("Failed to find solo5-hvt process' command line: %v", err)
-	}
-
-	// Extract the IP address
-	re := regexp.MustCompile(`"addr":"([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)"`)
-	match := re.FindStringSubmatch(cmdLine)
-	extractedIPAddr := ""
-	if len(match) == 2 {
-		extractedIPAddr = match[1]
-	} else {
-		t.Fatal("Failed to extract IP address for solo5 process")
-	}
-
-	// Create a new Pinger and ping the redis IP
-	pinger, err := ping.NewPinger(extractedIPAddr)
-	if err != nil {
-		t.Fatalf("Failed to create Pinger: %v", err)
-	}
-	pinger.Count = 3
-	err = pinger.Run() // Blocks until finished.
-	if err != nil {
-		t.Fatalf("Failed to ping %s: %v", extractedIPAddr, err)
-	}
-	// Stop the unikernel
-	stopCmdString := "nerdctl stop " + containerID
-	params = strings.Split(stopCmdString, " ")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("%v: Error stopping redis rumprun unikernel with solo5-hvt using nerdctl", err)
-	}
-	retMsg := strings.TrimSpace(string(output))
-	if containerID != retMsg {
-		t.Fatalf("Unexpected output when stopping redis. Expected: %s, got: %s", containerID, retMsg)
-	}
-
-	// Delete the unikernel
-	deleteCmdString := "nerdctl rm " + containerID
-	params = strings.Split(deleteCmdString, " ")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.Output()
-	if err != nil {
-		t.Fatalf("%v: Error deleting redis rumprun unikernel with solo5-hvt using nerdctl", err)
-	}
-	retMsg = strings.TrimSpace(string(output))
-	if containerID != retMsg {
-		t.Fatalf("Unexpected output when deleting redis. Expected: %s, got: %s", containerID, retMsg)
-	}
-
-	// Check the unikernel is removed from nerdctl ps -a
-	listCmdString := "nerdctl ps -a --no-trunc -q"
-	params = strings.Split(listCmdString, " ")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.Output()
-	if err != nil {
-		t.Fatalf("%v: Error listing all containers using nerdctl", err)
-	}
-	outputStr := string(output)
-	lines := strings.Split(outputStr, "\n")
-	for _, line := range lines {
-		// Skip empty lines
-		if line == "" {
-			continue
-		}
-		cID := strings.TrimSpace(line)
-		if cID == containerID {
-			t.Fatalf("Unikernel %s was not successfully removed from nerdctl", containerID)
-		}
-	}
-
-	// Check /run/containerd/runc/default/containerID directory does not exist
-	dirPath := "/run/containerd/runc/default/" + containerID
-	_, err = os.Stat(dirPath)
-	if !os.IsNotExist(err) {
-		t.Fatalf("root directory %s still exists", dirPath)
-	}
-
-	// Check /run/containerd/io.containerd.runtime.v2.task/default/containerID directory does not exist
-	dirPath = "run/containerd/io.containerd.runtime.v2.task/default/" + containerID
-	_, err = os.Stat(dirPath)
-	if !os.IsNotExist(err) {
-		t.Fatalf("bundle directory %s still exists", dirPath)
-	}
-}
-
-func TestNerdctlSptUnikraft(t *testing.T) {
-	t.Log(NotImplemented)
-}
-
-func TestNerdctlSptRumprun(t *testing.T) {
-	t.Log(NotImplemented)
 }
 
 func TestNerdctlQemuUnikraftRedis(t *testing.T) {
-	params := strings.Split("nerdctl run --name redis-qemu-test -d --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest", " ")
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
+	containerName := "qemu-unik-redis-test"
+	err := nerdctlTest(containerName, containerImage, false)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestNerdctlQemuUnikraftNginx(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
+	containerName := "qemu-unik-nginx-test"
+	err := nerdctlTest(containerName, containerImage, false)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestNerdctlFCUnikraftNginx(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerName := "fc-unik-nginx-test"
+	err := nerdctlTest(containerName, containerImage, false)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func nerdctlTest(containerName string, containerImage string, devmapper bool) error {
+	containerID, err := startNerdctlUnikernel(containerImage, containerName, devmapper)
+	if err != nil {
+		return fmt.Errorf("Failed to start unikernel container: %v", err)
+	}
+	time.Sleep(4 * time.Second)
+	extractedIPAddr, err := findUnikernelIP(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to extract container IP: %v", err)
+	}
+	err = common.PingUnikernel(extractedIPAddr)
+	if err != nil {
+		return fmt.Errorf("ping failed: %v", err)
+	}
+	err = stopNerdctlUnikernel(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to stop container: %v", err)
+	}
+	err = removeNerdctlUnikernel(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = verifyNerdctlRemoved(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = verifyNoStaleFiles(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove all stale files: %v", err)
+	}
+	return nil
+}
+
+func findUnikernelIP(containerID string) (string, error) {
+	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	containerIDBytes, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error executing redis unikraft unikernel with qemu using nerdctl: %s", err, containerIDBytes)
-	}
-	time.Sleep(2 * time.Second)
-	// Get the container ID
-	containerID := string(containerIDBytes)
-	containerID = strings.TrimSpace(containerID)
-
-	// Find the qemu process
-	proc, err := common.FindProc("qemu")
-	if err != nil {
-		t.Fatalf("Failed to find qemu process: %v", err)
-	}
-	cmdLine, err := proc.Cmdline()
-	if err != nil {
-		t.Fatalf("Failed to find qemu process's command line: %v", err)
-	}
-
-	// Extract the IP address
-	re := regexp.MustCompile(`netdev.ipv4_addr=([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)`)
-	match := re.FindStringSubmatch(cmdLine)
-	extractedIPAddr := ""
-	if len(match) == 2 {
-		extractedIPAddr = match[1]
-	} else {
-		t.Fatal("Failed to extract IP address for qemu process")
-	}
-
-	// Create a new Pinger and ping the redis IP
-	pinger, err := ping.NewPinger(extractedIPAddr)
-	if err != nil {
-		t.Fatalf("Failed to create Pinger: %v", err)
-	}
-	pinger.Count = 3
-	err = pinger.Run() // Blocks until finished.
-	if err != nil {
-		t.Fatalf("Failed to ping %s: %v", extractedIPAddr, err)
-	}
-	// Stop the unikernel
-	stopCmdString := "nerdctl stop " + containerID
-	params = strings.Split(stopCmdString, " ")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
+	var result []map[string]any
+	var networkSettings map[string]any
+	time.Sleep(4 * time.Second)
 	output, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("%v: Error stopping redis unikraft unikernel with qemu using nerdctl", err)
+		return "", fmt.Errorf("failed to inspect %s", output)
 	}
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		return "", err
+	}
+	containerInfo := result[0]
+	for key, value := range containerInfo {
+		// Each value is an `any` type, that is type asserted as a string
+		if key == "NetworkSettings" {
+			// t.Log(key, fmt.Sprintf("%v", value))
+			networkSettings = value.(map[string]any)
+			break
+		}
+	}
+	for key, value := range networkSettings {
+		if key == "IPAddress" {
+			return value.(string), nil
+		}
+	}
+	return "", nil
+}
+
+func startNerdctlUnikernel(containerImage string, containerName string, devmapper bool) (containerID string, err error) {
+	cmdBase := "nerdctl run "
+	if devmapper {
+		cmdBase += "--snapshotter devmapper "
+	}
+	cmdline := fmt.Sprintf("%s--name %s -d --runtime io.containerd.urunc.v2 %s unikernel", cmdBase, containerName, containerImage)
+	params := strings.Fields(cmdline)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	containerIDBytes, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("%s - %v", string(containerIDBytes), err)
+	}
+	time.Sleep(4 * time.Second)
+	containerID = string(containerIDBytes)
+	containerID = strings.TrimSpace(containerID)
+	return containerID, nil
+}
+
+func stopNerdctlUnikernel(containerID string) error {
+	params := strings.Fields(fmt.Sprintf("nerdctl stop %s", containerID))
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.Output()
 	retMsg := strings.TrimSpace(string(output))
-	if containerID != retMsg {
-		t.Fatalf("Unexpected output when stopping redis. Expected: %s, got: %s", containerID, retMsg)
-	}
-
-	// Delete the unikernel
-	deleteCmdString := "nerdctl rm " + containerID
-	params = strings.Split(deleteCmdString, " ")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.Output()
 	if err != nil {
-		t.Fatalf("%v: Error deleting redis unikraft unikernel with qemu using nerdctl", err)
+		return fmt.Errorf("stop %s failed: %s - %v", containerID, retMsg, err)
 	}
-	retMsg = strings.TrimSpace(string(output))
 	if containerID != retMsg {
-		t.Fatalf("Unexpected output when deleting redis. Expected: %s, got: %s", containerID, retMsg)
+		return fmt.Errorf("unexpected output when stopping %s. expected: %s, got: %s", containerID, containerID, retMsg)
 	}
+	return nil
+}
 
-	// Check the unikernel is removed from nerdctl ps -a
-	listCmdString := "nerdctl ps -a --no-trunc -q"
-	params = strings.Split(listCmdString, " ")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.Output()
+func removeNerdctlUnikernel(containerID string) error {
+	params := strings.Fields(fmt.Sprintf("nerdctl rm %s", containerID))
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.Output()
+	retMsg := strings.TrimSpace(string(output))
 	if err != nil {
-		t.Fatalf("%v: Error listing all containers using nerdctl", err)
+		return fmt.Errorf("deleting %s failed: %s - %v", containerID, retMsg, err)
 	}
-	outputStr := string(output)
-	lines := strings.Split(outputStr, "\n")
+	if containerID != retMsg {
+		return fmt.Errorf("unexpected output when deleting %s. expected: %s, got: %s", containerID, containerID, retMsg)
+	}
+	return nil
+}
+
+func verifyNerdctlRemoved(containerID string) error {
+	params := strings.Fields("nerdctl ps -a --no-trunc -q")
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.Output()
+	retMsg := strings.TrimSpace(string(output))
+	if err != nil {
+		return fmt.Errorf("listing all nerdctl containers failed: %s - %v", retMsg, err)
+	}
+	found := false
+	lines := strings.Split(retMsg, "\n")
 	for _, line := range lines {
-		// Skip empty lines
 		if line == "" {
 			continue
 		}
 		cID := strings.TrimSpace(line)
 		if cID == containerID {
-			t.Fatalf("Unikernel %s was not successfully removed from nerdctl", containerID)
+			found = true
+			break
 		}
 	}
+	if found {
+		return fmt.Errorf("unikernel %s was not successfully removed from nerdctl", containerID)
+	}
+	return nil
+}
 
+func verifyNoStaleFiles(containerID string) error {
 	// Check /run/containerd/runc/default/containerID directory does not exist
 	dirPath := "/run/containerd/runc/default/" + containerID
-	_, err = os.Stat(dirPath)
+	_, err := os.Stat(dirPath)
 	if !os.IsNotExist(err) {
-		t.Fatalf("root directory %s still exists", dirPath)
+		return fmt.Errorf("root directory %s still exists", dirPath)
 	}
 
 	// Check /run/containerd/io.containerd.runtime.v2.task/default/containerID directory does not exist
 	dirPath = "run/containerd/io.containerd.runtime.v2.task/default/" + containerID
 	_, err = os.Stat(dirPath)
 	if !os.IsNotExist(err) {
-		t.Fatalf("bundle directory %s still exists", dirPath)
+		return fmt.Errorf("bundle directory %s still exists", dirPath)
 	}
+	return nil
 }
