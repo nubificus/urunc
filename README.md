@@ -17,7 +17,7 @@ To delve into the inner workings of urunc, the process of starting a new unikern
 
 ## Installing from source
 
-At the moment, urunc is available on x86_64 and arm64 architectures. 
+At the moment, urunc is available on x86_64 and arm64 architectures.
 
 ### Build requirements
 
@@ -49,7 +49,7 @@ To run a simple `urunc` example locally, you need to address a few dependencies:
 - [nerdctl](https://github.com/containerd/nerdctl/) (installation instructions can be found [here](docs/Installation.md#install-nerdctl))
 - `solo5-hvt` as the backend (installation instructions can be found [here](docs/Installation.md#install-solo5-hvt))
 - `urunc` and `containerd-shim-urunc-v2` binaries
-- `containerd` needs to be configured to [use devmapper](docs/Installation.md#configure-containerd-for-devmapper) and [register urunc as a runtime](docs/Installation.md#add-urunc-runtime-to-containerd) 
+- `containerd` needs to be configured to [use devmapper](docs/Installation.md#configure-containerd-for-devmapper) and [register urunc as a runtime](docs/Installation.md#add-urunc-runtime-to-containerd)
 
 If you already have these requirements, you can run a test container using `nerdctl`:
 
@@ -61,7 +61,18 @@ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.
 
 ## Setup guide
 
-The setup process may differ depending on your system and requirements. A full setup process for Ubuntu 22.04 can be found at [docs/Installation.md](docs/Installation.md)
+The setup process may differ depending on your system and requirements. A full setup process for Ubuntu 22.04 can be found at [docs/Installation.md](docs/Installation.md).
+
+Additional instructions on how to setup the various supported hypervisors can be found at [docs/Urunc-Hypervisors.md](docs/Urunc-Hypervisors.md).
+
+## Supported hypervisors and unikernels
+
+The following table provides an overview of the currently supported hypervisors and unikernels:
+
+| Unikernel  | VMMs               | Arch         | Storage    |
+|----------- |------------------- |------------- |----------- |
+| Rumprun    | Solo5-hvt          | x86,aarch64  | Devmapper  |
+| Unikraft   | QEMU, Firecracker  | x86          | Initrd     |
 
 ## Running on k8s
 
