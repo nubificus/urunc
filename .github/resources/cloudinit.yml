@@ -1,0 +1,7 @@
+#cloud-config
+users:
+- name: 'testuser'
+  groups: users,sudo
+  shell: /bin/bash
+  lock_passwd: false
+  ssh_authorized_keys:
