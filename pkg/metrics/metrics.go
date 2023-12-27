@@ -9,15 +9,15 @@ import (
 var enableTimestamps = os.Getenv("URUNC_TIMESTAMPS")
 
 type Writer interface {
-	Log(msg string)
+	Capture(containerID string, timestampID string)
 }
 
 type zerologMetrics struct {
 	logger *zerolog.Logger
 }
 
-func (z *zerologMetrics) Log(msg string) {
-	z.logger.Log().Msg(msg)
+func (z *zerologMetrics) Capture(containerID string, timestampID string) {
+	z.logger.Log().Str("containerID", containerID).Str("timestampID", timestampID).Msg("")
 }
 
 func NewZerologMetrics(target string) Writer {
@@ -26,8 +26,8 @@ func NewZerologMetrics(target string) Writer {
 		if err != nil {
 			return nil
 		}
-
-		logger := zerolog.New(file).Level(zerolog.InfoLevel)
+		logger := zerolog.New(file).Level(zerolog.InfoLevel).With().Timestamp().Logger()
+		zerolog.TimeFieldFormat = zerolog.TimeFormatUnixNano
 		return &zerologMetrics{
 			logger: &logger,
 		}
@@ -37,7 +37,7 @@ func NewZerologMetrics(target string) Writer {
 
 type mockWriter struct{}
 
-func (m *mockWriter) Log(_ string) {}
+func (m *mockWriter) Capture(_, _ string) {}
 
 func NewMockMetrics(_ string) Writer {
 	return &mockWriter{}

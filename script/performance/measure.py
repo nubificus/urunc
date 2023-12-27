@@ -52,7 +52,7 @@ def main():
         result[key] = {"maximum": max_duration,
                        "minimum": min_duration, "average": avg_duration}
     pprint(result)
-    emptyFile(filename=LOGFILE)
+    # emptyFile(filename=LOGFILE)
 
 
 if __name__ == "__main__":
