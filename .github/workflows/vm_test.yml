@@ -124,11 +124,12 @@ jobs:
         vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
         echo "shutdown flag:" $shutdown_flag
         echo "vm client: " $vm_client
-        echo "clean kcli ssh keys"
-        sudo rm -rf /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
         if [[ $shutdown_flag == "true" ]]; then
           echo "cleaning up VM"
           yes | kcli -c $vm_client delete vm ${{ env.vm_profile }}_${{ github.run_id }}
         else
           exit 1
         fi
+        echo "clean kcli ssh keys"
+        sudo rm -rf /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
+
