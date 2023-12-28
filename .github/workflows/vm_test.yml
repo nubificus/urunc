@@ -136,7 +136,7 @@ jobs:
 
 
     - name: prepare artifacts
-      id: upload artifacts
+      id: prepare_artifacts
       run: |
         echo "get vm shutdown flag from profile"
         shutdown_flag=$(yq '.${{ env.vm_profile}}.shutdown_flag'  ~/.kcli/profiles.yml)
