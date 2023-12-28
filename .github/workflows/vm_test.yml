@@ -107,7 +107,7 @@ jobs:
         if [[ $vm_spawn_result == "success" ]]; then
           ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip uname -a;
           uname_output=$(ssh -oStrictHostKeyChecking=no ubuntu@$vm_spawn_ip uname -a)
-          echo "vm_uname=uname_output$" >> $GITHUB_ENV
+          echo "vm_uname=$uname_output" >> $GITHUB_ENV
         else
           exit 1
         fi
