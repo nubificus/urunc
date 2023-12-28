@@ -116,9 +116,6 @@ jobs:
       env:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
-        echo "clean ssh-agent"
-        echo "ssh agent pid: " $SSH_AGENT_PID
-        ssh-agent -k
         echo "get vm shutdown flag from profile"
         shutdown_flag=$(yq '.${{ env.vm_profile}}.shutdown_flag'  ~/.kcli/profiles.yml)
         vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
@@ -128,8 +125,11 @@ jobs:
           echo "cleaning up VM"
           yes | kcli -c $vm_client delete vm ${{ env.vm_profile }}_${{ github.run_id }}
         else
-          exit 1
+          echo "will leave VM running, info below:"
         fi
+        echo "clean ssh-agent"
+        echo "ssh agent pid: " $SSH_AGENT_PID
+        ssh-agent -k
         echo "clean kcli ssh keys"
         sudo rm -rf /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
 
