@@ -9,7 +9,7 @@ ubuntuthin:
     - size: 10
   keys:
     - mydefaultkey.pub
-  shutdown_flag: true
+  shutdown_flag: false
 
 ubuntufat:
   client: fuji00
