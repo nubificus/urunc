@@ -14,7 +14,7 @@ env:
 jobs:
   prepare:
     name: 
-    runs-on: [ self-hosted, gcc, lite ]
+    runs-on: [ self-hosted, gcc, lite, "x86_64" ]
     # outputs:
 
     steps:
