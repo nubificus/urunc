@@ -145,7 +145,7 @@ jobs:
         echo "vm client: " $vm_client
         if [[ $shutdown_flag == "false" ]]; then
           echo "prepare artifacts"
-          tar -cf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar /home/runner/.ssh/${{ github.run_id }}_ubuntu
+          tar -cf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar -C /home/runner/.ssh ${{ github.run_id }}_ubuntu
           echo $vm_uname >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
           echo "=========================" >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
           echo $vm_spawn_ip >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
