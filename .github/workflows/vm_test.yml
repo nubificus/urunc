@@ -106,7 +106,8 @@ jobs:
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
           ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip uname -a;
-          ssh -oStrictHostKeyChecking=no ubuntu@$vm_spawn_ip uname -a;
+          uname_output=$(ssh -oStrictHostKeyChecking=no ubuntu@$vm_spawn_ip uname -a)
+          echo "vm_uname=uname_output$" >> $GITHUB_ENV
         else
           exit 1
         fi
@@ -125,7 +126,7 @@ jobs:
           echo "cleaning up VM"
           yes | kcli -c $vm_client delete vm ${{ env.vm_profile }}_${{ github.run_id }}
         else
-          echo "will leave VM running, info below:"
+          echo "will leave VM running, check job artifacts"
         fi
         echo "clean ssh-agent"
         echo "ssh agent pid: " $SSH_AGENT_PID
@@ -133,3 +134,26 @@ jobs:
         echo "clean kcli ssh keys"
         sudo rm -rf /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
 
+
+    - name: prepare artifacts
+      id: upload artifacts
+      run: |
+        echo "get vm shutdown flag from profile"
+        shutdown_flag=$(yq '.${{ env.vm_profile}}.shutdown_flag'  ~/.kcli/profiles.yml)
+        vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
+        echo "shutdown flag:" $shutdown_flag
+        echo "vm client: " $vm_client
+        if [[ $shutdown_flag == "false" ]]; then
+          echo "prepare artifacts"
+          tar -rzf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar.gz /home/runner/.ssh/${{ github.run_id }}_ubuntu
+          echo $vm_uname >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
+          echo "=========================" >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
+          echo $vm_spawn_ip >> /home/runner/vm_info
+          tar -rzf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar.gz ${{ github.workspace }}/${{ github.run_id }}_vm_info
+        fi
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ github.run_id }}_artifacts
+        path: ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar.gz
