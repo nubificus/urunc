@@ -1,6 +1,6 @@
 ubuntuthin:
   client: dell03
-  image: ubuntufocalbases3
+  image: /var/lib/libvirt/image/urunctest_0.qcow2
   numcpus: 1
   memory: 1024
   nets:
