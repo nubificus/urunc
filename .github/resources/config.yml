@@ -58,7 +58,7 @@ dell03:
   type: kvm
   nets:
   - br0
-fuji:
+fuji00:
   host: fuji00
   user: kcli
   protocol: ssh
