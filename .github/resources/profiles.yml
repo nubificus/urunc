@@ -11,6 +11,18 @@ ubuntuthin:
     - mydefaultkey.pub
   shutdown_flag: false
 
+ubuntuurunc:
+  client: fuji00
+  image: ubuntuurunc
+  numcpus: 1
+  memory: 1024
+  nets:
+    - br0
+  disks:
+    - size: 10
+  keys:
+    - mydefaultkey.pub
+
 ubuntufat:
   client: fuji00
   image: ubuntufocalbases3
