@@ -18,7 +18,7 @@ ubuntuurunc:
   memory: 1024
   nets:
     - br0
-  disks: [10]
+  disks: [20]
   keys:
     - mydefaultkey.pub
 

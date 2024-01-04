@@ -55,6 +55,7 @@ jobs:
         cp ${{ github.workspace}}/.github/resources/config.yml ~/.kcli
         ssh-keygen -N "" -f ~/.ssh/${{ github.run_id }}_ubuntu
         yq -i e '.ubuntuthin.keys |= ["~/.ssh/${{ github.run_id }}_ubuntu.pub"]' ~/.kcli/profiles.yml
+        yq -i e '.ubuntuurunc.keys |= ["~/.ssh/${{ github.run_id }}_ubuntu.pub"]' ~/.kcli/profiles.yml
         yq -i e '.ubuntufat.keys |= ["~/.ssh/${{ github.run_id }}_ubuntu.pub"]' ~/.kcli/profiles.yml
         echo "${{ secrets.KCLI_ID_RSA }}" > /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
         chmod 600 /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
