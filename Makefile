@@ -15,7 +15,7 @@ urunc: prepare
 
 shim: prepare
 	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' vendor/github.com/containerd/go-runc/runc.go
-	go build -o dist/containerd-shim-urunc-v2_${ARCH} ./cmd/containerd-shim-urunc-v2
+	-go build -o dist/containerd-shim-urunc-v2_${ARCH} ./cmd/containerd-shim-urunc-v2
 
 build: urunc shim
 

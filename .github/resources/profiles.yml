@@ -21,6 +21,7 @@ ubuntuurunc:
   disks: [20]
   keys:
     - mydefaultkey.pub
+  shutdown_flag: false
 
 ubuntufat:
   client: fuji00

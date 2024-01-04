@@ -112,19 +112,61 @@ jobs:
         else
           exit 1
         fi
-    - name: Install urunc 
+  
+    - name: Install urunc
       id: install-urunc
       env:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
-          cmd_output=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git clone https://github.com/nubificus/urunc.git && cd urunc && git checkout $GITHUB_SHA && make && make install)
-          echo "output=$cmd_output" >> $GITHUB_ENV
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip rm -f /usr/local/bin/urunc
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git config --global --add safe.directory /root/develop/urunc
+          cmd_output=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip rm -fr /root/develop/urunc && mkdir -p /root/develop && git clone -b $GITHUB_REF_NAME https://github.com/nubificus/urunc.git /root/develop/urunc)
+          cmd_output2=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip PATH=$PATH:/usr/local/go/bin make -C /root/develop/urunc)
+          cmd_output3=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip make -C /root/develop/urunc install)
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'urunc --version'
         else
           exit 1
         fi
-    
+
+    - name: Run ctr tests
+      id: test-ctr
+      env:
+        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
+      run: |
+        if [[ $vm_spawn_result == "success" ]]; then
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin GOFLAGS="-count=1" go test /root/develop/urunc/tests/ctr -v'
+        else
+          exit 1
+        fi
+
+    - name: Run nerdctl tests
+      id: test-nerdctl
+      if: ${{ !cancelled() }}
+      env:
+        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
+      run: |
+        if [[ $vm_spawn_result == "success" ]]; then
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin GOFLAGS="-count=1" go test /root/develop/urunc/tests/nerdctl -v'
+        else
+          exit 1
+        fi
+
+
+    - name: Run crictl tests
+      id: test-crictl
+      if: ${{ !cancelled() }}
+      env:
+        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
+      run: |
+        if [[ $vm_spawn_result == "success" ]]; then
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin GOFLAGS="-count=1" go test /root/develop/urunc/tests/crictl -v'
+        else
+          exit 1
+        fi
+
     - name: Post execution cleanup
+      if: ${{ !cancelled() }}
       id: post-cleanup
       env:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
@@ -149,6 +191,7 @@ jobs:
 
     - name: prepare artifacts
       id: prepare_artifacts
+      if: ${{ !cancelled() }}
       run: |
         echo "get vm shutdown flag from profile"
         shutdown_flag=$(yq '.${{ env.vm_profile}}.shutdown_flag'  ~/.kcli/profiles.yml)
@@ -166,6 +209,7 @@ jobs:
 
     - name: upload artifacts
       uses: actions/upload-artifact@v3
+      if: ${{ !cancelled() }}
       with:
         name: ${{ github.run_id }}_artifacts
         path: ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar
