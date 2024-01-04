@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
   
 env:
-  vm_profile: ubuntuthin
+  vm_profile: ubuntuurunc
 
 jobs:
   prepare:
