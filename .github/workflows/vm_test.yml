@@ -109,7 +109,6 @@ jobs:
           ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip uname -a;
           uname_output=$(ssh -oStrictHostKeyChecking=no ubuntu@$vm_spawn_ip uname -a)
           echo "vm_uname=$uname_output" >> $GITHUB_ENV
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 
         else
           exit 1
         fi
@@ -119,9 +118,8 @@ jobs:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git clone https://github.com/nubificus/urunc.git && cd urunc && make && make install
-          currentdir=$(ssh -oStrictHostKeyChecking=no ubuntu@$vm_spawn_ip pwd)
-          echo "currentdir=$currentdir" >> $GITHUB_ENV
+          cmd_output=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git clone https://github.com/nubificus/urunc.git && cd urunc && git checkout $GITHUB_SHA && make && make install)
+          echo "output=$cmd_output" >> $GITHUB_ENV
         else
           exit 1
         fi
