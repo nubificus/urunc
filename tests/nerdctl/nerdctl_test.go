@@ -36,18 +36,18 @@ func TestNerdctlHvtRumprunRedis(t *testing.T) {
 	}
 }
 
-func TestNerdctlQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
-	containerName := "qemu-unik-nginx-test"
+func TestNerdctlQemuUnikraftRedis(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
+	containerName := "qemu-unik-redis-test"
 	err := nerdctlTest(containerName, containerImage, false)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 }
 
-func TestNerdctlQemuUnikraftRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
+func TestNerdctlQemuUnikraftNginx(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
+	containerName := "qemu-unik-nginx-test"
 	err := nerdctlTest(containerName, containerImage, false)
 	if err != nil {
 		t.Fatal(err.Error())
