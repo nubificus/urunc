@@ -104,7 +104,7 @@ func findUnikernelIP(containerID string) (string, error) {
 	time.Sleep(4 * time.Second)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to inspect %s", output)
 	}
 	err = json.Unmarshal(output, &result)
 	if err != nil {
