@@ -68,6 +68,7 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
 	}
+	time.Sleep(4 * time.Second)
 	extractedIPAddr, err := findUnikernelIP(containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
@@ -100,6 +101,7 @@ func findUnikernelIP(containerID string) (string, error) {
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	var result []map[string]any
 	var networkSettings map[string]any
+	time.Sleep(4 * time.Second)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
