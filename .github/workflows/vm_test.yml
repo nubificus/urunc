@@ -123,6 +123,7 @@ jobs:
           cmd_output2=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip PATH=$PATH:/usr/local/go/bin make -C /root/develop/urunc)
           cmd_output3=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip make -C /root/develop/urunc install)
           ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'urunc --version'
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'sleep 20'
         else
           exit 1
         fi
