@@ -105,7 +105,7 @@ func findUnikernelIP(containerID string) (string, error) {
 	var result []map[string]any
 	var networkSettings map[string]any
 	time.Sleep(4 * time.Second)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect %s", output)
 	}
@@ -130,7 +130,26 @@ func findUnikernelIP(containerID string) (string, error) {
 	return "", nil
 }
 
+func nerdctllPullImage(containerImage string, devmapper bool) error {
+	cmdBase := "nerdctl image pull "
+	if devmapper {
+		cmdBase += "--snapshotter devmapper "
+	}
+	cmdline := fmt.Sprintf("%s%s", cmdBase, containerImage)
+	params := strings.Fields(cmdline)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	containerIDBytes, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s - %v", string(containerIDBytes), err)
+	}
+	return nil
+}
+
 func startNerdctlUnikernel(containerImage string, containerName string, devmapper bool) (containerID string, err error) {
+	err = nerdctllPullImage(containerImage, devmapper)
+	if err != nil {
+		return "", fmt.Errorf("Failed to pull image %s - %v", containerImage, err)
+	}
 	cmdBase := "nerdctl run "
 	if devmapper {
 		cmdBase += "--snapshotter devmapper "
