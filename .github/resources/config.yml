@@ -1,0 +1,70 @@
+default:
+  autostart: false
+  client: local
+  cloudinit: true
+  cpuhotplug: false
+  cpumodel: host-model
+  diskinterface: virtio
+  disks:
+  - default: true
+    size: 20
+  disksize: 20
+  diskthin: true
+  enableroot: true
+  guestid: guestrhel764
+  insecure: true
+  jenkinsmode: podman
+  keep_networks: false
+  memory: 4096
+  memoryhotplug: false
+  nested: true
+  nets:
+  - br0
+  networkwait: 0
+  notify: false
+  notifymethods:
+  - pushbullet
+  numcpus: 5
+  pool: default
+  privatekey: false
+  reservedns: false
+  reservehost: false
+  reserveip: false
+  rhnregister: true
+  rhnserver: https://subscription.rhsm.redhat.com
+  rhnunregister: false
+  rng: false
+  sharedkey: true
+  start: true
+  storemetadata: false
+  tempkey: true
+  tpm: false
+  tunnel: false
+  tunneldir: /var/www/html
+  tunnelport: 22
+  tunneluser: root
+  vmrules_strict: false
+  vnc: true
+  wait: false
+  waittimeout: 0
+  yamlinventory: false
+  cmds:
+    - echo "root:unix1234" | chpasswd
+dell03:
+  host: dell03
+  user: kcli
+  protocol: ssh
+  pool: default
+  type: kvm
+  nets:
+  - br0
+fuji00:
+  host: fuji00
+  user: kcli
+  protocol: ssh
+  pool: default
+  type: kvm
+  nets:
+  - br0
+
+
