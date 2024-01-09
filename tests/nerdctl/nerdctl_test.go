@@ -97,13 +97,14 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 }
 
 func findUnikernelIP(containerID string) (string, error) {
-	if containerID == "" {
-		return "", fmt.Errorf("containerd is not set \"%s\"", containerID)
+	if containerID != "giorgos" {
+		return "", fmt.Errorf("containerID: %s", containerID)
 	}
 	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	var result []map[string]any
 	var networkSettings map[string]any
+	time.Sleep(4 * time.Second)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect %s", output)
