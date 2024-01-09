@@ -97,9 +97,6 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 }
 
 func findUnikernelIP(containerID string) (string, error) {
-	if containerID != "giorgos" {
-		return "", fmt.Errorf("containerID: %s", containerID)
-	}
 	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	var result []map[string]any
