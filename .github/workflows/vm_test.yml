@@ -64,8 +64,6 @@ jobs:
         ssh_agent_pid=$(echo $ssh_agent_eval | awk '{print $3;}')
         echo "SSH_AGENT_PID=$ssh_agent_pid" >> $GITHUB_ENV
 
-
-        
     - name: spawn VM
       id: spawn-vm
       env:
