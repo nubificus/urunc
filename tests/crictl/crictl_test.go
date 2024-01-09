@@ -163,7 +163,6 @@ func TestCrictlQemuUnikraftRedis(t *testing.T) {
 		t.Fatalf("Failed to extract IP address for %s process", procName)
 	}
 
-	time.Sleep(2 * time.Second)
 	err = common.PingUnikernel(extractedIPAddr)
 	if err != nil {
 		t.Fatalf("ping failed: %v", err)

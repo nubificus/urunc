@@ -36,18 +36,18 @@ func TestNerdctlHvtRumprunRedis(t *testing.T) {
 	}
 }
 
-func TestNerdctlQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
-	containerName := "qemu-unik-nginx-test"
+func TestNerdctlQemuUnikraftRedis(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
+	containerName := "qemu-unik-redis-test"
 	err := nerdctlTest(containerName, containerImage, false)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 }
 
-func TestNerdctlQemuUnikraftRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
+func TestNerdctlQemuUnikraftNginx(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
+	containerName := "qemu-unik-nginx-test"
 	err := nerdctlTest(containerName, containerImage, false)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -68,7 +68,7 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
 	}
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 	extractedIPAddr, err := findUnikernelIP(containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
@@ -93,8 +93,6 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 	if err != nil {
 		return fmt.Errorf("Failed to remove all stale files: %v", err)
 	}
-
-	time.Sleep(5 * time.Second)
 	return nil
 }
 
@@ -103,9 +101,10 @@ func findUnikernelIP(containerID string) (string, error) {
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	var result []map[string]any
 	var networkSettings map[string]any
+	time.Sleep(4 * time.Second)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to get output: %s", output)
+		return "", fmt.Errorf("failed to inspect %s", output)
 	}
 	err = json.Unmarshal(output, &result)
 	if err != nil {
@@ -136,7 +135,7 @@ func startNerdctlUnikernel(containerImage string, containerName string, devmappe
 	cmdline := fmt.Sprintf("%s--name %s -d --runtime io.containerd.urunc.v2 %s unikernel", cmdBase, containerName, containerImage)
 	params := strings.Fields(cmdline)
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	containerIDBytes, err := cmd.CombinedOutput()
+	containerIDBytes, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("%s - %v", string(containerIDBytes), err)
 	}
