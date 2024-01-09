@@ -34,3 +34,5 @@ ubuntufat:
     - size: 30
   keys:
     - mydefaultkey.pub
+  shutdown_flag: false
+  
