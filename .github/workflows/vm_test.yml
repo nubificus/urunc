@@ -120,7 +120,7 @@ jobs:
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
           ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip rm -f /usr/local/bin/urunc
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git clone https://github.com/nubificus/urunc.git /root/develop/urunc
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git clone -b refactor_tests https://github.com/nubificus/urunc.git /root/develop/urunc
           # cmd_output=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip rm -fr /root/develop/urunc && mkdir -p /root/develop && git clone -b $GITHUB_REF_NAME https://github.com/nubificus/urunc.git /root/develop/urunc)
           cmd_output2=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip PATH=$PATH:/usr/local/go/bin make -C /root/develop/urunc)
           cmd_output3=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip make -C /root/develop/urunc install)
