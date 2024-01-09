@@ -138,7 +138,7 @@ func startNerdctlUnikernel(containerImage string, containerName string, devmappe
 	cmdline := fmt.Sprintf("%s--name %s -d --runtime io.containerd.urunc.v2 %s unikernel", cmdBase, containerName, containerImage)
 	params := strings.Fields(cmdline)
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	containerIDBytes, err := cmd.CombinedOutput()
+	containerIDBytes, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("%s - %v", string(containerIDBytes), err)
 	}
