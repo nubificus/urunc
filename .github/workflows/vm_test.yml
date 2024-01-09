@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
   
 env:
-  vm_profile: ubuntuurunc
+  vm_profile: ubuntufat
 
 jobs:
   prepare:
