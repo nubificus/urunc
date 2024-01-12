@@ -15,9 +15,7 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"time"
 
 	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
@@ -37,9 +35,7 @@ your host.`,
 		// FIXME: Remove or change level of log
 		containerID := context.Args().First()
 		logrus.WithField("args", os.Args).Info("urunc INVOKED")
-		nowTime := time.Now().UnixNano()
-		metrics.Log(fmt.Sprintf("%s,TS12,%d", containerID, nowTime))
-
+		metrics.Capture(containerID, "TS12")
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}
@@ -62,14 +58,11 @@ func startUnikontainer(context *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	nowTime := time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS13,%d", containerID, nowTime))
-
+	metrics.Capture(containerID, "TS13")
 	err = unikontainer.SendStartExecve()
 	if err != nil {
 		return err
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS14,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS14")
 	return unikontainer.ExecuteHooks("Poststart")
 }

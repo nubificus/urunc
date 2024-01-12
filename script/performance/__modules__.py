@@ -16,10 +16,9 @@ class Timestamp:
 
     @classmethod
     def fromLogLine(cls, logLine: str):
-        raw_ts = loads(logLine)['message']
-        raw_ts_parts = raw_ts.split(",")
-        tsID = str(raw_ts_parts[1])
-        timestamp = int(raw_ts_parts[2])
+        temp = loads(logLine)
+        tsID = temp["timestampID"]
+        timestamp = int(temp["time"])
         return cls(tsID=tsID, timestamp=timestamp)
 
 
@@ -51,9 +50,9 @@ class TimestampSeries:
 
     def __init__(self, data: List[str]) -> None:
         self.timestamps = []
-        self.containerID = str(loads(data[0])['message'].split(",")[0])
         for line in data:
             self.timestamps.append(Timestamp.fromLogLine(logLine=line))
+        self.containerID = loads(data[0])['containerID']
 
     def __str__(self) -> str:
         msg = ""

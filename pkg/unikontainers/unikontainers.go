@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/moby/sys/mount"
 	"github.com/nubificus/urunc/pkg/network"
@@ -32,7 +31,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	m "github.com/nubificus/urunc/pkg/metrics"
+	m "github.com/nubificus/urunc/internal/metrics"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -138,8 +137,7 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 
-	nowTime := time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS16,%d", u.State.ID, nowTime))
+	metrics.Capture(u.State.ID, "TS16")
 
 	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
@@ -168,8 +166,7 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		return err
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS17,%d", u.State.ID, nowTime))
+	metrics.Capture(u.State.ID, "TS17")
 
 	// if network info is nil, we didn't find eth0, so we are running with ctr
 	if networkInfo != nil {
@@ -239,8 +236,7 @@ func (u *Unikontainer) Exec() error {
 			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
 		}
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS18,%d", u.State.ID, nowTime))
+	metrics.Capture(u.State.ID, "TS18")
 
 	// get a new vmm
 	vmm, err := hypervisors.NewVMM(hypervisors.VmmType(vmmType))
@@ -269,8 +265,7 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 	Log.Info("calling vmm execve")
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS19,%d", u.State.ID, nowTime))
+	metrics.Capture(u.State.ID, "TS19")
 
 	// metrics.Wait()
 	return vmm.Execve(vmmArgs)
