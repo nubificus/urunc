@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	m "github.com/nubificus/urunc/pkg/metrics"
+	m "github.com/nubificus/urunc/internal/metrics"
 	"github.com/sirupsen/logrus"
 	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 

@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
@@ -67,11 +66,9 @@ func checkArgs(context *cli.Context, expected, checkType int) error {
 // if not, it execve's itself using the exact same arguments and runc
 func handleNonBimaContainer(context *cli.Context) error {
 	containerID := context.Args().First()
-	nowTime := time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,cTS00,%d", containerID, nowTime))
+	metrics.Capture(containerID, "cTS00")
 	defer func() {
-		nowTime := time.Now().UnixNano()
-		metrics.Log(fmt.Sprintf("%s,cTS01,%d", containerID, nowTime))
+		metrics.Capture(containerID, "cTS01")
 	}()
 	root := context.GlobalString("root")
 	if containerID == "" {

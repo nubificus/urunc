@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 
 	"github.com/creack/pty"
 	"github.com/nubificus/urunc/pkg/unikontainers"
@@ -76,13 +75,11 @@ var createCommand = cli.Command{
 
 		if !context.Bool("reexec") {
 			containerID := context.Args().First()
-			nowTime := time.Now().UnixNano()
-			metrics.Log(fmt.Sprintf("%s,TS00,%d", containerID, nowTime))
+			metrics.Capture(containerID, "TS00")
 			return createUnikontainer(context)
 		}
 		containerID := context.Args().First()
-		nowTime := time.Now().UnixNano()
-		metrics.Log(fmt.Sprintf("%s,TS04,%d", containerID, nowTime))
+		metrics.Capture(containerID, "TS04")
 		return reexecUnikontainer(context)
 	},
 }
@@ -109,16 +106,15 @@ func createUnikontainer(context *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	nowTime := time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS01,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS01")
 
 	err = unikontainer.InitialSetup()
 	if err != nil {
 		return err
 	}
 
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS02,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS02")
+
 	// Setup a listener for init socket before the creation of reexec process
 	sockAddr := unikontainer.GetInitSockAddr()
 	listener, err := unikontainers.CreateListener(sockAddr, true)
@@ -156,7 +152,8 @@ func createUnikontainer(context *cli.Context) error {
 
 	// setup terminal if required and start reexec process
 	if unikontainer.Spec.Process.Terminal {
-		nowTime = time.Now().UnixNano()
+		metrics.Capture(containerID, "TS03")
+
 		ptm, err := pty.Start(reexecCommand)
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to create pty")
@@ -181,17 +178,16 @@ func createUnikontainer(context *cli.Context) error {
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to send PTY file descriptor over socket")
 		}
-		metrics.Log(fmt.Sprintf("%s,TS03,%d", containerID, nowTime))
 	} else {
 		reexecCommand.Stdin = os.Stdin
 		reexecCommand.Stdout = os.Stdout
 		reexecCommand.Stderr = os.Stderr
-		nowTime = time.Now().UnixNano()
+		metrics.Capture(containerID, "TS03")
+
 		err := reexecCommand.Start()
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to start reexec process")
 		}
-		metrics.Log(fmt.Sprintf("%s,TS03,%d", containerID, nowTime))
 	}
 
 	// Wait for reexec process to notify us
@@ -199,8 +195,8 @@ func createUnikontainer(context *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS07,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS07")
+
 	// Retrieve reexec cmd's pid and write to file and state
 	pid := reexecCommand.Process.Pid
 	err = unikontainer.Create(pid)
@@ -213,23 +209,23 @@ func createUnikontainer(context *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS08,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS08")
+
 	// send ACK to reexec process
 	err = unikontainer.SendAckReexec()
 	if err != nil {
 		return fmt.Errorf("failed to send ACK to reexec process: %w", err)
 
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS09,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS09")
+
 	// execute CreateRuntime hooks
 	err = unikontainer.ExecuteHooks("CreateContainer")
 	if err != nil {
 		return fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS11,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS11")
+
 	return nil
 }
 
@@ -250,30 +246,29 @@ func reexecUnikontainer(context *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	nowTime := time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS05,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS05")
+
 	// send ReexecStarted message to init.sock to parent process
 	err = unikontainer.SendReexecStarted()
 	if err != nil {
 		return err
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS06,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS06")
+
 	// wait AckReexec message on urunc.sock from parent process
 	socketPath := unikontainer.GetUruncSockAddr()
 	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.AckReexec)
 	if err != nil {
 		return err
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS10,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS10")
+
 	// wait StartExecve message on urunc.sock from urunc start process
 	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.StartExecve)
 	if err != nil {
 		return err
 	}
-	nowTime = time.Now().UnixNano()
-	metrics.Log(fmt.Sprintf("%s,TS15,%d", containerID, nowTime))
+	metrics.Capture(containerID, "TS15")
 
 	// execute Prestart hooks
 	err = unikontainer.ExecuteHooks("Prestart")
