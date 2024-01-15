@@ -31,6 +31,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
+	"github.com/nubificus/urunc/internal/constants"
 	m "github.com/nubificus/urunc/internal/metrics"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -131,7 +132,7 @@ func (u *Unikontainer) Create(pid int) error {
 
 func (u *Unikontainer) Exec() error {
 	// FIXME: We need to find a way to set the output file
-	var metrics = m.NewZerologMetrics("/tmp/urunc.zlog")
+	var metrics = m.NewZerologMetrics(constants.TimestampTargetFile)
 	err := u.joinSandboxNetNs()
 	if err != nil {
 		return err
@@ -162,7 +163,11 @@ func (u *Unikontainer) Exec() error {
 	}
 
 	// handle network
-	networkInfo, err := network.Setup()
+	netManager, err := network.NewNetworkManager(u.getNetworkType())
+	if err != nil {
+		return err
+	}
+	networkInfo, err := netManager.NetworkSetup()
 	if err != nil {
 		return err
 	}
@@ -589,4 +594,12 @@ func (u *Unikontainer) isRunning() bool {
 	hedge := hypervisors.Hedge{}
 	state := hedge.VMState(u.State.ID)
 	return state == "running"
+}
+
+// getNetworkType checks if current container is a knative user-container
+func (u Unikontainer) getNetworkType() string {
+	if u.Spec.Annotations["io.kubernetes.cri.container-name"] == "user-container" {
+		return "static"
+	}
+	return "dynamic"
 }

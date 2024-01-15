@@ -76,6 +76,11 @@ var createCommand = cli.Command{
 		if !context.Bool("reexec") {
 			containerID := context.Args().First()
 			metrics.Capture(containerID, "TS00")
+			logrus.Error("calling handle queue proxy")
+			err := handleQueueProxy(context)
+			if err != nil {
+				return err
+			}
 			return createUnikontainer(context)
 		}
 		containerID := context.Args().First()
