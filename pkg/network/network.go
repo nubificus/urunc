@@ -18,31 +18,30 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os/user"
-	"strconv"
 	"strings"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/jackpal/gateway"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
-// FIXME: Add support for more interfaces. See: https://github.com/nubificus/urunc/issues/13
-// FIXME: Discover the veth endpoint name instead of using default "eth0". See: https://github.com/nubificus/urunc/issues/14
-const DefaultInterface = "eth0"
-const DefaultTap = "tap0_urunc"
+const (
+	DefaultInterface = "eth0" // FIXME: Discover the veth endpoint name instead of using default "eth0". See: https://github.com/nubificus/urunc/issues/14
+	DefaultTap       = "tapX_urunc"
+)
 
-var ErrEth0NotFound = errors.New("eth0 device not found")
-var netLog = logrus.WithField("subsystem", "network")
+var netlog = logrus.WithField("subsystem", "network")
 
 type UnikernelNetworkInfo struct {
 	TapDevice string
-	EthDevice InterfaceInfo
+	EthDevice Interface
+}
+type Manager interface {
+	NetworkSetup() (*UnikernelNetworkInfo, error)
 }
 
-type InterfaceInfo struct {
+type Interface struct {
 	IP             string
 	DefaultGateway string
 	Mask           string
@@ -50,163 +49,33 @@ type InterfaceInfo struct {
 	MAC            string
 }
 
-func getInterfaceInfo(iface string) (InterfaceInfo, error) {
-	ief, err := net.InterfaceByName(iface)
-	if err != nil {
-		return InterfaceInfo{}, err
-	}
+func NewNetworkManager(networkType string) (Manager, error) {
+	switch networkType {
+	case "static":
+		return &StaticNetwork{}, nil
+	case "dynamic":
+		return &DynamicNetwork{}, nil
+	default:
+		return nil, fmt.Errorf("network manager %s not supported", networkType)
 
-	IfMAC := ief.HardwareAddr.String()
-	if IfMAC == "" {
-		return InterfaceInfo{}, fmt.Errorf("failed to get MAC address of %q", iface)
 	}
-
-	addrs, err := ief.Addrs()
-	if err != nil {
-		return InterfaceInfo{}, err
-	}
-	ipAddress := ""
-	mask := ""
-	netMask := net.IPMask{}
-	for _, addr := range addrs {
-		ipNet, ok := addr.(*net.IPNet)
-		if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			ipAddress = ipNet.IP.String()
-			// hexadecimal notation
-			mask = ipNet.Mask.String()
-			netMask = ipNet.Mask
-			break
-		}
-	}
-	if mask == "" {
-		return InterfaceInfo{}, fmt.Errorf("failed to find mask for %q", iface)
-	}
-	// convert to decimal notatio
-	decimalParts := make([]string, len(netMask))
-	for i, part := range netMask {
-		decimalParts[i] = fmt.Sprintf("%d", part)
-	}
-	mask = strings.Join(decimalParts, ".")
-	if ipAddress == "" {
-		return InterfaceInfo{}, fmt.Errorf("failed to find IPv4 address for %q", iface)
-	}
-	gateway, err := gateway.DiscoverGateway()
-	if err != nil {
-		return InterfaceInfo{}, err
-	}
-	return InterfaceInfo{
-		IP:             ipAddress,
-		DefaultGateway: gateway.String(),
-		Mask:           mask,
-		Interface:      iface,
-		MAC:            IfMAC,
-	}, nil
 }
 
-// Setup creates a tap device and sets tc rules between veth interface inside the namespace to the tap device.
-func Setup() (*UnikernelNetworkInfo, error) {
-	vethDevName, err := GetVethDevice()
-	if err == ErrEth0NotFound {
-		netLog.Info("No eth0 device found")
-		return nil, nil
-	}
+func getTapIndex() (int, error) {
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		netLog.WithError(err).Error("Couldn't find eth0 interface")
-		return nil, err
+		return 0, err
 	}
-	redirectLink, err := GetLink(vethDevName)
-	if err != nil {
-		netLog.WithError(err).Error("Couldn't find eth0 link")
-		return nil, err
-	}
-	ifaceInfo, err := getInterfaceInfo(vethDevName)
-	if err != nil {
-		netLog.WithError(err).Error("Couldn't find eth0 info")
-		return nil, err
-	}
-	currentUser, err := user.Current()
-	if err != nil {
-		netLog.WithError(err).Error("Couldn't find current user")
-		return nil, err
-	}
-	uid, err := strconv.Atoi(currentUser.Uid)
-	if err != nil {
-		netLog.WithError(err).Error("Couldn't parse UID as int")
-		return nil, err
-	}
-	gid, err := strconv.Atoi(currentUser.Gid)
-	if err != nil {
-		netLog.WithError(err).Error("Couldn't parse GID as int")
-		return nil, err
-	}
-	tapLink, err := CreateTap(DefaultTap, redirectLink.Attrs().MTU, uid, gid)
-	if err != nil {
-		netLog.WithError(err).Error("Couldn't create tap device")
-		return nil, err
-	}
-	netLog.WithField("tap", tapLink).Debug("Created TAP device")
-
-	err = AddIngressQdisc(tapLink)
-	if err != nil {
-		return nil, err
-	}
-
-	err = AddIngressQdisc(redirectLink)
-	if err != nil {
-		return nil, err
-	}
-
-	err = AddRedirectFilter(tapLink, redirectLink)
-	if err != nil {
-		return nil, err
-	}
-
-	err = AddRedirectFilter(redirectLink, tapLink)
-	if err != nil {
-		return nil, err
-	}
-	return &UnikernelNetworkInfo{
-		TapDevice: tapLink.Attrs().Name,
-		EthDevice: ifaceInfo,
-	}, nil
-}
-
-// Find all interfaces available in our netns.
-// We are expecting to find an eth0 interface and a lo interface.
-// The eth0 is the interface we need to use.
-// If there are more interfaces, log all interfaces.
-func GetVethDevice() (string, error) {
-	ifaces, _ := net.Interfaces()
-	if len(ifaces) > 2 {
-		netLog.WithField("interfaces", ifaces).Debug("Found more than 2 interfaces")
-	}
+	tapCount := 0
 	for _, iface := range ifaces {
-		netLog.Info("ifaces: ", iface)
-		if iface.Name == DefaultInterface {
-			return iface.Name, nil
+		if strings.Contains(iface.Name, "tap") {
+			tapCount++
 		}
 	}
-	return "", ErrEth0NotFound
-
+	return tapCount, nil
 }
 
-type LinkNotFoundError struct {
-	device string
-}
-
-func (e LinkNotFoundError) Error() string {
-	return fmt.Sprintf("did not find expected network device with name %q", e.device)
-}
-
-func GetLink(name string) (netlink.Link, error) {
-	link, err := netlink.LinkByName(name)
-	if _, ok := err.(netlink.LinkNotFoundError); ok {
-		return nil, &LinkNotFoundError{device: name}
-	}
-	return link, err
-}
-
-func CreateTap(name string, mtu int, ownerUID, ownerGID int) (netlink.Link, error) {
+func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link, error) {
 	tapLinkAttrs := netlink.NewLinkAttrs()
 	tapLinkAttrs.Name = name
 	tapLink := &netlink.Tuntap{
@@ -245,40 +114,91 @@ func CreateTap(name string, mtu int, ownerUID, ownerGID int) (netlink.Link, erro
 		return nil, fmt.Errorf("failed to set tap device MTU to %d: %w", mtu, err)
 	}
 
-	err = netlink.LinkSetUp(tapLink)
-	if err != nil {
-		return nil, errors.New("failed to set tap up")
-	}
-
 	return tapLink, nil
 }
 
-func AddIngressQdisc(link netlink.Link) error {
-	err := netlink.QdiscAdd(ingressQdisc(link))
+// ensureEth0Exists checks all network interfaces in current netns and returns
+// nil if eth0 is present or ErrEth0NotFound if not
+func ensureEth0Exists() error {
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		return fmt.Errorf("failed to add ingress qdisc to device %q: %w", link.Attrs().Name, err)
+		return err
 	}
-	return nil
+	for _, iface := range ifaces {
+		if iface.Name == DefaultInterface {
+			return nil
+		}
+	}
+	return errors.New("eth0 device not found")
 }
 
-func ingressQdisc(link netlink.Link) netlink.Qdisc {
-	return &netlink.Ingress{
+func getInterfaceInfo(iface string) (Interface, error) {
+	ief, err := net.InterfaceByName(iface)
+	if err != nil {
+		return Interface{}, err
+	}
+	IfMAC := ief.HardwareAddr.String()
+	if IfMAC == "" {
+		return Interface{}, fmt.Errorf("failed to get MAC address of %q", ief)
+	}
+
+	addrs, err := ief.Addrs()
+	if err != nil {
+		return Interface{}, err
+	}
+	ipAddress := ""
+	mask := ""
+	netMask := net.IPMask{}
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+			ipAddress = ipNet.IP.String()
+			// hexadecimal notation
+			mask = ipNet.Mask.String()
+			netMask = ipNet.Mask
+			break
+		}
+	}
+	if mask == "" {
+		return Interface{}, fmt.Errorf("failed to find mask for %q", DefaultInterface)
+	}
+	// convert to decimal notation
+	decimalParts := make([]string, len(netMask))
+	for i, part := range netMask {
+		decimalParts[i] = fmt.Sprintf("%d", part)
+	}
+	mask = strings.Join(decimalParts, ".")
+	if ipAddress == "" {
+		return Interface{}, fmt.Errorf("failed to find IPv4 address for %q", DefaultInterface)
+	}
+	gateway, err := gateway.DiscoverGateway()
+	if err != nil {
+		return Interface{}, err
+	}
+	return Interface{
+		IP:             ipAddress,
+		DefaultGateway: gateway.String(),
+		Mask:           mask,
+		Interface:      DefaultInterface,
+		MAC:            IfMAC,
+	}, nil
+}
+
+func addIngressQdisc(link netlink.Link) error {
+	ingress := &netlink.Ingress{
 		QdiscAttrs: netlink.QdiscAttrs{
 			LinkIndex: link.Attrs().Index,
 			Parent:    netlink.HANDLE_INGRESS,
 		},
 	}
+	return netlink.QdiscAdd((ingress))
 }
 
-func RootFilterHandle() uint32 {
-	return netlink.MakeHandle(0xffff, 0)
-}
-
-func AddRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) error {
-	err := netlink.FilterAdd(&netlink.U32{
+func addRedirectFilter(source netlink.Link, target netlink.Link) error {
+	return netlink.FilterAdd(&netlink.U32{
 		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: sourceLink.Attrs().Index,
-			Parent:    RootFilterHandle(),
+			LinkIndex: source.Attrs().Index,
+			Parent:    netlink.MakeHandle(0xffff, 0),
 			Protocol:  unix.ETH_P_ALL,
 		},
 		Actions: []netlink.Action{
@@ -287,38 +207,8 @@ func AddRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) error {
 					Action: netlink.TC_ACT_STOLEN,
 				},
 				MirredAction: netlink.TCA_EGRESS_REDIR,
-				Ifindex:      targetLink.Attrs().Index,
+				Ifindex:      target.Attrs().Index,
 			},
 		},
 	})
-	if err != nil {
-		err = fmt.Errorf(
-			"failed to add u32 filter redirecting from device %q to device %q, does %q exist and have a qdisc attached to its ingress?",
-			sourceLink.Attrs().Name, targetLink.Attrs().Name, sourceLink.Attrs().Name,
-		)
-	}
-
-	return err
 }
-
-// FIXME: Remove
-// func SubnetMaskToCIDR(subnetMask string) (int, error) {
-// 	maskParts := strings.Split(subnetMask, ".")
-// 	if len(maskParts) != 4 {
-// 		return 0, fmt.Errorf("invalid subnet mask format")
-// 	}
-
-// 	var cidr int
-// 	for _, part := range maskParts {
-// 		val, err := strconv.Atoi(part)
-// 		if err != nil || val < 0 || val > 255 {
-// 			return 0, fmt.Errorf("invalid subnet mask value: %s", part)
-// 		}
-
-// 		// Convert part to binary and count the number of 1 bits
-// 		binary := fmt.Sprintf("%08b", val)
-// 		cidr += strings.Count(binary, "1")
-// 	}
-
-// 	return cidr, nil
-// }
