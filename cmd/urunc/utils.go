@@ -80,7 +80,11 @@ func handleNonBimaContainer(context *cli.Context) error {
 		return nil
 	}
 	ctrNamespace := filepath.Base(root)
-	bundle := filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
+	bundle := context.String("bundle")
+	if bundle == "" {
+		bundle = filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
+	}
+	logrus.WithField("bundle", bundle).Info("Bundle path")
 
 	if unikontainers.IsBimaContainer(bundle) {
 		logrus.Info("This is a bima container! Proceeding...")
