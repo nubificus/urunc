@@ -174,6 +174,7 @@ func configLogrus(context *cli.Context) error {
 			},
 		})
 	}
+	logrus.SetReportCaller(true)
 
 	switch f := context.GlobalString("log-format"); f {
 	case "":
