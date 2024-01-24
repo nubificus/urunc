@@ -17,6 +17,7 @@ package hypervisors
 import (
 	"strings"
 	"syscall"
+	"runtime"
 )
 
 const (
@@ -42,6 +43,17 @@ func (q *Qemu) Path() string {
 
 func (q *Qemu) Execve(args ExecArgs) error {
 	cmdString := q.Path() + " -cpu host -m 254 -enable-kvm -nographic -vga none"
+
+	// go:build !amd64,386
+	// +build !amd64,386 
+	if runtime.GOARCH == "arm64" {
+		machineType := " -M virt"
+		cmdString += machineType
+	}
+
+	// go:build amd64,386
+	// +build amd64,386
+
 	cmdString += " -kernel " + args.UnikernelPath
 	if args.TapDevice != "" {
 		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + args.TapDevice
