@@ -576,6 +576,7 @@ func (u *Unikontainer) SendReexecStarted() error {
 // SendAckReexec sends an AckReexec message to UruncSock
 func (u *Unikontainer) SendAckReexec() error {
 	sockAddr := getUruncSockAddr(u.BaseDir)
+	Log.WithField("baseDir", u.BaseDir).WithField("sockAddr", sockAddr).Error("Found sockaddr")
 	return sendIPCMessageWithRetry(sockAddr, AckReexec, true)
 }
 
