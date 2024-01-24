@@ -82,6 +82,7 @@ func handleNonBimaContainer(context *cli.Context) error {
 	ctrNamespace := filepath.Base(root)
 	bundle := context.String("bundle")
 	if bundle == "" {
+		logrus.Error("bundle not given. Will use default!")
 		bundle = filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
 	}
 	logrus.WithField("bundle", bundle).Info("Bundle path")
