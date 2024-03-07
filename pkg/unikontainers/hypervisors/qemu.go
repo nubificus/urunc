@@ -43,6 +43,7 @@ func (q *Qemu) Path() string {
 func (q *Qemu) Execve(args ExecArgs) error {
 	cmdString := q.Path() + " -cpu host -m 254 -enable-kvm -nographic -vga none"
 	cmdString += " -kernel " + args.UnikernelPath
+	cmdString += " -object acceldev-backend-vaccelrt,id=gen0 -device virtio-accel-pci,id=accl0,runtime=gen0,disable-legacy=off,disable-modern=on"
 	if args.TapDevice != "" {
 		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + args.TapDevice
 	}
@@ -57,6 +58,11 @@ func (q *Qemu) Execve(args ExecArgs) error {
 	}
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)
+	envArgs := args.Environment
+	//envArgs := []string{}
+	envArgs = append(envArgs, "VACCEL_DEBUG_LEVEL=4", "VACCEL_BACKENDS=/usr/local/lib/libvaccel-jetson.so")
 	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")
-	return syscall.Exec(q.Path(), exArgs, args.Environment) //nolint: gosec
+	vmmLog.WithField("qemu command env", envArgs).Info("Ready to execve qemu")
+	vmmLog.WithField("qemu path", q.Path()).Info("Ready to execve qemu")
+	return syscall.Exec(q.Path(), exArgs, envArgs) //nolint: gosec
 }
