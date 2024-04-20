@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -39,11 +40,18 @@ type UnikernelConfig struct {
 }
 
 // GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
-// If that fails, it gets the Unikernel config from the urunc.json file inside the rootfs.
+// If that fails, it tries to read the ENV variable of the spec.
+// If that also fails, it gets the Unikernel config from the urunc.json file inside the rootfs.
 // FIXME: custom annotations are unreachable, we nned to investigate why to skip adding the urunc.json file
 // For more details, see: https://github.com/nubificus/urunc/issues/12
 func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, error) {
 	conf, err := getConfigFromSpec(spec)
+	if err == nil {
+		conf.decode()
+		return conf, nil
+	}
+
+	conf, err = getConfigFromEnv(spec)
 	if err == nil {
 		conf.decode()
 		return conf, nil
@@ -74,17 +82,46 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		"initrd":          initrd,
 	}).Info("urunc annotations")
 
-	conf := fmt.Sprintf("%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd)
-	if conf == "" {
-		return nil, ErrEmptyAnnotations
-	}
-	return &UnikernelConfig{
+	newConf := &UnikernelConfig{
 		UnikernelBinary: unikernelBinary,
 		UnikernelType:   unikernelType,
 		UnikernelCmd:    unikernelCmd,
 		Hypervisor:      hypervisor,
 		Initrd:          initrd,
-	}, nil
+	}
+	if !newConf.IsSet() {
+		return nil, ErrEmptyAnnotations
+
+	}
+	return newConf, nil
+}
+
+// getConfigFromEnv retrieves the urunc specific annotations from the spec's cmd ENV variables and populates the Unikernel config.
+func getConfigFromEnv(spec *specs.Spec) (*UnikernelConfig, error) {
+	newConfig := &UnikernelConfig{}
+	envs := spec.Process.Env
+	for _, env := range envs {
+		if !strings.Contains(env, "com.urunc.unikernel") {
+			continue
+		}
+		parts := strings.SplitN(env, "=", 2)
+		switch key := parts[0]; key {
+		case "com.urunc.unikernel.unikernelType":
+			newConfig.UnikernelType = parts[1]
+		case "com.urunc.unikernel.cmdline":
+			newConfig.UnikernelCmd = parts[1]
+		case "com.urunc.unikernel.binary":
+			newConfig.UnikernelBinary = parts[1]
+		case "com.urunc.unikernel.hypervisor":
+			newConfig.Hypervisor = parts[1]
+		case "com.urunc.unikernel.initrd":
+			newConfig.Initrd = parts[1]
+		}
+	}
+	if !newConfig.IsSet() {
+		return nil, ErrEmptyAnnotations
+	}
+	return newConfig, nil
 }
 
 // getConfigFromJSON retrieves the Unikernel config parameters from the urunc.json file inside the rootfs.
@@ -176,4 +213,10 @@ func (c *UnikernelConfig) Map() map[string]string {
 		myMap["com.urunc.unikernel.initrd"] = c.Initrd
 	}
 	return myMap
+}
+
+// IsSet returns true if any field is set
+func (c *UnikernelConfig) IsSet() bool {
+	conf := fmt.Sprintf("%s%s%s%s%s", c.UnikernelType, c.UnikernelCmd, c.UnikernelBinary, c.Hypervisor, c.Initrd)
+	return conf != ""
 }
