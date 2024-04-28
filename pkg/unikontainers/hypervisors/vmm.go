@@ -55,6 +55,12 @@ func NewVMM(vmmType VmmType) (vmm VMM, err error) {
 		}
 	}()
 	switch vmmType {
+	case SptVmm:
+		vmmPath, err := exec.LookPath(SptBinary)
+		if err != nil {
+			return nil, ErrVMMNotInstalled
+		}
+		return &SPT{binary: SptBinary, binaryPath: vmmPath}, nil
 	case HvtVmm:
 		vmmPath, err := exec.LookPath(HvtBinary)
 		if err != nil {

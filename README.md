@@ -47,7 +47,7 @@ To run a simple `urunc` example locally, you need to address a few dependencies:
 - [devmapper snapshotter](https://docs.docker.com/storage/storagedriver/device-mapper-driver/) (for setup and configuration instructions, see [here](docs/Installation.md#setup-thinpool-devmapper), [here](docs/Installation.md#configure-containerd-for-devmapper) and [here](docs/Installation.md#initialize-devmapper))
 - [runc](https://github.com/opencontainers/runc/) (installation instructions can be found [here](docs/Installation.md#install-runc))
 - [nerdctl](https://github.com/containerd/nerdctl/) (installation instructions can be found [here](docs/Installation.md#install-nerdctl))
-- `solo5-hvt` as the backend (installation instructions can be found [here](docs/Installation.md#install-solo5-hvt))
+- `solo5` as the backend (installation instructions can be found [here](docs/Installation.md#install-solo5))
 - `urunc` and `containerd-shim-urunc-v2` binaries
 - `containerd` needs to be configured to [use devmapper](docs/Installation.md#configure-containerd-for-devmapper) and [register urunc as a runtime](docs/Installation.md#add-urunc-runtime-to-containerd)
 
@@ -71,7 +71,7 @@ The following table provides an overview of the currently supported hypervisors 
 
 | Unikernel  | VMMs               | Arch         | Storage    |
 |----------- |------------------- |------------- |----------- |
-| Rumprun    | Solo5-hvt          | x86,aarch64  | Devmapper  |
+| Rumprun    | Solo5-(hvt,spt)          | x86,aarch64  | Devmapper  |
 | Unikraft   | QEMU, Firecracker  | x86          | Initrd     |
 
 ## Running on k8s
