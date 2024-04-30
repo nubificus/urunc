@@ -1,0 +1,45 @@
+name: Git Trailers
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+  workflow_dispatch:
+
+jobs:
+  git-trailers:
+    runs-on: [self-hosted, x86_64]
+    if: ${{ github.event.review.state == 'approved' }}
+
+    steps:
+      - name: Cleanup previous jobs
+        run: |
+          echo "Cleaning up previous runs"
+          sudo rm -rf ${{ github.workspace }}/*
+          sudo rm -rf ${{ github.workspace }}/.??*
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+
+      - name: Do git trailers
+        uses: nubificus/git-trailers@main
+        with:
+          user_info: ${{ github.workspace }}/.contributors.yaml
+
+
+      - name: Trigger required tests re-run
+        run: |
+          curl -X DELETE \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: Bearer ${{ secrets.ORG_PAT}}" \
+              "https://api.github.com/repos/${{ github.repository }}/labels/ok-to-test"
+          sleep 5
+          curl -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: Bearer ${{ secrets.ORG_PAT}}" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" \
+              -d '{
+                  "labels": ["ok-to-test"]
+              }'        
