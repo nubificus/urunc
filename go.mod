@@ -3,12 +3,14 @@ module github.com/nubificus/urunc
 go 1.18
 
 require (
+	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a
 	github.com/containerd/containerd v1.6.10
 	github.com/creack/pty v1.1.11
 	github.com/go-ping/ping v1.1.0
 	github.com/jackpal/gateway v1.0.10
 	github.com/moby/sys/mount v0.3.3
 	github.com/nubificus/hedge_cli v0.0.3
+	github.com/opencontainers/runc v1.1.2
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/rs/zerolog v1.31.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
