@@ -118,7 +118,9 @@ func fatalWithCode(err error, ret int) {
 }
 
 // handleQueueProxy checks if the provided bundle contains a queue-proxy container
-// and adds a hardcoded IP to the process's environment
+// and adds a hardcoded IP to the process's environment.
+// Then, the container is identified as a non-bima container
+// is spawned using runc.
 func handleQueueProxy(context *cli.Context) error {
 	logrus.Error("handleQueueProxy")
 	containerID := context.Args().First()
