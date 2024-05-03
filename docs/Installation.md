@@ -194,7 +194,7 @@ Now, we are ready to build and run our unikernel images!
 
 ## Run an example unikernel
 
-### Install solo5-hvt
+### Install solo5
 
 First, let's install the apt packages required to build solo5:
 
@@ -202,13 +202,14 @@ First, let's install the apt packages required to build solo5:
 sudo apt-get install libseccomp-dev pkg-config gcc -y
 ```
 
-Next, we can clone, build and install `solo5-hvt`.
+Next, we can clone, build and install `solo5`.
 
 ```bash
 git clone -b v0.6.9 https://github.com/Solo5/solo5.git
 cd solo5
 ./configure.sh  && make -j$(nproc)
 sudo cp tenders/hvt/solo5-hvt /usr/local/bin
+sudo cp tenders/spt/solo5-spt /usr/local/bin
 ```
 
 ### Run a redis unikernel
