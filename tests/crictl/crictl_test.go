@@ -104,6 +104,96 @@ func TestCrictlHvtRumprunRedis(t *testing.T) {
 	}
 }
 
+func TestCrictlSptRumprunRedis(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest"
+	procName := "solo5-spt"
+	podConfig := crictlSandboxConfig("spt-rumprun-redis-sandbox")
+	containerConfig := crictlContainerConfig("spt-rumprun-redis", containerImage)
+
+	// create config files
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("Failed to retrieve current directory")
+	}
+	absPodConf := filepath.Join(cwd, "pod.json")
+	absContConf := filepath.Join(cwd, "cont.json")
+	err = writeToFile(absPodConf, podConfig)
+	if err != nil {
+		t.Fatalf("Failed to write pod config: %v", err)
+	}
+	defer os.Remove(absPodConf)
+	err = writeToFile(absContConf, containerConfig)
+	if err != nil {
+		t.Fatalf("Failed to write container config: %v", err)
+	}
+	defer os.Remove(absContConf)
+
+	// pull image
+	params := []string{"crictl", "pull", containerImage}
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to pull image: %v\n%s", err, output)
+	}
+
+	// start unikernel in pod
+	params = strings.Fields("crictl run --runtime=urunc cont.json pod.json")
+	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to run unikernel: %v\n%s", err, output)
+	}
+	time.Sleep(2 * time.Second)
+	proc, err := common.FindProc(procName)
+	if err != nil {
+		t.Fatalf("Failed to find %s process: %v", procName, err)
+	}
+	cmdLine, err := proc.Cmdline()
+	if err != nil {
+		t.Fatalf("Failed to find %s process' command line: %v", procName, err)
+	}
+
+	// Extract the IP address
+	re := regexp.MustCompile(`"addr":"([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)"`)
+	match := re.FindStringSubmatch(cmdLine)
+	extractedIPAddr := ""
+	if len(match) == 2 {
+		extractedIPAddr = match[1]
+	} else {
+		t.Fatalf("Failed to extract IP address for %s process", procName)
+
+	}
+
+	err = common.PingUnikernel(extractedIPAddr)
+	if err != nil {
+		t.Fatalf("ping failed: %v", err)
+	}
+
+	// Find pod ID
+	params = strings.Fields("crictl pods -q")
+	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to find pod: %v\n%s", err, output)
+	}
+
+	podID := string(output)
+	podID = strings.TrimSpace(podID)
+
+	// Stop and remove pod
+	params = strings.Fields("crictl rmp --force " + podID)
+	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to stop and remove pod: %v\n%s", err, output)
+	}
+
+	proc, _ = common.FindProc(procName)
+	if proc != nil {
+		t.Fatalf("%s process is still alive", procName)
+	}
+}
+
 func TestCrictlQemuUnikraftRedis(t *testing.T) {
 	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
 	procName := "qemu-system"

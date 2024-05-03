@@ -36,6 +36,15 @@ func TestNerdctlHvtRumprunRedis(t *testing.T) {
 	}
 }
 
+func TestNerdctlSptRumprunRedis(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest"
+	containerName := "spt-rumprun-redis-test"
+	err := nerdctlTest(containerName, containerImage, true)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
 func TestNerdctlQemuUnikraftRedis(t *testing.T) {
 	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
 	containerName := "qemu-unik-redis-test"
