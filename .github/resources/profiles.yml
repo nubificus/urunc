@@ -9,7 +9,7 @@ ubuntuthin:
     - size: 10
   keys:
     - mydefaultkey.pub
-  shutdown_flag: false
+  shutdown_flag: true
 
 ubuntuurunc:
   client: fuji00
@@ -21,7 +21,7 @@ ubuntuurunc:
   disks: [20]
   keys:
     - mydefaultkey.pub
-  shutdown_flag: false
+  shutdown_flag: true
 
 ubuntufat:
   client: fuji00
@@ -34,5 +34,5 @@ ubuntufat:
     - size: 30
   keys:
     - mydefaultkey.pub
-  shutdown_flag: false
+  shutdown_flag: true
   
