@@ -31,6 +31,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
+	"github.com/nubificus/urunc/internal/constants"
 	m "github.com/nubificus/urunc/internal/metrics"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -131,7 +132,7 @@ func (u *Unikontainer) Create(pid int) error {
 
 func (u *Unikontainer) Exec() error {
 	// FIXME: We need to find a way to set the output file
-	var metrics = m.NewZerologMetrics("/tmp/urunc.zlog")
+	var metrics = m.NewZerologMetrics(constants.TimestampTargetFile)
 	err := u.joinSandboxNetNs()
 	if err != nil {
 		return err
