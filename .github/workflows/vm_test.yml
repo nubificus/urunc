@@ -1,8 +1,5 @@
 name: custom VM spawner 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches: [ "main" ]
     types:
@@ -16,7 +13,8 @@ env:
 
 jobs:
   prepare:
-    name: 
+    name: VM test
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     runs-on: [ self-hosted, gcc, lite, "x86_64" ]
     # outputs:
 
@@ -28,10 +26,8 @@ jobs:
         sudo rm -rf ${{ github.workspace }}/.??*
         sudo rm -rf ~/.kcli
 
-
     - name: Checkout
       uses: actions/checkout@v3
-
 
     - name: get & install kcli
       id: kcli-install
@@ -98,8 +94,6 @@ jobs:
         echo "vm_spawn_result=$result" >> $GITHUB_ENV
         echo "vm_spawn_ip=$output" >> $GITHUB_ENV
       shell: bash
-        
-
 
     - name: Execute script in vm
       id: script-execute-vm
@@ -157,7 +151,6 @@ jobs:
           exit 1
         fi
 
-
     - name: Run crictl tests
       id: test-crictl
       if: ${{ !cancelled() }}
@@ -193,7 +186,6 @@ jobs:
         echo "clean kcli ssh keys"
         sudo rm -rf /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
 
-
     - name: prepare artifacts
       id: prepare_artifacts
       if: ${{ !cancelled() }}
@@ -219,7 +211,3 @@ jobs:
       with:
         name: ${{ github.run_id }}_artifacts
         path: ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar
-
-
-
-

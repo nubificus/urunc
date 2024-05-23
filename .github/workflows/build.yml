@@ -1,9 +1,6 @@
 name: Build
 
 on:
-  push:
-      branches:
-        - main
   pull_request:
     branches: [ "main" ]
     types:
@@ -15,6 +12,7 @@ on:
 
 jobs:
   build:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     runs-on: [ self-hosted, "${{ matrix.archconfig }}", go]
     strategy:
       matrix:
