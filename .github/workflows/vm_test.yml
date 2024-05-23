@@ -211,6 +211,7 @@ jobs:
           echo $vm_spawn_ip >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
           tar -rf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar -C ${{ github.workspace }} ${{ github.run_id }}_vm_info
         fi
+        sudo rm -rf /home/runner/.ssh/${{ github.run_id }}_ubuntu*
 
     - name: upload artifacts
       uses: actions/upload-artifact@v3
