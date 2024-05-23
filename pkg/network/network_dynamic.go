@@ -16,7 +16,6 @@ package network
 
 import (
 	"fmt"
-	"os/user"
 	"strconv"
 	"strings"
 
@@ -37,72 +36,27 @@ type DynamicNetwork struct {
 // for multiple unikernels in the same pod/network namespace
 // See: https://github.com/nubificus/urunc/issues/13
 func (n DynamicNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
-	err := ensureEth0Exists()
-	// if eth0 does not exist in the namespace, the unikernel was spawned using ctr, so we skip the network setup
-	if err != nil {
-		netlog.Info("eth0 interface not found, assuming unikernel was spawned using ctr")
-		return nil, nil
-	}
-	redirectLink, err := netlink.LinkByName(DefaultInterface)
-	if err != nil {
-		netlog.Errorf("failed to find %s  interface", DefaultInterface)
-		return nil, err
-	}
-	ifInfo, err := getInterfaceInfo(DefaultInterface)
-	if err != nil {
-		return nil, err
-	}
-	currentUser, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-	uid, err := strconv.Atoi(currentUser.Uid)
-	if err != nil {
-		return nil, err
-	}
-	gid, err := strconv.Atoi(currentUser.Gid)
-	if err != nil {
-		return nil, err
-	}
 	tapIndex, err := getTapIndex()
 	if err != nil {
 		return nil, err
 	}
-	newTapName := strings.ReplaceAll(DefaultTap, "X", strconv.Itoa(tapIndex))
-	newTapDevice, err := createTapDevice(newTapName, redirectLink.Attrs().MTU, uid, gid)
+	redirectLink, err := netlink.LinkByName(DefaultInterface)
 	if err != nil {
+		netlog.Errorf("failed to find %s interface", DefaultInterface)
 		return nil, err
 	}
+	newTapName := strings.ReplaceAll(DefaultTap, "X", strconv.Itoa(tapIndex))
+	addTCRules := false
 	if tapIndex == 0 {
-		err = addIngressQdisc(newTapDevice)
-		if err != nil {
-			return nil, err
-		}
-		err = addIngressQdisc(redirectLink)
-		if err != nil {
-			return nil, err
-		}
-		err = addRedirectFilter(newTapDevice, redirectLink)
-		if err != nil {
-			return nil, err
-		}
-		err = addRedirectFilter(redirectLink, newTapDevice)
-		if err != nil {
-			return nil, err
-		}
+		addTCRules = true
 	}
 	ipTemplate := fmt.Sprintf("%s/24", constants.DynamicNetworkTapIP)
 	newIPAddr := strings.ReplaceAll(ipTemplate, "X", strconv.Itoa(tapIndex+1))
-	ipn, err := netlink.ParseAddr(newIPAddr)
+	newTapDevice, err := networkSetup(newTapName, newIPAddr, redirectLink, addTCRules)
 	if err != nil {
 		return nil, err
 	}
-	err = netlink.AddrReplace(newTapDevice, ipn)
-	if err != nil {
-		return nil, err
-	}
-
-	err = netlink.LinkSetUp(newTapDevice)
+	ifInfo, err := getInterfaceInfo(DefaultInterface)
 	if err != nil {
 		return nil, err
 	}
