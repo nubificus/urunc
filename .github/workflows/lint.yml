@@ -1,8 +1,5 @@
 name: Code linting
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches: [ "main" ]
     types:
@@ -16,6 +13,7 @@ permissions:
 
 jobs:
   golangci:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     name: lint
     runs-on: ubuntu-latest
     steps:
