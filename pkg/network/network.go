@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os/user"
+	"strconv"
 	"strings"
 
 	"github.com/jackpal/gateway"
@@ -71,6 +73,9 @@ func getTapIndex() (int, error) {
 		if strings.Contains(iface.Name, "tap") {
 			tapCount++
 		}
+	}
+	if tapCount > 255 {
+		return tapCount, fmt.Errorf("TAP interfaces count higher than 255")
 	}
 	return tapCount, nil
 }
@@ -211,4 +216,61 @@ func addRedirectFilter(source netlink.Link, target netlink.Link) error {
 			},
 		},
 	})
+}
+
+func networkSetup(tapName string, ipAdrress string, redirectLink netlink.Link, addTCRules bool) (netlink.Link, error) {
+	err := ensureEth0Exists()
+	// if eth0 does not exist in the namespace, the unikernel was spawned using ctr, so we skip the network setup
+	if err != nil {
+		netlog.Info("eth0 interface not found, assuming unikernel was spawned using ctr")
+		return nil, nil
+	}
+	currentUser, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+	uid, err := strconv.Atoi(currentUser.Uid)
+	if err != nil {
+		return nil, err
+	}
+	gid, err := strconv.Atoi(currentUser.Gid)
+	if err != nil {
+		return nil, err
+	}
+	newTapDevice, err := createTapDevice(tapName, redirectLink.Attrs().MTU, uid, gid)
+	if err != nil {
+		return nil, err
+	}
+	if addTCRules {
+		err = addIngressQdisc(newTapDevice)
+		if err != nil {
+			return nil, err
+		}
+		err = addIngressQdisc(redirectLink)
+		if err != nil {
+			return nil, err
+		}
+		err = addRedirectFilter(newTapDevice, redirectLink)
+		if err != nil {
+			return nil, err
+		}
+		err = addRedirectFilter(redirectLink, newTapDevice)
+		if err != nil {
+			return nil, err
+		}
+	}
+	ipn, err := netlink.ParseAddr(ipAdrress)
+	if err != nil {
+		return nil, err
+	}
+	err = netlink.AddrReplace(newTapDevice, ipn)
+	if err != nil {
+		return nil, err
+	}
+
+	err = netlink.LinkSetUp(newTapDevice)
+	if err != nil {
+		return nil, err
+	}
+	return newTapDevice, nil
 }

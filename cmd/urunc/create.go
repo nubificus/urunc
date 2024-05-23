@@ -80,7 +80,6 @@ var createCommand = cli.Command{
 			if err != nil {
 				return err
 			}
-
 			return createUnikontainer(context)
 		}
 		err := handleNonBimaContainer(context)

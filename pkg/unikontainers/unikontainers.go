@@ -169,7 +169,7 @@ func (u *Unikontainer) Exec() error {
 	}
 	networkInfo, err := netManager.NetworkSetup()
 	if err != nil {
-		return err
+		Log.Errorf("Failed to setup network :%v. Possibly due to ctr", err)
 	}
 	metrics.Capture(u.State.ID, "TS17")
 

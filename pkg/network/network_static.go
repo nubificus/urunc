@@ -16,8 +16,6 @@ package network
 
 import (
 	"fmt"
-	"os/user"
-	"strconv"
 	"strings"
 
 	"github.com/nubificus/urunc/internal/constants"
@@ -30,42 +28,14 @@ type StaticNetwork struct {
 }
 
 func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
-	err := ensureEth0Exists()
-	if err != nil {
-		netlog.Error("failed to find eth0 interface in current netns")
-		return nil, err
-	}
+	newTapName := strings.ReplaceAll(DefaultTap, "X", "0")
+	addTCRules := false
 	redirectLink, err := netlink.LinkByName(DefaultInterface)
 	if err != nil {
-		netlog.Errorf("failed to find %s  interface", DefaultInterface)
+		netlog.Errorf("failed to find %s interface", DefaultInterface)
 		return nil, err
 	}
-	currentUser, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-	uid, err := strconv.Atoi(currentUser.Uid)
-	if err != nil {
-		return nil, err
-	}
-	gid, err := strconv.Atoi(currentUser.Gid)
-	if err != nil {
-		return nil, err
-	}
-	newTapName := strings.ReplaceAll(DefaultTap, "X", "0")
-	newTapDevice, err := createTapDevice(newTapName, redirectLink.Attrs().MTU, uid, gid)
-	if err != nil {
-		return nil, err
-	}
-	ipn, err := netlink.ParseAddr(StaticIPAddr)
-	if err != nil {
-		return nil, err
-	}
-	err = netlink.AddrReplace(newTapDevice, ipn)
-	if err != nil {
-		return nil, err
-	}
-	err = netlink.LinkSetUp(newTapDevice)
+	newTapDevice, err := networkSetup(newTapName, StaticIPAddr, redirectLink, addTCRules)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +45,7 @@ func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 			IP:             constants.StaticNetworkUnikernelIP,
 			DefaultGateway: constants.StaticNetworkTapIP,
 			Mask:           "255.255.255.0",
-			Interface:      "eth0", // or tap0_urunc?
+			Interface:      DefaultInterface, // or tap0_urunc?
 			MAC:            redirectLink.Attrs().HardwareAddr.String(),
 		},
 	}, nil

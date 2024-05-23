@@ -87,6 +87,10 @@ func handleNonBimaContainer(context *cli.Context) error {
 		return nil
 	}
 	logrus.Info("This is a normal container. Calling runc...")
+	return runcExec()
+}
+
+func runcExec() error {
 	args := os.Args
 	binPath, err := exec.LookPath("runc")
 	if err != nil {
@@ -172,6 +176,7 @@ func handleQueueProxy(context *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("error writing to file: %v", err)
 		}
+		return runcExec()
 	}
 	return nil
 }

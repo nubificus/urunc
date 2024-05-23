@@ -40,7 +40,6 @@ func NewZerologMetrics(target string) Writer {
 		if err != nil {
 			return nil
 		}
-		defer file.Close()
 		logger := zerolog.New(file).Level(zerolog.InfoLevel).With().Timestamp().Logger()
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnixNano
 		return &zerologMetrics{
