@@ -36,7 +36,8 @@ type DynamicNetwork struct {
 // for multiple unikernels in the same pod/network namespace
 // See: https://github.com/nubificus/urunc/issues/13
 func (n DynamicNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
-	tapIndex, err := getTapIndex()
+	netInterfaceFetcher := new(realNetInterfaceFetcher)
+	tapIndex, err := getTapIndex(netInterfaceFetcher)
 	if err != nil {
 		return nil, err
 	}

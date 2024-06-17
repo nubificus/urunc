@@ -29,8 +29,12 @@ import (
 )
 
 const (
-	DefaultInterface = "eth0" // FIXME: Discover the veth endpoint name instead of using default "eth0". See: https://github.com/nubificus/urunc/issues/14
-	DefaultTap       = "tapX_urunc"
+	// DefaultInterface is the default network interface created inside the network namespace
+	//
+	// FIXME: Discover the veth endpoint name instead of using default "eth0". See: https://github.com/nubificus/urunc/issues/14
+	DefaultInterface = "eth0"
+	// DefaultTap is the default name for the tap device used by urunc.
+	DefaultTap = "tapX_urunc"
 )
 
 var netlog = logrus.WithField("subsystem", "network")
@@ -51,6 +55,23 @@ type Interface struct {
 	MAC            string
 }
 
+// NetInterfaceFetcher defines an interface for fetching network interfaces.
+type NetInterfaceFetcher interface {
+	Interfaces() ([]net.Interface, error)
+}
+
+// realNetInterfaceFetcher is a real implementation of NetInterfaceFetcher.
+type realNetInterfaceFetcher struct{}
+
+// Interfaces retrieves the list of network interfaces using net.Interfaces().
+func (r realNetInterfaceFetcher) Interfaces() ([]net.Interface, error) {
+	return net.Interfaces()
+}
+
+// NewNetworkManager returns a new instance of a network manager based on the specified networkType.
+// It supports two types of network managers: "static" and "dynamic".
+// Returns a Manager interface and nil error if networkType is "static" or "dynamic".
+// Returns nil and an error if networkType is not supported.
 func NewNetworkManager(networkType string) (Manager, error) {
 	switch networkType {
 	case "static":
@@ -63,8 +84,12 @@ func NewNetworkManager(networkType string) (Manager, error) {
 	}
 }
 
-func getTapIndex() (int, error) {
-	ifaces, err := net.Interfaces()
+// getTapIndex counts and returns the number of TAP interfaces present in the current network namespace.
+// It uses net.Interfaces() to fetch all network interfaces and counts those whose names contain "tap".
+// If an error occurs while fetching interfaces, it returns 0 and the error.
+// If the number of TAP interfaces exceeds 255, it returns the count and an error indicating the limit exceeded.
+func getTapIndex(fetcher NetInterfaceFetcher) (int, error) {
+	ifaces, err := fetcher.Interfaces()
 	if err != nil {
 		return 0, err
 	}
@@ -80,8 +105,13 @@ func getTapIndex() (int, error) {
 	return tapCount, nil
 }
 
+// createTapDevice creates a TAP (L2) network device with the specified name, MTU, owner UID, and owner GID.
+// It sets up a single queue tap device with vnet header parsing enabled.
+//
+// Returns the created netlink.Link representing the TAP device upon success, or an error if any operation fails.
 func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link, error) {
-	tapLinkAttrs := netlink.NewLinkAttrs()
+	netlinkProvider := new(realNetLink)
+	tapLinkAttrs := netlinkProvider.NewLinkAttrs()
 	tapLinkAttrs.Name = name
 	tapLink := &netlink.Tuntap{
 		LinkAttrs: tapLinkAttrs,
@@ -97,7 +127,7 @@ func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link
 			netlink.TUNTAP_VNET_HDR, // parse vnet headers added by the vm's virtio_net implementation
 	}
 
-	err := netlink.LinkAdd(tapLink)
+	err := netlinkProvider.LinkAdd(tapLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tap device: %w", err)
 	}
@@ -114,7 +144,7 @@ func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link
 		}
 	}
 
-	err = netlink.LinkSetMTU(tapLink, mtu)
+	err = netlinkProvider.LinkSetMTU(tapLink, mtu)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set tap device MTU to %d: %w", mtu, err)
 	}
@@ -122,10 +152,13 @@ func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link
 	return tapLink, nil
 }
 
-// ensureEth0Exists checks all network interfaces in current netns and returns
-// nil if eth0 is present or ErrEth0NotFound if not
-func ensureEth0Exists() error {
-	ifaces, err := net.Interfaces()
+// ensureEth0Exists checks all network interfaces in the current network namespace and returns
+// nil if the eth0 interface is present, or an error if not.
+//
+// It returns an error if there is a problem retrieving the network interfaces or if the eth0
+// interface is not found
+func ensureEth0Exists(fetcher NetInterfaceFetcher) error {
+	ifaces, err := fetcher.Interfaces()
 	if err != nil {
 		return err
 	}
@@ -189,18 +222,24 @@ func getInterfaceInfo(iface string) (Interface, error) {
 	}, nil
 }
 
+// addIngressQdisc adds an ingress qdisc to the specified network link.
+// It returns an error if the operation fails.
+//
+// link: The network link to which the ingress qdisc will be added.
 func addIngressQdisc(link netlink.Link) error {
+	netlinkProvider := new(realNetLink)
 	ingress := &netlink.Ingress{
 		QdiscAttrs: netlink.QdiscAttrs{
 			LinkIndex: link.Attrs().Index,
 			Parent:    netlink.HANDLE_INGRESS,
 		},
 	}
-	return netlink.QdiscAdd((ingress))
+	return netlinkProvider.QdiscAdd((ingress))
 }
 
 func addRedirectFilter(source netlink.Link, target netlink.Link) error {
-	return netlink.FilterAdd(&netlink.U32{
+	netlinkProvider := new(realNetLink)
+	return netlinkProvider.FilterAdd(&netlink.U32{
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: source.Attrs().Index,
 			Parent:    netlink.MakeHandle(0xffff, 0),
@@ -219,7 +258,7 @@ func addRedirectFilter(source netlink.Link, target netlink.Link) error {
 }
 
 func networkSetup(tapName string, ipAdrress string, redirectLink netlink.Link, addTCRules bool) (netlink.Link, error) {
-	err := ensureEth0Exists()
+	err := ensureEth0Exists(realNetInterfaceFetcher{})
 	// if eth0 does not exist in the namespace, the unikernel was spawned using ctr, so we skip the network setup
 	if err != nil {
 		netlog.Info("eth0 interface not found, assuming unikernel was spawned using ctr")
@@ -259,16 +298,17 @@ func networkSetup(tapName string, ipAdrress string, redirectLink netlink.Link, a
 			return nil, err
 		}
 	}
-	ipn, err := netlink.ParseAddr(ipAdrress)
+	netLinkProvider := new(realNetLink)
+	ipn, err := netLinkProvider.ParseAddr(ipAdrress)
 	if err != nil {
 		return nil, err
 	}
-	err = netlink.AddrReplace(newTapDevice, ipn)
+	err = netLinkProvider.AddrReplace(newTapDevice, ipn)
 	if err != nil {
 		return nil, err
 	}
 
-	err = netlink.LinkSetUp(newTapDevice)
+	err = netLinkProvider.LinkSetUp(newTapDevice)
 	if err != nil {
 		return nil, err
 	}
