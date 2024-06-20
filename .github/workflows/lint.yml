@@ -29,3 +29,32 @@ jobs:
 
           # show only new issues if it's a pull request. The default value is `false`.
           only-new-issues: true
+
+  check-commit-message:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
+    permissions:
+      contents: read
+      pull-requests: read
+    name: Check Commit Message
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Commit Type
+        uses: gsactions/commit-message-checker@v2
+        with:
+          pattern: '^.{1,70}: .{1,72}($)?(\n)?$'
+          flags: 'gm'
+          error: 'Your first line has to contain a commit type like "hypervisors: " and should not exceed 72 chars.'
+      - name: Check Commit Length
+        uses: gsactions/commit-message-checker@v2
+        with:
+          pattern: '^[^#].{79}$'
+          error: 'The maximum line length of 79 characters is exceeded.'
+          excludeDescription: 'false' # optional: this excludes the description body of a pull request
+          excludeTitle: 'false' # optional: this excludes the title of a pull request
+          checkAllCommitMessages: 'true' # optional: this checks all commits associated with a pull request
+          accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true
+      - name: Check Signed-off-by
+        uses: gsactions/commit-message-checker@v2
+        with:
+          pattern: '^Signed-off-by: [^<]+<[^@]+@[^>]+>$'
+          error: 'You must sign off your commit'
