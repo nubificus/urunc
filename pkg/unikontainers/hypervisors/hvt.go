@@ -18,6 +18,8 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+
+	seccomp "github.com/elastic/go-seccomp-bpf"
 )
 
 const (
@@ -28,6 +30,85 @@ const (
 type HVT struct {
 	binaryPath string
 	binary     string
+}
+
+// applySeccompFIlter applies some secomp filters for the Hvt process.
+// By default all systemcalls will cause a SIGSYS, except the ones that we whitelist
+func applySeccompFilter() error {
+	syscalls := []string{
+		"rt_sigaction",
+		"ioctl",
+		"pread64",
+		"mmap",
+		"recvmsg",
+		"openat",
+		"sendto",
+		"mprotect",
+		"write",
+		"epoll_ctl",
+		"epoll_create1",
+		"read",
+		"open",
+		"close",
+		"fstat",
+		"stat",
+		"munmap",
+		"brk",
+		"access",
+		"execve",
+		"timerfd_create",
+		"arch_prctl",
+		"lseek",
+		"personality",
+		"socket",
+		"bind",
+		"getsockname",
+		"exit",
+		"exit_group",
+		"getpid",
+		"tgkill",
+		"nanosleep",
+		"futex",
+		"epoll_pwait",
+		"rt_sigreturn",
+		"timerfd_settime",
+		"pwrite64",
+	}
+	// Some of the actions that we can take for accessing non-permitted system calls are:
+	// - seccomp.ActionKillThread will kill the thread that tried to use a non-permitted
+	//	system call, but the rest of the threads can still run
+	// - seccomp.ActionErrno will result to returning EPERM error in all non-permitted
+	//	system calls.
+	// - ActionTrap will cause a SIGSYS trap to the process.
+	//
+	// For the time being, we choose ActionTrap, but we can change this in the future.
+	filter := seccomp.Filter{
+		// Set the threads no_new_privs bit, disabling any new child or execve
+		// system call to grant priviledges that the parent does not have.
+		NoNewPrivs: true,
+		// Sync the filter to all threads created by the Go runtime.
+		Flag: seccomp.FilterFlagTSync,
+		Policy: seccomp.Policy{
+			DefaultAction: seccomp.ActionTrap,
+			Syscalls: []seccomp.SyscallGroup{
+				{
+					Action: seccomp.ActionAllow,
+					Names:  syscalls,
+				},
+			},
+		},
+	}
+
+	err := seccomp.LoadFilter(filter)
+	if err != nil {
+		vmmLog.Error("Could not load seccomp filters")
+		return err
+	}
+
+	vmmLog.Info("Loaded seccomp filters")
+	vmmLog.Debug("Whitelisted system calls ", syscalls)
+
+	return nil
 }
 
 // Stop is an empty function to satisfy VMM interface compatibility requirements.
@@ -55,6 +136,10 @@ func (h *HVT) Execve(args ExecArgs) error {
 	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
 	cmdString += " " + args.UnikernelPath + " " + args.Command
 	cmdArgs := strings.Split(cmdString, " ")
+	err := applySeccompFilter()
+	if err != nil {
+		return err
+	}
 	vmmLog.WithField("hvt command", cmdString).Error("Ready to execve hvt")
 	return syscall.Exec(h.binaryPath, cmdArgs, args.Environment) //nolint: gosec
 }
