@@ -44,6 +44,9 @@ func (q *Qemu) Path() string {
 func (q *Qemu) Execve(args ExecArgs) error {
 	cmdString := q.Path() + " -cpu host -m 254 -enable-kvm -nographic -vga none"
 
+	// TODO: Add option to disable seccomp
+	cmdString += " --sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
+
 	// TODO: Check if this check causes any performance drop
 	// or explore alternative implementations
 	if runtime.GOARCH == "arm64" {
