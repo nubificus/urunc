@@ -136,9 +136,11 @@ func (h *HVT) Execve(args ExecArgs) error {
 	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
 	cmdString += " " + args.UnikernelPath + " " + args.Command
 	cmdArgs := strings.Split(cmdString, " ")
-	err := applySeccompFilter()
-	if err != nil {
-		return err
+	if args.Seccomp {
+		err := applySeccompFilter()
+		if err != nil {
+			return err
+		}
 	}
 	vmmLog.WithField("hvt command", cmdString).Error("Ready to execve hvt")
 	return syscall.Exec(h.binaryPath, cmdArgs, args.Environment) //nolint: gosec

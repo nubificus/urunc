@@ -33,6 +33,7 @@ type ExecArgs struct {
 	Command       string   // The unikernel's command line
 	IPAddress     string   // The IP address of the TAP device
 	GuestMAC      string   // The MAC address of the guest network device
+	Seccomp       bool     // Enable or disable seccomp filters for the VMM
 	Environment   []string // Environment
 }
 

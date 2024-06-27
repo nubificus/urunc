@@ -154,7 +154,14 @@ func (u *Unikontainer) Exec() error {
 		Container:     u.State.ID,
 		UnikernelPath: unikernelAbsPath,
 		InitrdPath:    initrdAbsPath,
+		Seccomp:       true, // Enable Seccomp by default
 		Environment:   os.Environ(),
+	}
+
+	// Check if container is set to unconfined -- disable seccomp
+	if u.Spec.Linux.Seccomp == nil {
+		Log.Warn("Seccomp is disabled")
+		vmmArgs.Seccomp = false
 	}
 
 	// populate unikernel params

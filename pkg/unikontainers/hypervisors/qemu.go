@@ -44,8 +44,18 @@ func (q *Qemu) Path() string {
 func (q *Qemu) Execve(args ExecArgs) error {
 	cmdString := q.Path() + " -cpu host -m 254 -enable-kvm -nographic -vga none"
 
-	// TODO: Add option to disable seccomp
-	cmdString += " --sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
+	if args.Seccomp {
+		// Enable Seccomp in QEMU
+		cmdString += " --sandbox on"
+		// Allow or Deny Obsolete system calls
+		cmdString += ",obsolete=deny"
+		// Allow or Deny set*uid|gid system calls
+		cmdString += ",elevateprivileges=deny"
+		// Allow or Deny *fork and execve
+		cmdString += ",spawn=deny"
+		// Allow or Deny process affinity and schedular priority
+		cmdString += ",resourcecontrol=deny"
+	}
 
 	// TODO: Check if this check causes any performance drop
 	// or explore alternative implementations
