@@ -82,6 +82,9 @@ func (fc *Firecracker) Execve(args ExecArgs) error {
 	JSONConfigDir := filepath.Dir(args.UnikernelPath)
 	JSONConfigFile := filepath.Join(JSONConfigDir, "fc.json")
 	cmdString += JSONConfigFile
+	if !args.Seccomp {
+		cmdString += " --no-seccomp"
+	}
 
 	// VM config for Firecracker
 	FCMachine := FirecrackerMachine{
