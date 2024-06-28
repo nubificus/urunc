@@ -6,6 +6,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a
 	github.com/containerd/containerd v1.6.10
 	github.com/creack/pty v1.1.11
+	github.com/elastic/go-seccomp-bpf v1.4.0
 	github.com/go-ping/ping v1.1.0
 	github.com/jackpal/gateway v1.0.10
 	github.com/moby/sys/mount v0.3.3

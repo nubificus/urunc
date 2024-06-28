@@ -36,6 +36,24 @@ func TestNerdctlHvtRumprunRedis(t *testing.T) {
 	}
 }
 
+func TestNerdctlHvtSeccompOn(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+	containerName := "hvt-rumprun-redis-test"
+	err := nerdctlSeccompTest(containerName, containerImage, true, true)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestNerdctlHvtSeccompOff(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+	containerName := "hvt-rumprun-redis-test"
+	err := nerdctlSeccompTest(containerName, containerImage, true, false)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
 func TestNerdctlSptRumprunRedis(t *testing.T) {
 	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest"
 	containerName := "spt-rumprun-redis-test"
@@ -63,6 +81,24 @@ func TestNerdctlQemuUnikraftNginx(t *testing.T) {
 	}
 }
 
+func TestNerdctlQemuSeccompOn(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
+	containerName := "qemu-unik-redis-test"
+	err := nerdctlSeccompTest(containerName, containerImage, true, true)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestNerdctlQemuSeccompOff(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
+	containerName := "qemu-unik-redis-test"
+	err := nerdctlSeccompTest(containerName, containerImage, true, false)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
 func TestNerdctlFCUnikraftNginx(t *testing.T) {
 	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
 	containerName := "fc-unik-nginx-test"
@@ -72,8 +108,79 @@ func TestNerdctlFCUnikraftNginx(t *testing.T) {
 	}
 }
 
+func TestNerdctlFCSeccompOn(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerName := "fc-unik-nginx-test"
+	err := nerdctlSeccompTest(containerName, containerImage, true, true)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestNerdctlFCSeccompOff(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerName := "fc-unik-nginx-test"
+	err := nerdctlSeccompTest(containerName, containerImage, true, false)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func nerdctlSeccompTest(containerName string, containerImage string, devmapper bool, seccomp bool) error {
+	containerID, err := startNerdctlUnikernel(containerImage, containerName, devmapper, seccomp)
+	if err != nil {
+		return fmt.Errorf("Failed to start unikernel container: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+
+	unikernelPID, err := findUnikernelPID(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to extract container IP: %v", err)
+	}
+	extractedPID := uint64(unikernelPID)
+	procPath := fmt.Sprintf("/proc/%d/status", extractedPID)
+	statusData, err := os.ReadFile(procPath) // just pass the file name
+	if err != nil {
+		return fmt.Errorf("Failed to read status file of process %d: %v", extractedPID, err)
+	}
+	statusInfo := strings.TrimSpace(string(statusData))
+	lines := strings.Split(statusInfo, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Seccomp") == true {
+			tokens := strings.Split(line, ":")
+			if strings.TrimSpace(tokens[1]) == "2" {
+				if seccomp == false {
+					return fmt.Errorf("Seccomp should not be enabled")
+				}
+			} else {
+				if seccomp == true {
+					return fmt.Errorf("Seccomp should be enabled")
+				}
+			}
+			break
+		}
+	}
+	err = stopNerdctlUnikernel(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to stop container: %v", err)
+	}
+	err = removeNerdctlUnikernel(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = verifyNerdctlRemoved(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = verifyNoStaleFiles(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove all stale files: %v", err)
+	}
+	return nil
+}
+
 func nerdctlTest(containerName string, containerImage string, devmapper bool) error {
-	containerID, err := startNerdctlUnikernel(containerImage, containerName, devmapper)
+	containerID, err := startNerdctlUnikernel(containerImage, containerName, devmapper, true)
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
 	}
@@ -103,6 +210,36 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 		return fmt.Errorf("Failed to remove all stale files: %v", err)
 	}
 	return nil
+}
+
+func findUnikernelPID(containerID string) (float64, error) {
+	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	var result []map[string]any
+	var stateInfo map[string]any
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("failed to inspect %s", output)
+	}
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		return 0, err
+	}
+	containerInfo := result[0]
+	for key, value := range containerInfo {
+		// Each value is an `any` type, that is type asserted as a string
+		if key == "State" {
+			// t.Log(key, fmt.Sprintf("%v", value))
+			stateInfo = value.(map[string]any)
+			break
+		}
+	}
+	for key, value := range stateInfo {
+		if key == "Pid" {
+			return value.(float64), nil
+		}
+	}
+	return 0, nil
 }
 
 func findUnikernelIP(containerID string) (string, error) {
@@ -136,10 +273,13 @@ func findUnikernelIP(containerID string) (string, error) {
 	return "", nil
 }
 
-func startNerdctlUnikernel(containerImage string, containerName string, devmapper bool) (containerID string, err error) {
+func startNerdctlUnikernel(containerImage string, containerName string, devmapper bool, seccomp bool) (containerID string, err error) {
 	cmdBase := "nerdctl run "
 	if devmapper {
 		cmdBase += "--snapshotter devmapper "
+	}
+	if seccomp == false {
+		cmdBase += "--security-opt seccomp=unconfined "
 	}
 	cmdline := fmt.Sprintf("%s--name %s -d --runtime io.containerd.urunc.v2 %s unikernel", cmdBase, containerName, containerImage)
 	params := strings.Fields(cmdline)
