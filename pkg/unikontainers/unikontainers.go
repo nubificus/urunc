@@ -298,7 +298,23 @@ func (u *Unikontainer) Kill() error {
 
 	// Check if pid is running
 	if syscall.Kill(u.State.Pid, syscall.Signal(0)) == nil {
-		return syscall.Kill(u.State.Pid, unix.SIGKILL)
+		err = syscall.Kill(u.State.Pid, unix.SIGKILL)
+		if err != nil {
+			return err
+		}
+	}
+	// If PID is running we need to kill the process
+	// Once the process is dead, we need to enter the network namespace
+	// and delete the TC rules and TAP device
+	err = u.joinSandboxNetNs()
+	if err != nil {
+		Log.Errorf("failed to join sandbox netns: %v", err)
+		return nil
+	}
+	// TODO: tap0_urunc should not be hardcoded
+	err = network.Cleanup("tap0_urunc")
+	if err != nil {
+		Log.Errorf("failed to delete tap0_urunc: %v", err)
 	}
 	return nil
 }
