@@ -274,3 +274,107 @@ func networkSetup(tapName string, ipAdrress string, redirectLink netlink.Link, a
 	}
 	return newTapDevice, nil
 }
+
+func Cleanup(tapDevice string) error {
+	netlog.Info("net cleanup called")
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+	for _, iface := range ifaces {
+		netlog.Debugf("Discovered device %s", iface.Name)
+	}
+	tapLink, err := netlink.LinkByName(tapDevice)
+	if err != nil {
+		netlog.Errorf("Failed to get link %s by name: %v", tapDevice, err)
+		return nil
+	}
+	err = deleteAllTCFilters(tapLink)
+	if err != nil {
+		netlog.Errorf("Failed to delete all TC filters: %v", err)
+		return err
+	}
+	err = deleteAllQDiscs(tapLink)
+	if err != nil {
+		netlog.Errorf("Failed to delete all qdiscs: %v", err)
+		return err
+	}
+	err = deleteTapDevice(tapLink)
+	if err != nil {
+		netlog.Errorf("Failed to delete link %s: %v", tapDevice, err)
+	}
+	return nil
+}
+
+func deleteIngressQdisc(link netlink.Link) error {
+	qdiscs, err := netlink.QdiscList(link)
+	if err != nil {
+		return err
+	}
+	for _, qdisc := range qdiscs {
+		if qdisc.Attrs().Parent == netlink.HANDLE_INGRESS && qdisc.Attrs().LinkIndex == link.Attrs().Index {
+			err = netlink.QdiscDel(qdisc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func deleteAllQDiscs(device netlink.Link) error {
+	err := deleteIngressQdisc(device)
+	if err != nil {
+		return err
+	}
+	device, err = netlink.LinkByName(DefaultInterface)
+	if err != nil {
+		return err
+	}
+	err = deleteIngressQdisc(device)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func deleteAllTCFilters(device netlink.Link) error {
+	var allFilters []netlink.Filter
+	parent := uint32(netlink.HANDLE_ROOT)
+	tapFilters, err := netlink.FilterList(device, parent)
+	if err != nil {
+		return nil
+	}
+	allFilters = append(allFilters, tapFilters...)
+
+	device, err = netlink.LinkByName(DefaultInterface)
+	if err != nil {
+		return err
+	}
+	ethFilters, err := netlink.FilterList(device, parent)
+	if err != nil {
+		return err
+	}
+	allFilters = append(allFilters, ethFilters...)
+	for _, filter := range allFilters {
+		err = netlink.FilterDel(filter)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func deleteTapDevice(device netlink.Link) error {
+	err := netlink.LinkSetDown(device)
+	if err != nil {
+		netlog.Errorf("Failed to set link down: %v", err)
+		return err
+	}
+	err = netlink.LinkDel(device)
+	if err != nil {
+		netlog.Errorf("Failed to delete link: %v", err)
+		return err
+	}
+	return nil
+}

@@ -26,19 +26,22 @@ import (
 type DynamicNetwork struct {
 }
 
-// NetworkSetup checks if any tap device is available in the current netns. If not,
-// creates a new tap device and sets TC rules between the veth interface and the tap device inside the namespace.
-// If one or more tap devices are already present in the netns, it creates a new tap device
-// without tc rules and returns.
+// NetworkSetup checks if any tap device is available in the current netns. If it is, it assumes a running unikernel
+// is present in the current netns and returns an error, because network functionality for more than one unikernels
+// is not yet implemented.
+// If no TAP devices are available in the current netns, it creates a new tap device and
+// sets TC rules between the veth interface and the tap device inside the namespace.
 //
-// FIXME: CUrrently only the first tap device can provide functional networking. The rest are "dummy" devices
-// rendering the unikernels they are attached to unreachable. We need to find a proper way to handle networking
-// for multiple unikernels in the same pod/network namespace
+// FIXME: CUrrently only one tap device per netns can provide functional networking. We need to find a proper way to handle networking
+// for multiple unikernels in the same pod/network namespace.
 // See: https://github.com/nubificus/urunc/issues/13
 func (n DynamicNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 	tapIndex, err := getTapIndex()
 	if err != nil {
 		return nil, err
+	}
+	if tapIndex > 0 {
+		return nil, fmt.Errorf("unsupported opreation: can't spawn multiple unikernels in the same network namespace")
 	}
 	redirectLink, err := netlink.LinkByName(DefaultInterface)
 	if err != nil {
@@ -46,13 +49,9 @@ func (n DynamicNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 		return nil, err
 	}
 	newTapName := strings.ReplaceAll(DefaultTap, "X", strconv.Itoa(tapIndex))
-	addTCRules := false
-	if tapIndex == 0 {
-		addTCRules = true
-	}
 	ipTemplate := fmt.Sprintf("%s/24", constants.DynamicNetworkTapIP)
 	newIPAddr := strings.ReplaceAll(ipTemplate, "X", strconv.Itoa(tapIndex+1))
-	newTapDevice, err := networkSetup(newTapName, newIPAddr, redirectLink, addTCRules)
+	newTapDevice, err := networkSetup(newTapName, newIPAddr, redirectLink, true)
 	if err != nil {
 		return nil, err
 	}
