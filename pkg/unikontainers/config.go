@@ -47,7 +47,7 @@ func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, e
 	if err == nil {
 		err1 := conf.decode()
 		if err1 != nil {
-			return &UnikernelConfig{}, err1
+			return nil, err1
 		}
 		return conf, nil
 	}
@@ -56,7 +56,7 @@ func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, e
 	if err == nil {
 		err1 := conf.decode()
 		if err1 != nil {
-			return &UnikernelConfig{}, err1
+			return nil, err1
 		}
 		return conf, nil
 	}

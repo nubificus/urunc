@@ -64,5 +64,11 @@ test_crictl:
 	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/crictl -v
 	@echo " "
 
-test: test_nerdctl test_ctr test_crictl
+test_unikontainers:
+	@GOFLAGS="-count=1" $$(which go) test ./pkg/unikontainers -v
+
+unittest: test_unikontainers
+	-@echo "unit tests: DONE"
+
+test: test_nerdctl test_ctr test_crictl unittest
 	-@echo "DONE"
