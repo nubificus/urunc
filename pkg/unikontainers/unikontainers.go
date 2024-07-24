@@ -28,6 +28,7 @@ import (
 	"github.com/nubificus/urunc/pkg/network"
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
+	"github.com/shirou/gopsutil/disk"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
@@ -213,7 +214,7 @@ func (u *Unikontainer) Exec() error {
 	// without devmapper. Therefore, we need to use a different check than the
 	// Unikernel type.
 	if unikernelType != "unikraft" {
-		rootFsDevice, err := getBlockDevice(rootfsDir)
+		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
 		if err != nil {
 			return err
 		}
