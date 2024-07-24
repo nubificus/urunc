@@ -45,13 +45,19 @@ type UnikernelConfig struct {
 func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, error) {
 	conf, err := getConfigFromSpec(spec)
 	if err == nil {
-		conf.decode()
+		err1 := conf.decode()
+		if err1 != nil {
+			return &UnikernelConfig{}, err1
+		}
 		return conf, nil
 	}
 
 	conf, err = getConfigFromJSON(bundleDir)
 	if err == nil {
-		conf.decode()
+		err1 := conf.decode()
+		if err1 != nil {
+			return &UnikernelConfig{}, err1
+		}
 		return conf, nil
 	}
 
@@ -125,36 +131,37 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 }
 
 // decode decodes the base64 encoded values of the Unikernel config
-func (c *UnikernelConfig) decode() {
+func (c *UnikernelConfig) decode() error {
 	decoded, err := base64.StdEncoding.DecodeString(c.UnikernelCmd)
 	if err != nil {
-		Log.WithError(err).Fatal("failed to decode UnikernelCmd")
+		return fmt.Errorf("failed to decode UnikernelCmd: %v", err)
 	}
 	c.UnikernelCmd = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.Hypervisor)
 	if err != nil {
-		Log.WithError(err).Fatal("failed to decode Hypervisor")
+		return fmt.Errorf("failed to decode Hypervisor: %v", err)
 	}
 	c.Hypervisor = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.UnikernelType)
 	if err != nil {
-		Log.WithError(err).Fatal("failed to decode UnikernelType")
+		return fmt.Errorf("failed to decode UnikernelType: %v", err)
 	}
 	c.UnikernelType = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.UnikernelBinary)
 	if err != nil {
-		Log.WithError(err).Fatal("failed to decode UnikernelBinary")
+		return fmt.Errorf("failed to decode UnikernelBinary: %v", err)
 	}
 	c.UnikernelBinary = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.Initrd)
 	if err != nil {
-		Log.WithError(err).Fatal("failed to decode Initrd")
+		return fmt.Errorf("failed to decode Initrd: %v", err)
 	}
 	c.Initrd = string(decoded)
+	return nil
 }
 
 // Map returns a map containing the Unikernel config data
