@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -209,7 +210,22 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		return err
 	}
+
 	// handle storage
+	// useDevmapper will contain the value of either the annotation (if was set)
+	// or from the environment variable. The annotation has more power than the
+	// environment variable. However, if none of them is set, we do not take them
+	// into consideration, meaning that if the rest of the checks are valid (e.g.
+	// no block device in the container, devmapper is in use, unikernel supports
+	// block/FS of devmapper) then we wiil use the devmapper as a block device
+	// for the unikernel.
+	useDevmapper := false
+	useDevmapper, err = strconv.ParseBool(u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+	if err != nil {
+		Log.Errorf("Invalide value in useDMBlock: %s. Urunc will try to use it",
+			u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+		useDevmapper = true
+	}
 	if u.State.Annotations["com.urunc.unikernel.block"] != "" && unikernel.SupportsBlock() {
 		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.block"])
 	}
@@ -219,8 +235,7 @@ func (u *Unikontainer) Exec() error {
 	// guest, we do not need to pass the container rootfs in the Unikernel.
 	// The user might already specified a specific file (initrd, block device,
 	// or shared FS) to pass data to the guest.
-	// TODO: We need to have more checks than just block support fro mthe unikernel
-	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" {
+	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
 		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
 		if err != nil {
 			return err
@@ -341,9 +356,13 @@ func (u *Unikontainer) Delete() error {
 	if err != nil {
 		return err
 	}
-	// TODO: We need to have more checks than just block support fro mthe unikernel
+	useDevmapper := false
+	useDevmapper, err = strconv.ParseBool(u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+	if err != nil {
+		useDevmapper = true
+	}
 	annotBlock := u.State.Annotations["com.urunc.unikernel.block"]
-	if unikernel.SupportsBlock() && annotBlock == "" {
+	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
 		err := os.RemoveAll(u.State.Bundle)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
