@@ -28,7 +28,6 @@ import (
 	"github.com/nubificus/urunc/pkg/network"
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
-	"github.com/shirou/gopsutil/disk"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
@@ -231,19 +230,10 @@ func (u *Unikontainer) Exec() error {
 		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.block"])
 	}
 
-	// TODO: This needs better handling
-	// If we simply want to use the rootfs/initrd or share the FS with the
-	// guest, we do not need to pass the container rootfs in the Unikernel.
-	// The user might already specified a specific file (initrd, block device,
-	// or shared FS) to pass data to the guest.
 	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
-		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
+		rootFsDevice, err := getBlockDevice(rootfsDir)
 		if err != nil {
-			if err == ErrNotDevmapper {
-				Log.Warnf("Can not use container rootfs as a block device.")
-			} else {
-				return err
-			}
+			return err
 		}
 		if unikernel.SupportsFS(rootFsDevice.FsType) {
 			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, "urunc.json", initrdPath)
