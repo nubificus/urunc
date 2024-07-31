@@ -25,7 +25,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/moby/sys/mount"
 	"github.com/nubificus/urunc/pkg/network"
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
@@ -144,11 +143,13 @@ func (u *Unikontainer) Exec() error {
 
 	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
+	unikernelPath := u.State.Annotations["com.urunc.unikernel.binary"]
+	initrdPath := u.State.Annotations["com.urunc.unikernel.initrd"]
 	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
-	unikernelAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.binary"])
+	unikernelAbsPath := filepath.Join(rootfsDir, unikernelPath)
 	initrdAbsPath := ""
-	if u.State.Annotations["com.urunc.unikernel.initrd"] != "" {
-		initrdAbsPath = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.initrd"])
+	if initrdPath != "" {
+		initrdAbsPath = filepath.Join(rootfsDir, initrdPath)
 	}
 
 	// populate vmm args
@@ -238,37 +239,18 @@ func (u *Unikontainer) Exec() error {
 	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
 		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
 		if err != nil {
-			return err
+			if err == ErrNotDevmapper {
+				Log.Warnf("Can not use container rootfs as a block device.")
+			} else {
+				return err
+			}
 		}
-		if rootFsDevice.IsBlock {
-			Log.WithFields(logrus.Fields{"fstype": rootFsDevice.BlkDevice.Fstype,
-				"mountpoint": rootFsDevice.BlkDevice.Mountpoint,
-				"device":     rootFsDevice.BlkDevice.Device,
-			}).Debug("Found block device")
-
-			// extract unikernel
-			// FIXME: This approach fills up /run with unikernel binaries and
-			// urunc.json files for each unikernel instance we run
-			err = u.extractUnikernelFromBlock("tmp")
+		if unikernel.SupportsFS(rootFsDevice.FsType) {
+			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, "urunc.json", initrdPath)
 			if err != nil {
 				return err
 			}
-			// unmount block device
-			// FIXME: umount and rm might need some retries
-			err := mount.Unmount(rootfsDir)
-			if err != nil {
-				return err
-			}
-			// rename tmp to rootfs
-			err = os.Remove(rootfsDir)
-			if err != nil {
-				return err
-			}
-			err = os.Rename(filepath.Join(u.State.Bundle, "tmp"), rootfsDir)
-			if err != nil {
-				return err
-			}
-			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
+			vmmArgs.BlockDevice = rootFsDevice.Device
 		}
 	}
 	metrics.Capture(u.State.ID, "TS18")
@@ -363,7 +345,7 @@ func (u *Unikontainer) Delete() error {
 	}
 	annotBlock := u.State.Annotations["com.urunc.unikernel.block"]
 	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
-		err := os.RemoveAll(u.State.Bundle)
+		err := cleanupExtractedFiles(u.State.Bundle)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}
@@ -400,26 +382,6 @@ func (u Unikontainer) joinSandboxNetNs() error {
 	}
 	Log.Info("Joined sandbox's netns")
 	return nil
-}
-
-// extractUnikernelFromBlock creates target directory inside the bundle and moves unikernel & urunc.json
-// FIXME: This approach fills up /run with unikernel binaries and urunc.json files for each unikernel we run
-func (u Unikontainer) extractUnikernelFromBlock(target string) error {
-	// create bundle/tmp directory and moves unikernel binary and urunc.json
-	tmpDir := filepath.Join(u.State.Bundle, target)
-	unikernel := u.State.Annotations["com.urunc.unikernel.binary"]
-
-	currentUnikernelPath := filepath.Join(u.State.Bundle, "rootfs", unikernel)
-	targetUnikernelPath := filepath.Join(tmpDir, unikernel)
-	targetUnikernelDir, _ := filepath.Split(targetUnikernelPath)
-
-	err := moveFile(currentUnikernelPath, targetUnikernelDir)
-	if err != nil {
-		return err
-	}
-
-	currentConfigPath := filepath.Join(u.State.Bundle, "rootfs", "urunc.json")
-	return moveFile(currentConfigPath, tmpDir)
 }
 
 // Saves current Unikernel state as baseDir/state.json for later use

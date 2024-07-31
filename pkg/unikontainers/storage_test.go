@@ -38,6 +38,6 @@ func TestGetBlockDevice(t *testing.T) {
 	rootFs, err := getBlockDevice("/mock/path", mockGetPartitions)
 	assert.NoError(t, err, "Expected no error in getting block device")
 	assert.Equal(t, "/mock/path", rootFs.Path, "Expected path to be /mock/path")
-	assert.True(t, rootFs.IsBlock, "Expected IsBlock to be true")
-	assert.Equal(t, "ext4", rootFs.BlkDevice.Fstype, "Expected filesystem type to be ext4")
+	assert.Equal(t, "dm-0", rootFs.Device, "Expected device to be dm-0")
+	assert.Equal(t, "ext4", rootFs.FsType, "Expected filesystem type to be ext4")
 }
