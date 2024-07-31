@@ -21,7 +21,8 @@ import (
 
 const UnikraftUnikernel UnikernelType = "unikraft"
 
-type UnikraftCliOpts struct {
+type Unikraft struct {
+	AppName string
 	Command string
 	Net     UnikraftNet
 	VFS     UnikraftVFS
@@ -37,36 +38,41 @@ type UnikraftVFS struct {
 	RootFS string
 }
 
-func newUnikraftCli(data UnikernelParams) (string, error) {
-	var cliOpts UnikraftCliOpts
+func (u Unikraft) CommandString() (string, error) {
+	return fmt.Sprintf("%s %s %s %s %s -- %s", u.AppName,
+		u.Net.Address,
+		u.Net.Gateway,
+		u.Net.Mask,
+		u.VFS.RootFS,
+		u.Command), nil
+}
+
+func newUnikraft(data UnikernelParams) (Unikraft, error) {
+	var unikraftStruct Unikraft
 
 	// if there are no spaces in the command line, then
 	// we assume that there was one word (appname) in the command line
 	// Otherwise, we use the first word as the name of the app
-	appName := cliOpts.Command
+	appName := unikraftStruct.Command
 	firstSpace := strings.Index(data.CmdLine, " ")
 	if firstSpace > 0 {
 		appName = data.CmdLine[:firstSpace]
-		cliOpts.Command = strings.TrimLeft(data.CmdLine, appName)
+		unikraftStruct.Command = strings.TrimLeft(data.CmdLine, appName)
 	}
+	unikraftStruct.AppName = appName
 
-	cliOpts.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
-	cliOpts.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
-	cliOpts.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
+	unikraftStruct.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
+	unikraftStruct.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
+	unikraftStruct.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
 
 	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
 	// and sharedfs or any other Unikraft related ways to pass data to guest.
 	switch data.RootFSType {
 	case "initrd":
-		cliOpts.VFS.RootFS = "vfs.rootfs=" + "initrd"
+		unikraftStruct.VFS.RootFS = "vfs.rootfs=" + "initrd"
 	default:
-		cliOpts.VFS.RootFS = ""
+		unikraftStruct.VFS.RootFS = ""
 	}
 
-	return fmt.Sprintf("%s %s %s %s %s -- %s", appName,
-		cliOpts.Net.Address,
-		cliOpts.Net.Gateway,
-		cliOpts.Net.Mask,
-		cliOpts.VFS.RootFS,
-		cliOpts.Command), nil
+	return unikraftStruct, nil
 }

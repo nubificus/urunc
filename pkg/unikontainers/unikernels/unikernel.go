@@ -46,7 +46,11 @@ func UnikernelCommand(unikernelType UnikernelType, data UnikernelParams) (string
 		}
 		return command, nil
 	case UnikraftUnikernel:
-		command, err := newUnikraftCli(data)
+		unikernel, err := newUnikraft(data)
+		if err != nil {
+			return "", err
+		}
+		command, err := unikernel.CommandString()
 		if err != nil {
 			return "", err
 		}
