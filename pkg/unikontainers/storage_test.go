@@ -17,27 +17,20 @@ package unikontainers
 import (
 	"testing"
 
-	"github.com/shirou/gopsutil/disk"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetBlockDevice(t *testing.T) {
 	// Create a mock partition
-	partitions := []disk.PartitionStat{
-		{
-			Device:     "dm-0",
-			Mountpoint: "/mock/path",
-			Fstype:     "ext4",
-		},
+	tmpMnt := RootFs{
+		Path:   "/proc",
+		Device: "proc",
+		FsType: "proc",
 	}
 
-	// Mock the disk.Partitions function
-	mockGetPartitions := func(all bool) ([]disk.PartitionStat, error) {
-		return partitions, nil
-	}
-	rootFs, err := getBlockDevice("/mock/path", mockGetPartitions)
+	rootFs, err := getBlockDevice(tmpMnt.Path)
 	assert.NoError(t, err, "Expected no error in getting block device")
-	assert.Equal(t, "/mock/path", rootFs.Path, "Expected path to be /mock/path")
-	assert.Equal(t, "dm-0", rootFs.Device, "Expected device to be dm-0")
-	assert.Equal(t, "ext4", rootFs.FsType, "Expected filesystem type to be ext4")
+	assert.Equal(t, tmpMnt.Path, rootFs.Path, "Expected path to be /mock/path")
+	assert.Equal(t, tmpMnt.Device, rootFs.Device, "Expected device to be dm-0")
+	assert.Equal(t, tmpMnt.FsType, rootFs.FsType, "Expected filesystem type to be ext4")
 }

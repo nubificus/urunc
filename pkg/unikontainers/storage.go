@@ -15,18 +15,20 @@
 package unikontainers
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/moby/sys/mount"
-	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
 )
 
-var ErrNotDevmapper = errors.New("Rootfs is not a devmapper device")
+var ErrMountpoint = errors.New("No FS is mounted in this mountpoint")
 
-// RootFs represents a root file system and its properties.
+// RootFs contains information regarding a mount
 type RootFs struct {
 	Path   string // The path of the root file system.
 	Device string // The device which is mounted as the container rootfs
@@ -36,33 +38,43 @@ type RootFs struct {
 // getBlockDevice retrieves information about the block device associated with a given path.
 // It searches for a mounted block device with the specified path and returns its details.
 // If the path is not a block device or there is an error, it returns an empty RootFs struct and an error.
-func getBlockDevice(path string, getPartitions func(bool) ([]disk.PartitionStat, error)) (RootFs, error) {
+func getBlockDevice(path string) (RootFs, error) {
 	var result RootFs
+	selfProcMountInfo := "/proc/self/mountinfo"
 
-	// Retrieve a list of mounted partitions
-	parts, err := getPartitions(true)
+	file, err := os.Open(selfProcMountInfo)
 	if err != nil {
-		return result, err
+		return result, nil
 	}
 
-	// Search for the partition with the specified path
-	// FIXME: Looping through all mounted devices could hinder performance. Explore alternatives.
-	for _, p := range parts {
-		if p.Mountpoint == path {
-			result.Path = path
-			result.Device = p.Device
-			result.FsType = p.Fstype
-			break
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, " - ")
+		if len(parts) != 2 {
+			return result, fmt.Errorf("Invalid mountinfo line in /proc/self/mountinfo")
 		}
+
+		fields := strings.Fields(parts[0])
+		mountPoint := fields[4]
+		if mountPoint != path {
+			continue
+		}
+		result.Path = mountPoint
+		fields = strings.Fields(parts[1])
+		result.FsType = fields[0]
+		result.Device = fields[1]
+		Log.WithFields(logrus.Fields{
+			"mountpoint": result.Path,
+			"device":     result.Device,
+			"fstype":     result.FsType,
+		}).Debug("Found container rootfs mount")
+
+		return result, nil
 	}
 
-	Log.WithFields(logrus.Fields{
-		"mountpoint": result.Path,
-		"device":     result.Device,
-		"fstype":     result.FsType,
-	}).Debug("Found container rootfs mount")
-
-	return result, nil
+	return result, ErrMountpoint
 }
 
 // extractUnikernelFromBlock creates target directory inside the bundle and moves unikernel & urunc.json
