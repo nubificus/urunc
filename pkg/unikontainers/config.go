@@ -38,6 +38,7 @@ type UnikernelConfig struct {
 	Initrd          string `json:"com.urunc.unikernel.initrd,omitempty"`
 	Block           string `json:"com.urunc.unikernel.block,omitempty"`
 	BlkMntPoint     string `json:"com.urunc.unikernel.blkMntPoint,omitempty"`
+	UseDMBlock      string `json:"com.urunc.unikernel.useDMBlock"`
 }
 
 // GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
@@ -75,6 +76,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	initrd := spec.Annotations["com.urunc.unikernel.initrd"]
 	block := spec.Annotations["com.urunc.unikernel.block"]
 	blkMntPoint := spec.Annotations["com.urunc.unikernel.blkMntPoint"]
+	useDMBlock := spec.Annotations["com.urunc.unikernel.useDMBlock"]
 
 	Log.WithFields(logrus.Fields{
 		"unikernelType":   unikernelType,
@@ -84,6 +86,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		"initrd":          initrd,
 		"block":           block,
 		"blkMntPoint":     blkMntPoint,
+		"useDMBlock":      useDMBlock,
 	}).Info("urunc annotations")
 
 	// TODO: We need to use a better check to see if annotations were empty
@@ -99,6 +102,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		Initrd:          initrd,
 		Block:           block,
 		BlkMntPoint:     blkMntPoint,
+		UseDMBlock:      useDMBlock,
 	}, nil
 }
 
@@ -137,6 +141,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		"initrd":          conf.Initrd,
 		"block":           conf.Block,
 		"blkMntPoint":     conf.BlkMntPoint,
+		"useDMBlock":      conf.UseDMBlock,
 	}).Info("urunc.json annotations")
 	return &conf, nil
 }
@@ -185,6 +190,12 @@ func (c *UnikernelConfig) decode() error {
 	}
 	c.BlkMntPoint = string(decoded)
 
+	decoded, err = base64.StdEncoding.DecodeString(c.UseDMBlock)
+	if err != nil {
+		return fmt.Errorf("failed to decode UseDMBlock: %v", err)
+	}
+	c.UseDMBlock = string(decoded)
+
 	return nil
 }
 
@@ -212,5 +223,11 @@ func (c *UnikernelConfig) Map() map[string]string {
 	if c.BlkMntPoint != "" {
 		myMap["com.urunc.unikernel.blkMntPoint"] = c.BlkMntPoint
 	}
+	if c.UseDMBlock != "" {
+		myMap["com.urunc.unikernel.useDMBlock"] = c.UseDMBlock
+	} else {
+		myMap["com.urunc.unikernel.useDMBlock"] = os.Getenv("USE_DEVMAPPER_AS_BLOCK")
+	}
+
 	return myMap
 }
