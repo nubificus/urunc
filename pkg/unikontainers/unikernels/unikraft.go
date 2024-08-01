@@ -38,7 +38,7 @@ type UnikraftVFS struct {
 	RootFS string
 }
 
-func (u Unikraft) CommandString() (string, error) {
+func (u *Unikraft) CommandString() (string, error) {
 	return fmt.Sprintf("%s %s %s %s %s -- %s", u.AppName,
 		u.Net.Address,
 		u.Net.Gateway,
@@ -47,32 +47,43 @@ func (u Unikraft) CommandString() (string, error) {
 		u.Command), nil
 }
 
-func newUnikraft(data UnikernelParams) (Unikraft, error) {
-	var unikraftStruct Unikraft
+func (u *Unikraft) SupportsBlock() bool {
+	return false
+}
 
+func (u *Unikraft) SupportsFS(_ string) bool {
+	return false
+}
+
+func (u *Unikraft) Init(data UnikernelParams) error {
 	// if there are no spaces in the command line, then
 	// we assume that there was one word (appname) in the command line
 	// Otherwise, we use the first word as the name of the app
-	appName := unikraftStruct.Command
+	appName := u.Command
 	firstSpace := strings.Index(data.CmdLine, " ")
 	if firstSpace > 0 {
 		appName = data.CmdLine[:firstSpace]
-		unikraftStruct.Command = strings.TrimLeft(data.CmdLine, appName)
+		u.Command = strings.TrimLeft(data.CmdLine, appName)
 	}
-	unikraftStruct.AppName = appName
+	u.AppName = appName
 
-	unikraftStruct.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
-	unikraftStruct.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
-	unikraftStruct.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
+	u.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
+	u.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
+	u.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
 
 	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
 	// and sharedfs or any other Unikraft related ways to pass data to guest.
 	switch data.RootFSType {
 	case "initrd":
-		unikraftStruct.VFS.RootFS = "vfs.rootfs=" + "initrd"
+		u.VFS.RootFS = "vfs.rootfs=" + "initrd"
 	default:
-		unikraftStruct.VFS.RootFS = ""
+		u.VFS.RootFS = ""
 	}
 
-	return unikraftStruct, nil
+	return nil
+}
+
+func newUnikraft() *Unikraft {
+	unikraftStruct := new(Unikraft)
+	return unikraftStruct
 }

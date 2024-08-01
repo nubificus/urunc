@@ -204,16 +204,18 @@ func (u *Unikontainer) Exec() error {
 	} else {
 		unikernelParams.RootFSType = ""
 	}
+	unikernel, err := unikernels.New(unikernels.UnikernelType(unikernelType))
+	if err != nil {
+		return err
+	}
 	// handle storage
 	// TODO: This needs better handling
 	// If we simply want to use the rootfs/initrd or share the FS with the
 	// guest, we do not need to pass the container rootfs in the Unikernel.
 	// The user might already specified a specific file (initrd, block device,
 	// or shared FS) to pass data to the guest.
-	// TODO: This is not only the case for Unikraft, but for all invocations
-	// without devmapper. Therefore, we need to use a different check than the
-	// Unikernel type.
-	if unikernelType != "unikraft" {
+	// TODO: We need to have more checks than just block support fro mthe unikernel
+	if unikernel.SupportsBlock() {
 		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
 		if err != nil {
 			return err
@@ -257,8 +259,12 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 
+	err = unikernel.Init(unikernelParams)
+	if err != nil {
+		return err
+	}
 	// build the unikernel command
-	unikernelCmd, err := unikernels.UnikernelCommand(unikernels.UnikernelType(unikernelType), unikernelParams)
+	unikernelCmd, err := unikernel.CommandString()
 	if err != nil {
 		return err
 	}
@@ -325,11 +331,13 @@ func (u *Unikontainer) Delete() error {
 	if u.isRunning() {
 		return fmt.Errorf("cannot delete running unikernel: %s", u.State.ID)
 	}
-	// TODO: This is not only the case for Unikraft, but for all invocations
-	// without devmapper. Therefore, we need to use a different check than the
-	// Unikernel type.
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
-	if unikernelType != "unikraft" {
+	unikernel, err := unikernels.New(unikernels.UnikernelType(unikernelType))
+	if err != nil {
+		return err
+	}
+	// TODO: We need to have more checks than just block support fro mthe unikernel
+	if unikernel.SupportsBlock() {
 		err := os.RemoveAll(u.State.Bundle)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
