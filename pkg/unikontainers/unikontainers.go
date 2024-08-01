@@ -155,6 +155,7 @@ func (u *Unikontainer) Exec() error {
 		Container:     u.State.ID,
 		UnikernelPath: unikernelAbsPath,
 		InitrdPath:    initrdAbsPath,
+		BlockDevice:   "",
 		Seccomp:       true, // Enable Seccomp by default
 		Environment:   os.Environ(),
 	}
@@ -209,13 +210,17 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 	// handle storage
+	if u.State.Annotations["com.urunc.unikernel.block"] != "" && unikernel.SupportsBlock() {
+		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.block"])
+	}
+
 	// TODO: This needs better handling
 	// If we simply want to use the rootfs/initrd or share the FS with the
 	// guest, we do not need to pass the container rootfs in the Unikernel.
 	// The user might already specified a specific file (initrd, block device,
 	// or shared FS) to pass data to the guest.
 	// TODO: We need to have more checks than just block support fro mthe unikernel
-	if unikernel.SupportsBlock() {
+	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" {
 		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
 		if err != nil {
 			return err
@@ -337,11 +342,14 @@ func (u *Unikontainer) Delete() error {
 		return err
 	}
 	// TODO: We need to have more checks than just block support fro mthe unikernel
-	if unikernel.SupportsBlock() {
+	annotBlock := u.State.Annotations["com.urunc.unikernel.block"]
+	if unikernel.SupportsBlock() && annotBlock == "" {
 		err := os.RemoveAll(u.State.Bundle)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}
+	} else {
+		fmt.Printf("Komple")
 	}
 	return os.RemoveAll(u.BaseDir)
 }

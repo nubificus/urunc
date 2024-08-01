@@ -36,6 +36,8 @@ type UnikernelConfig struct {
 	UnikernelBinary string `json:"com.urunc.unikernel.binary"`
 	Hypervisor      string `json:"com.urunc.unikernel.hypervisor"`
 	Initrd          string `json:"com.urunc.unikernel.initrd,omitempty"`
+	Block           string `json:"com.urunc.unikernel.block,omitempty"`
+	BlkMntPoint     string `json:"com.urunc.unikernel.blkMntPoint,omitempty"`
 }
 
 // GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
@@ -71,6 +73,8 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	unikernelBinary := spec.Annotations["com.urunc.unikernel.binary"]
 	hypervisor := spec.Annotations["com.urunc.unikernel.hypervisor"]
 	initrd := spec.Annotations["com.urunc.unikernel.initrd"]
+	block := spec.Annotations["com.urunc.unikernel.block"]
+	blkMntPoint := spec.Annotations["com.urunc.unikernel.blkMntPoint"]
 
 	Log.WithFields(logrus.Fields{
 		"unikernelType":   unikernelType,
@@ -78,9 +82,12 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		"unikernelBinary": unikernelBinary,
 		"hypervisor":      hypervisor,
 		"initrd":          initrd,
+		"block":           block,
+		"blkMntPoint":     blkMntPoint,
 	}).Info("urunc annotations")
 
-	conf := fmt.Sprintf("%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd)
+	// TODO: We need to use a better check to see if annotations were empty
+	conf := fmt.Sprintf("%s%s%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd, block, blkMntPoint)
 	if conf == "" {
 		return nil, ErrEmptyAnnotations
 	}
@@ -90,6 +97,8 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		UnikernelCmd:    unikernelCmd,
 		Hypervisor:      hypervisor,
 		Initrd:          initrd,
+		Block:           block,
+		BlkMntPoint:     blkMntPoint,
 	}, nil
 }
 
@@ -126,6 +135,8 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		"unikernelBinary": conf.UnikernelBinary,
 		"hypervisor":      conf.Hypervisor,
 		"initrd":          conf.Initrd,
+		"block":           conf.Block,
+		"blkMntPoint":     conf.BlkMntPoint,
 	}).Info("urunc.json annotations")
 	return &conf, nil
 }
@@ -161,6 +172,19 @@ func (c *UnikernelConfig) decode() error {
 		return fmt.Errorf("failed to decode Initrd: %v", err)
 	}
 	c.Initrd = string(decoded)
+
+	decoded, err = base64.StdEncoding.DecodeString(c.Block)
+	if err != nil {
+		return fmt.Errorf("failed to decode Block: %v", err)
+	}
+	c.Block = string(decoded)
+
+	decoded, err = base64.StdEncoding.DecodeString(c.BlkMntPoint)
+	if err != nil {
+		return fmt.Errorf("failed to decode BlockMntPoint: %v", err)
+	}
+	c.BlkMntPoint = string(decoded)
+
 	return nil
 }
 
@@ -181,6 +205,12 @@ func (c *UnikernelConfig) Map() map[string]string {
 	}
 	if c.Initrd != "" {
 		myMap["com.urunc.unikernel.initrd"] = c.Initrd
+	}
+	if c.Block != "" {
+		myMap["com.urunc.unikernel.block"] = c.Block
+	}
+	if c.BlkMntPoint != "" {
+		myMap["com.urunc.unikernel.blkMntPoint"] = c.BlkMntPoint
 	}
 	return myMap
 }
