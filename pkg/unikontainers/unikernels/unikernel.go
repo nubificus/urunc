@@ -19,7 +19,10 @@ import "errors"
 type UnikernelType string
 
 type Unikernel interface {
+	Init(UnikernelParams) error
 	CommandString() (string, error)
+	SupportsBlock() bool
+	SupportsFS(string) bool
 }
 
 // UnikernelParams holds the data required to build the unikernels commandline
@@ -33,29 +36,15 @@ type UnikernelParams struct {
 
 var ErrNotSupportedUnikernel = errors.New("unikernel is not supported")
 
-func UnikernelCommand(unikernelType UnikernelType, data UnikernelParams) (string, error) {
+func New(unikernelType UnikernelType) (Unikernel, error) {
 	switch unikernelType {
 	case RumprunUnikernel:
-		unikernel, err := newRumprun(data)
-		if err != nil {
-			return "", err
-		}
-		command, err := unikernel.CommandString()
-		if err != nil {
-			return "", err
-		}
-		return command, nil
+		unikernel := newRumprun()
+		return unikernel, nil
 	case UnikraftUnikernel:
-		unikernel, err := newUnikraft(data)
-		if err != nil {
-			return "", err
-		}
-		command, err := unikernel.CommandString()
-		if err != nil {
-			return "", err
-		}
-		return command, nil
+		unikernel := newUnikraft()
+		return unikernel, nil
 	default:
-		return "", ErrNotSupportedUnikernel
+		return nil, ErrNotSupportedUnikernel
 	}
 }

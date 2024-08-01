@@ -53,7 +53,7 @@ type RumprunBlk struct {
 	Mountpoint string `json:"mountpoint"`
 }
 
-func (r Rumprun) CommandString() (string, error) {
+func (r *Rumprun) CommandString() (string, error) {
 	// if EthDeviceMask is empty, there is no network support. omit every relevant field
 	if r.Net.Mask == "" {
 		tmp := RumprunNoNet{
@@ -75,42 +75,50 @@ func (r Rumprun) CommandString() (string, error) {
 	return jsonStr, nil
 }
 
-func newRumprun(data UnikernelParams) (Rumprun, error) {
-	tempBlk := RumprunBlk{
-		Source:     "etfs",
-		Path:       "/dev/ld0a",
-		FsType:     "blk",
-		Mountpoint: "/data",
-	}
+func (r *Rumprun) SupportsBlock() bool {
+	return true
+}
 
+func (r *Rumprun) SupportsFS(fsType string) bool {
+	switch fsType {
+	case "ext2":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *Rumprun) Init(data UnikernelParams) error {
 	// if EthDeviceMask is empty, there is no network support
-	if data.EthDeviceMask == "" {
-		return Rumprun{
-			Command: data.CmdLine,
-			Net:     RumprunNet{Mask: ""},
-			Blk:     tempBlk,
-		}, nil
+	if data.EthDeviceMask != "" {
+		// FIXME: in the case of rumprun & k8s, we need to explicitly set the mask
+		// to an inclusive value (eg 1 or 0), as NetBSD complains and does not set the default gw
+		// if it is not reachable from the IP address directly.
+		mask, err := subnetMaskToCIDR(data.EthDeviceMask)
+		if err != nil {
+			return err
+		}
+		r.Net.Interface = "ukvmif0"
+		r.Net.Cloner = "True"
+		r.Net.Type = "inet"
+		r.Net.Method = "static"
+		r.Net.Address = data.EthDeviceIP
+		r.Net.Mask = fmt.Sprintf("%d", mask)
+		r.Net.Gateway = data.EthDeviceGateway
 	}
 
-	// FIXME: in the case of rumprun & k8s, we need to explicitly set the mask
-	// to an inclusive value (eg 1 or 0), as NetBSD complains and does not set the default gw
-	// if it is not reachable from the IP address directly.
-	mask, err := subnetMaskToCIDR(data.EthDeviceMask)
-	if err != nil {
-		return Rumprun{}, err
-	}
-	tempNet := RumprunNet{
-		Interface: "ukvmif0",
-		Cloner:    "True",
-		Type:      "inet",
-		Method:    "static",
-		Address:   data.EthDeviceIP,
-		Mask:      fmt.Sprintf("%d", mask),
-		Gateway:   data.EthDeviceGateway,
-	}
-	return Rumprun{
-		Command: data.CmdLine,
-		Net:     tempNet,
-		Blk:     tempBlk,
-	}, nil
+	r.Blk.Source = "etfs"
+	r.Blk.Path = "/dev/ld0a"
+	r.Blk.FsType = "blk"
+	r.Blk.Mountpoint = "/data"
+
+	r.Command = data.CmdLine
+
+	return nil
+}
+
+func newRumprun() *Rumprun {
+	rumprunStruct := new(Rumprun)
+
+	return rumprunStruct
 }
