@@ -35,6 +35,8 @@ func TestGetConfigFromSpec(t *testing.T) {
 				"com.urunc.unikernel.binary":        "binary1",
 				"com.urunc.unikernel.hypervisor":    "hypervisor1",
 				"com.urunc.unikernel.initrd":        "initrd1",
+				"com.urunc.unikernel.block":         "block1",
+				"com.urunc.unikernel.blkMntPoint":   "point1",
 			},
 		}
 
@@ -44,6 +46,8 @@ func TestGetConfigFromSpec(t *testing.T) {
 			UnikernelCmd:    "cmd1",
 			Hypervisor:      "hypervisor1",
 			Initrd:          "initrd1",
+			Block:           "block1",
+			BlkMntPoint:     "point1",
 		}
 
 		config, err := getConfigFromSpec(spec)
@@ -95,6 +99,8 @@ func TestGetConfigFromJSON(t *testing.T) {
 			UnikernelCmd:    "cmd1",
 			Hypervisor:      "hypervisor1",
 			Initrd:          "initrd1",
+			Block:           "block1",
+			BlkMntPoint:     "point1",
 		}
 		configData, err := json.Marshal(expectedConfig)
 		assert.NoError(t, err)
@@ -223,6 +229,8 @@ func TestMap(t *testing.T) {
 			UnikernelCmd:    "cmd_value",
 			Hypervisor:      "hypervisor_value",
 			Initrd:          "initrd_value",
+			Block:           "block_value",
+			BlkMntPoint:     "point_value",
 		}
 		expectedMap := map[string]string{
 			"com.urunc.unikernel.cmdline":       "cmd_value",
@@ -230,6 +238,8 @@ func TestMap(t *testing.T) {
 			"com.urunc.unikernel.hypervisor":    "hypervisor_value",
 			"com.urunc.unikernel.binary":        "binary_value",
 			"com.urunc.unikernel.initrd":        "initrd_value",
+			"com.urunc.unikernel.block":         "block_value",
+			"com.urunc.unikernel.blkMntPoint":   "point_value",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
@@ -242,6 +252,8 @@ func TestMap(t *testing.T) {
 			UnikernelCmd:    "",
 			Hypervisor:      "",
 			Initrd:          "",
+			Block:           "",
+			BlkMntPoint:     "",
 		}
 		expectedMap := map[string]string{}
 		resultMap := config.Map()
@@ -255,11 +267,14 @@ func TestMap(t *testing.T) {
 			UnikernelCmd:    "cmd_value",
 			Hypervisor:      "",
 			Initrd:          "initrd_value",
+			Block:           "",
+			BlkMntPoint:     "point_value",
 		}
 		expectedMap := map[string]string{
-			"com.urunc.unikernel.cmdline": "cmd_value",
-			"com.urunc.unikernel.binary":  "binary_value",
-			"com.urunc.unikernel.initrd":  "initrd_value",
+			"com.urunc.unikernel.cmdline":     "cmd_value",
+			"com.urunc.unikernel.binary":      "binary_value",
+			"com.urunc.unikernel.initrd":      "initrd_value",
+			"com.urunc.unikernel.blkMntPoint": "point_value",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
