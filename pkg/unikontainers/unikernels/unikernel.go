@@ -32,6 +32,7 @@ type UnikernelParams struct {
 	EthDeviceMask    string // The eth device mask
 	EthDeviceGateway string // The eth device gateway
 	RootFSType       string // The rootfs type of the Unikernel
+	BlockMntPoint    string // The mount point for the block device
 }
 
 var ErrNotSupportedUnikernel = errors.New("unikernel is not supported")
