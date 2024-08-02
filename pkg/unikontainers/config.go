@@ -78,7 +78,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		"unikernelBinary": unikernelBinary,
 		"hypervisor":      hypervisor,
 		"initrd":          initrd,
-	}).Info("urunc annotations")
+	}).Debug("urunc annotations")
 
 	conf := fmt.Sprintf("%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd)
 	if conf == "" {
@@ -126,7 +126,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		"unikernelBinary": conf.UnikernelBinary,
 		"hypervisor":      conf.Hypervisor,
 		"initrd":          conf.Initrd,
-	}).Info("urunc.json annotations")
+	}).Debug("urunc.json annotations")
 	return &conf, nil
 }
 

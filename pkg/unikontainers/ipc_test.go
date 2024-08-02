@@ -15,6 +15,7 @@
 package unikontainers
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -76,32 +77,45 @@ func TestSendIPCMessage(t *testing.T) {
 	socketAddress := "/tmp/test.sock"
 	message := ReexecStarted
 
-	listener, err := net.Listen("unix", socketAddress)
-	if err != nil {
-		t.Fatalf("Failed to create listener: %v", err)
-	}
 	defer os.Remove(socketAddress)
-	defer listener.Close()
-
+	errChan := make(chan error, 1)
 	go func() {
+		listener, err := net.Listen("unix", socketAddress)
+		if err != nil {
+			errChan <- fmt.Errorf("Failed to create listener: %v", err)
+		} else {
+			errChan <- nil
+		}
+		defer listener.Close()
+
 		conn, err := listener.Accept()
 		if err != nil {
-			t.Errorf("Failed to accept connection: %v", err)
+			errChan <- fmt.Errorf("Failed to accept connection: %v", err)
+		} else {
+			errChan <- nil
 		}
 		defer conn.Close()
 
 		buf := make([]byte, len(message))
 		n, err := conn.Read(buf)
 		if err != nil {
-			t.Errorf("Failed to read message: %v", err)
+			errChan <- fmt.Errorf("Failed to read message: %v", err)
+		} else {
+			errChan <- nil
 		}
-
 		assert.Equal(t, string(message), string(buf[:n]), "Expected %s, but got %s", message, string(buf[:n]))
 	}()
-
+	select {
+	case err := <-errChan:
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Test timed out")
+	}
 	time.Sleep(10 * time.Millisecond) // Ensure listener is ready
 
-	err = SendIPCMessage(socketAddress, message)
+	err := SendIPCMessage(socketAddress, message)
 	assert.NoError(t, err, "Expected no error in sending IPC message")
 }
 
@@ -109,30 +123,46 @@ func TestSendIPCMessageWithRetry(t *testing.T) {
 	socketAddress := "/tmp/test_retry.sock"
 	message := ReexecStarted
 
-	listener, err := net.Listen("unix", socketAddress)
-	if err != nil {
-		t.Fatalf("Failed to create listener: %v", err)
-	}
 	defer os.Remove(socketAddress)
-	defer listener.Close()
 
+	errChan := make(chan error, 1)
 	go func() {
+		listener, err := net.Listen("unix", socketAddress)
+		if err != nil {
+			errChan <- fmt.Errorf("Failed to create listener: %v", err)
+		} else {
+			errChan <- nil
+		}
+		defer listener.Close()
+
 		conn, err := listener.Accept()
 		if err != nil {
-			t.Errorf("Failed to accept connection: %v", err)
+			errChan <- fmt.Errorf("Failed to accept connection: %v", err)
+		} else {
+			errChan <- nil
 		}
+
 		defer conn.Close()
 
 		buf := make([]byte, len(message))
 		n, err := conn.Read(buf)
 		if err != nil {
-			t.Errorf("Failed to read message: %v", err)
+			errChan <- fmt.Errorf("Failed to read message: %v", err)
+		} else {
+			errChan <- nil
 		}
-
 		assert.Equal(t, string(message), string(buf[:n]), "Expected %s, but got %s", message, string(buf[:n]))
 	}()
+	select {
+	case err := <-errChan:
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Test timed out")
+	}
 
-	err = sendIPCMessageWithRetry(socketAddress, message, true)
+	err := sendIPCMessageWithRetry(socketAddress, message, true)
 	assert.NoError(t, err, "Expected no error in sending IPC message with retry")
 }
 

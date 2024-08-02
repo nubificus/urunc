@@ -41,7 +41,7 @@ jobs:
           echo "ARTIFACT_SHA=$(echo ${GITHUB_REF##*/})" >> $GITHUB_ENV
         fi
 
-    - name: Build bima binaries
+    - name: Build urunc binaries
       run: |
         make all
 
