@@ -70,5 +70,5 @@ test_unikontainers:
 unittest: test_unikontainers
 	-@echo "unit tests: DONE"
 
-test: test_nerdctl test_ctr test_crictl unittest
+test: test_nerdctl test_ctr test_crictl
 	-@echo "DONE"
