@@ -65,7 +65,7 @@ test_crictl:
 	@echo " "
 
 test_unikontainers:
-	@GOFLAGS="-count=1" $$(which go) test ./pkg/unikontainers -v
+	@GOFLAGS="-count=1" $$(which go) test -timeout 30s ./pkg/unikontainers -v
 
 unittest: test_unikontainers
 	-@echo "unit tests: DONE"

@@ -41,7 +41,7 @@ jobs:
           echo "ARTIFACT_SHA=$(echo ${GITHUB_REF##*/})" >> $GITHUB_ENV
         fi
 
-    - name: Build bima binaries
+    - name: Build urunc binaries
       run: |
         make all
 
@@ -49,7 +49,7 @@ jobs:
       if: matrix.archconfig == 'aarch64'
       uses: cloudkernels/minio-upload@v3
       with:
-        url: https://s3.nubificus.co.uk
+        url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/urunc_aarch64
@@ -60,7 +60,7 @@ jobs:
       if: matrix.archconfig == 'x86_64'
       uses: cloudkernels/minio-upload@v3
       with:
-        url: https://s3.nubificus.co.uk
+        url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/urunc_amd64
@@ -71,7 +71,7 @@ jobs:
       if: matrix.archconfig == 'aarch64'
       uses: cloudkernels/minio-upload@v3
       with:
-        url: https://s3.nubificus.co.uk
+        url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/containerd-shim-urunc-v2_aarch64
@@ -82,7 +82,7 @@ jobs:
       if: matrix.archconfig == 'x86_64'
       uses: cloudkernels/minio-upload@v3
       with:
-        url: https://s3.nubificus.co.uk
+        url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/containerd-shim-urunc-v2_amd64
