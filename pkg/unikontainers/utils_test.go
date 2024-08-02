@@ -54,7 +54,6 @@ func TestGetInitPid(t *testing.T) {
 
 		// Create a temporary file for testing
 		tmpDir := t.TempDir()
-		t.Log(tmpDir)
 		tmpFile, err := os.CreateTemp(tmpDir, "test*.json")
 		assert.NoError(t, err)
 
