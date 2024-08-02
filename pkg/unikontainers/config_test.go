@@ -93,7 +93,6 @@ func TestGetConfigFromJSON(t *testing.T) {
 		// Create a temporary directory
 		tempDir := t.TempDir()
 
-		t.Log(tempDir)
 		// Create a valid urunc.json file
 		expectedConfig := &UnikernelConfig{
 			UnikernelBinary: "binary1",

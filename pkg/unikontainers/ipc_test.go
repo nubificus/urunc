@@ -15,6 +15,7 @@
 package unikontainers
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -72,68 +73,76 @@ func TestSockAddrExists(t *testing.T) {
 	assert.False(t, SockAddrExists(nonExistingSockAddr), "Expected socket address to not exist")
 }
 
+func readExpectedMsgFromSocket(socketAddr string, message IPCMessage, waitChan chan<- bool) error {
+	defer os.Remove(socketAddr)
+	listener, err := net.Listen("unix", socketAddr)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	waitChan <- true
+
+	conn, err := listener.Accept()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	buf := make([]byte, len(message))
+	n, err := conn.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	if string(message) != string(buf[:n]) {
+		return fmt.Errorf("Expected %s, but got %s", message, string(buf[:n]))
+	}
+	return nil
+}
+
+func testSendIPCMessageHelper(t *testing.T, socketAddress string, message IPCMessage, sendFunc func(string, IPCMessage) error) {
+	errChan := make(chan error, 1)
+	waitChan := make(chan bool, 1)
+
+	go func() {
+		errChan <- readExpectedMsgFromSocket(socketAddress, message, waitChan)
+	}()
+
+	select {
+	case <-waitChan:
+		err := sendFunc(socketAddress, message)
+		assert.NoError(t, err, "Expected no error in sending IPC message")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Test timed out")
+	}
+
+	select {
+	case err := <-errChan:
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Test timed out")
+	}
+}
+
 func TestSendIPCMessage(t *testing.T) {
 	socketAddress := "/tmp/test.sock"
 	message := ReexecStarted
 
-	listener, err := net.Listen("unix", socketAddress)
-	if err != nil {
-		t.Fatalf("Failed to create listener: %v", err)
-	}
-	defer os.Remove(socketAddress)
-	defer listener.Close()
-
-	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			t.Errorf("Failed to accept connection: %v", err)
-		}
-		defer conn.Close()
-
-		buf := make([]byte, len(message))
-		n, err := conn.Read(buf)
-		if err != nil {
-			t.Errorf("Failed to read message: %v", err)
-		}
-
-		assert.Equal(t, string(message), string(buf[:n]), "Expected %s, but got %s", message, string(buf[:n]))
-	}()
-
-	time.Sleep(10 * time.Millisecond) // Ensure listener is ready
-
-	err = SendIPCMessage(socketAddress, message)
-	assert.NoError(t, err, "Expected no error in sending IPC message")
+	testSendIPCMessageHelper(t, socketAddress, message, SendIPCMessage)
 }
 
 func TestSendIPCMessageWithRetry(t *testing.T) {
 	socketAddress := "/tmp/test_retry.sock"
 	message := ReexecStarted
 
-	listener, err := net.Listen("unix", socketAddress)
-	if err != nil {
-		t.Fatalf("Failed to create listener: %v", err)
+	// Wrapping the sendIPCMessageWithRetry function to match the expected function signature.
+	sendWithRetry := func(addr string, msg IPCMessage) error {
+		return sendIPCMessageWithRetry(addr, msg, true)
 	}
-	defer os.Remove(socketAddress)
-	defer listener.Close()
 
-	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			t.Errorf("Failed to accept connection: %v", err)
-		}
-		defer conn.Close()
-
-		buf := make([]byte, len(message))
-		n, err := conn.Read(buf)
-		if err != nil {
-			t.Errorf("Failed to read message: %v", err)
-		}
-
-		assert.Equal(t, string(message), string(buf[:n]), "Expected %s, but got %s", message, string(buf[:n]))
-	}()
-
-	err = sendIPCMessageWithRetry(socketAddress, message, true)
-	assert.NoError(t, err, "Expected no error in sending IPC message with retry")
+	testSendIPCMessageHelper(t, socketAddress, message, sendWithRetry)
 }
 
 func TestCreateListener(t *testing.T) {
