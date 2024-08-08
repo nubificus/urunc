@@ -36,6 +36,15 @@ func TestNerdctlHvtRumprunRedis(t *testing.T) {
 	}
 }
 
+func TestNerdctlHvtRumprunRedisBlock(t *testing.T) {
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump-block:latest"
+	containerName := "hvt-rumprun-redis-block-test"
+	err := nerdctlTest(containerName, containerImage, true)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
 func TestNerdctlHvtSeccompOn(t *testing.T) {
 	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
 	containerName := "hvt-rumprun-redis-test"
