@@ -15,45 +15,156 @@
 package unikontainers
 
 import (
+	"bufio"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/shirou/gopsutil/disk"
+	"github.com/moby/sys/mount"
+	"github.com/sirupsen/logrus"
 )
 
-// RootFs represents a root file system and its properties.
+var ErrMountpoint = errors.New("No FS is mounted in this mountpoint")
+
+// RootFs contains information regarding a mount
 type RootFs struct {
-	Path      string             // The path of the root file system.
-	IsBlock   bool               // Indicates if it's a block device.
-	BlkDevice disk.PartitionStat // Information about the block device.
+	Path   string // The path of the root file system.
+	Device string // The device which is mounted as the container rootfs
+	FsType string // The filesystem type of the mounted device
 }
 
 // getBlockDevice retrieves information about the block device associated with a given path.
 // It searches for a mounted block device with the specified path and returns its details.
 // If the path is not a block device or there is an error, it returns an empty RootFs struct and an error.
-func getBlockDevice(path string, getPartitions func(bool) ([]disk.PartitionStat, error)) (RootFs, error) {
+func getBlockDevice(path string) (RootFs, error) {
 	var result RootFs
-	result.IsBlock = false
+	selfProcMountInfo := "/proc/self/mountinfo"
 
-	// Retrieve a list of mounted partitions
-	parts, err := getPartitions(true)
+	file, err := os.Open(selfProcMountInfo)
 	if err != nil {
-		return result, err
+		return result, nil
 	}
 
-	// Search for the partition with the specified path
-	// FIXME: Looping through all mounted devices could hinder performance. Explore alternatives.
-	for _, p := range parts {
-		if p.Mountpoint == path {
-			result.Path = path
-			result.BlkDevice = p
-			break
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, " - ")
+		if len(parts) != 2 {
+			return result, fmt.Errorf("Invalid mountinfo line in /proc/self/mountinfo")
+		}
+
+		fields := strings.Fields(parts[0])
+		mountPoint := fields[4]
+		if mountPoint != path {
+			continue
+		}
+		result.Path = mountPoint
+		fields = strings.Fields(parts[1])
+		result.FsType = fields[0]
+		result.Device = fields[1]
+		Log.WithFields(logrus.Fields{
+			"mountpoint": result.Path,
+			"device":     result.Device,
+			"fstype":     result.FsType,
+		}).Debug("Found container rootfs mount")
+
+		return result, nil
+	}
+
+	return result, ErrMountpoint
+}
+
+// extractUnikernelFromBlock creates target directory inside the bundle and moves unikernel & urunc.json
+// FIXME: This approach fills up /run with unikernel binaries and urunc.json files for each unikernel we run
+func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bundle string) (string, error) {
+	// create bundle/tmp directory and moves unikernel binary and urunc.json
+	tmpDir := filepath.Join(bundle, "tmp")
+	err := os.Mkdir(tmpDir, 0755)
+	if err != nil {
+		return "", err
+	}
+
+	currentUnikernelPath := filepath.Join(bundle, "rootfs", unikernel)
+	targetUnikernelPath := filepath.Join(tmpDir, unikernel)
+	targetUnikernelDir, _ := filepath.Split(targetUnikernelPath)
+	err = moveFile(currentUnikernelPath, targetUnikernelDir)
+	if err != nil {
+		err1 := os.RemoveAll(tmpDir)
+		if err1 != nil {
+			Log.Errorf("Could not remove directory %s", tmpDir)
+		}
+		return "", err
+	}
+
+	if initrd != "" {
+		currentInitrdPath := filepath.Join(bundle, "rootfs", initrd)
+		targetInitrdPath := filepath.Join(tmpDir, initrd)
+		targetInitrdDir, _ := filepath.Split(targetInitrdPath)
+		err = moveFile(currentInitrdPath, targetInitrdDir)
+		if err != nil {
+			err1 := os.RemoveAll(tmpDir)
+			if err1 != nil {
+				Log.Errorf("Could not remove directory %s", tmpDir)
+			}
+			return "", err
 		}
 	}
 
-	// Check if the file system type is ext4 or ext2 and the device name contains "dm" (indicating a block device)
-	if (result.BlkDevice.Fstype == "ext4" || result.BlkDevice.Fstype == "ext2") && strings.Contains(result.BlkDevice.Device, "dm") {
-		result.IsBlock = true
+	currentConfigPath := filepath.Join(bundle, "rootfs", uruncJSON)
+	err = moveFile(currentConfigPath, tmpDir)
+	if err != nil {
+		err1 := os.RemoveAll(tmpDir)
+		if err1 != nil {
+			Log.Errorf("Could not remove directory %s", tmpDir)
+		}
+		return "", err
 	}
 
-	return result, nil
+	return tmpDir, nil
+}
+
+// prepareDMAsBLock copies the files needed for the unikernel boot (e.g.
+// unikernel binary, initrd file) and the urunc.json file in a new temporary
+// directory. Then it unmounts the devmapper device and renames the temporary
+// directory as the container rootfs. This is needed to keep the same paths
+// for the unikernel files.
+func prepareDMAsBlock(bundle string, unikernel string, uruncJSON string, initrd string) error {
+	rootfsPath := filepath.Join(bundle, "rootfs")
+	// extract unikernel
+	// FIXME: This approach fills up /run with unikernel binaries and
+	// urunc.json files for each unikernel instance we run
+	tmpDir, err := extractFilesFromBlock(unikernel, uruncJSON, initrd, bundle)
+	if err != nil {
+		return err
+	}
+	// unmount block device
+	// FIXME: umount and rm might need some retries
+	err = mount.Unmount(rootfsPath)
+	if err != nil {
+		return err
+	}
+	// rename tmp to rootfs
+	err = os.Remove(rootfsPath)
+	if err != nil {
+		return err
+	}
+	err = os.Rename(tmpDir, rootfsPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// cleanupExtractedFiles cleans up all the files that we copied to unmount
+// container's rootfs. In particular it should delete three files: the unikernel
+// binary the initrd and the urunc.json file.
+// For the time being it acts as a placeholder for future changes, where we might
+// need to do more advanced things than removing files.
+func cleanupExtractedFiles(bundle string) error {
+	rootfsPath := filepath.Join(bundle, "rootfs")
+	return os.RemoveAll(rootfsPath)
 }

@@ -21,14 +21,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 
-	"github.com/moby/sys/mount"
 	"github.com/nubificus/urunc/pkg/network"
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
-	"github.com/shirou/gopsutil/disk"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
@@ -143,11 +142,13 @@ func (u *Unikontainer) Exec() error {
 
 	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
+	unikernelPath := u.State.Annotations["com.urunc.unikernel.binary"]
+	initrdPath := u.State.Annotations["com.urunc.unikernel.initrd"]
 	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
-	unikernelAbsPath := filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.binary"])
+	unikernelAbsPath := filepath.Join(rootfsDir, unikernelPath)
 	initrdAbsPath := ""
-	if u.State.Annotations["com.urunc.unikernel.initrd"] != "" {
-		initrdAbsPath = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.initrd"])
+	if initrdPath != "" {
+		initrdAbsPath = filepath.Join(rootfsDir, initrdPath)
 	}
 
 	// populate vmm args
@@ -155,6 +156,7 @@ func (u *Unikontainer) Exec() error {
 		Container:     u.State.ID,
 		UnikernelPath: unikernelAbsPath,
 		InitrdPath:    initrdAbsPath,
+		BlockDevice:   "",
 		Seccomp:       true, // Enable Seccomp by default
 		Environment:   os.Environ(),
 	}
@@ -208,47 +210,37 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		return err
 	}
+
 	// handle storage
-	// TODO: This needs better handling
-	// If we simply want to use the rootfs/initrd or share the FS with the
-	// guest, we do not need to pass the container rootfs in the Unikernel.
-	// The user might already specified a specific file (initrd, block device,
-	// or shared FS) to pass data to the guest.
-	// TODO: We need to have more checks than just block support fro mthe unikernel
-	if unikernel.SupportsBlock() {
-		rootFsDevice, err := getBlockDevice(rootfsDir, disk.Partitions)
+	// useDevmapper will contain the value of either the annotation (if was set)
+	// or from the environment variable. The annotation has more power than the
+	// environment variable. However, if none of them is set, we do not take them
+	// into consideration, meaning that if the rest of the checks are valid (e.g.
+	// no block device in the container, devmapper is in use, unikernel supports
+	// block/FS of devmapper) then we wiil use the devmapper as a block device
+	// for the unikernel.
+	useDevmapper := false
+	useDevmapper, err = strconv.ParseBool(u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+	if err != nil {
+		Log.Errorf("Invalide value in useDMBlock: %s. Urunc will try to use it",
+			u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+		useDevmapper = true
+	}
+	if u.State.Annotations["com.urunc.unikernel.block"] != "" && unikernel.SupportsBlock() {
+		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.block"])
+	}
+
+	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
+		rootFsDevice, err := getBlockDevice(rootfsDir)
 		if err != nil {
 			return err
 		}
-		if rootFsDevice.IsBlock {
-			Log.WithFields(logrus.Fields{"fstype": rootFsDevice.BlkDevice.Fstype,
-				"mountpoint": rootFsDevice.BlkDevice.Mountpoint,
-				"device":     rootFsDevice.BlkDevice.Device,
-			}).Debug("Found block device")
-
-			// extract unikernel
-			// FIXME: This approach fills up /run with unikernel binaries and
-			// urunc.json files for each unikernel instance we run
-			err = u.extractUnikernelFromBlock("tmp")
+		if unikernel.SupportsFS(rootFsDevice.FsType) {
+			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, "urunc.json", initrdPath)
 			if err != nil {
 				return err
 			}
-			// unmount block device
-			// FIXME: umount and rm might need some retries
-			err := mount.Unmount(rootfsDir)
-			if err != nil {
-				return err
-			}
-			// rename tmp to rootfs
-			err = os.Remove(rootfsDir)
-			if err != nil {
-				return err
-			}
-			err = os.Rename(filepath.Join(u.State.Bundle, "tmp"), rootfsDir)
-			if err != nil {
-				return err
-			}
-			vmmArgs.BlockDevice = rootFsDevice.BlkDevice.Device
+			vmmArgs.BlockDevice = rootFsDevice.Device
 		}
 	}
 	metrics.Capture(u.State.ID, "TS18")
@@ -336,12 +328,19 @@ func (u *Unikontainer) Delete() error {
 	if err != nil {
 		return err
 	}
-	// TODO: We need to have more checks than just block support fro mthe unikernel
-	if unikernel.SupportsBlock() {
-		err := os.RemoveAll(u.State.Bundle)
+	useDevmapper := false
+	useDevmapper, err = strconv.ParseBool(u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+	if err != nil {
+		useDevmapper = true
+	}
+	annotBlock := u.State.Annotations["com.urunc.unikernel.block"]
+	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
+		err := cleanupExtractedFiles(u.State.Bundle)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}
+	} else {
+		fmt.Printf("Komple")
 	}
 	return os.RemoveAll(u.BaseDir)
 }
@@ -373,26 +372,6 @@ func (u Unikontainer) joinSandboxNetNs() error {
 	}
 	Log.Info("Joined sandbox's netns")
 	return nil
-}
-
-// extractUnikernelFromBlock creates target directory inside the bundle and moves unikernel & urunc.json
-// FIXME: This approach fills up /run with unikernel binaries and urunc.json files for each unikernel we run
-func (u Unikontainer) extractUnikernelFromBlock(target string) error {
-	// create bundle/tmp directory and moves unikernel binary and urunc.json
-	tmpDir := filepath.Join(u.State.Bundle, target)
-	unikernel := u.State.Annotations["com.urunc.unikernel.binary"]
-
-	currentUnikernelPath := filepath.Join(u.State.Bundle, "rootfs", unikernel)
-	targetUnikernelPath := filepath.Join(tmpDir, unikernel)
-	targetUnikernelDir, _ := filepath.Split(targetUnikernelPath)
-
-	err := moveFile(currentUnikernelPath, targetUnikernelDir)
-	if err != nil {
-		return err
-	}
-
-	currentConfigPath := filepath.Join(u.State.Bundle, "rootfs", "urunc.json")
-	return moveFile(currentConfigPath, tmpDir)
 }
 
 // Saves current Unikernel state as baseDir/state.json for later use

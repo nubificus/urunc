@@ -35,6 +35,9 @@ func TestGetConfigFromSpec(t *testing.T) {
 				"com.urunc.unikernel.binary":        "binary1",
 				"com.urunc.unikernel.hypervisor":    "hypervisor1",
 				"com.urunc.unikernel.initrd":        "initrd1",
+				"com.urunc.unikernel.block":         "block1",
+				"com.urunc.unikernel.blkMntPoint":   "point1",
+				"com.urunc.unikernel.useDMBlock":    "true",
 			},
 		}
 
@@ -44,6 +47,9 @@ func TestGetConfigFromSpec(t *testing.T) {
 			UnikernelCmd:    "cmd1",
 			Hypervisor:      "hypervisor1",
 			Initrd:          "initrd1",
+			Block:           "block1",
+			BlkMntPoint:     "point1",
+			UseDMBlock:      "true",
 		}
 
 		config, err := getConfigFromSpec(spec)
@@ -95,6 +101,9 @@ func TestGetConfigFromJSON(t *testing.T) {
 			UnikernelCmd:    "cmd1",
 			Hypervisor:      "hypervisor1",
 			Initrd:          "initrd1",
+			Block:           "block1",
+			BlkMntPoint:     "point1",
+			UseDMBlock:      "true",
 		}
 		configData, err := json.Marshal(expectedConfig)
 		assert.NoError(t, err)
@@ -223,6 +232,9 @@ func TestMap(t *testing.T) {
 			UnikernelCmd:    "cmd_value",
 			Hypervisor:      "hypervisor_value",
 			Initrd:          "initrd_value",
+			Block:           "block_value",
+			BlkMntPoint:     "point_value",
+			UseDMBlock:      "false",
 		}
 		expectedMap := map[string]string{
 			"com.urunc.unikernel.cmdline":       "cmd_value",
@@ -230,6 +242,9 @@ func TestMap(t *testing.T) {
 			"com.urunc.unikernel.hypervisor":    "hypervisor_value",
 			"com.urunc.unikernel.binary":        "binary_value",
 			"com.urunc.unikernel.initrd":        "initrd_value",
+			"com.urunc.unikernel.block":         "block_value",
+			"com.urunc.unikernel.blkMntPoint":   "point_value",
+			"com.urunc.unikernel.useDMBlock":    "false",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
@@ -242,8 +257,13 @@ func TestMap(t *testing.T) {
 			UnikernelCmd:    "",
 			Hypervisor:      "",
 			Initrd:          "",
+			Block:           "",
+			BlkMntPoint:     "",
+			UseDMBlock:      "",
 		}
-		expectedMap := map[string]string{}
+		expectedMap := map[string]string{
+			"com.urunc.unikernel.useDMBlock": "",
+		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
 	})
@@ -255,11 +275,16 @@ func TestMap(t *testing.T) {
 			UnikernelCmd:    "cmd_value",
 			Hypervisor:      "",
 			Initrd:          "initrd_value",
+			Block:           "",
+			BlkMntPoint:     "point_value",
+			UseDMBlock:      "0",
 		}
 		expectedMap := map[string]string{
-			"com.urunc.unikernel.cmdline": "cmd_value",
-			"com.urunc.unikernel.binary":  "binary_value",
-			"com.urunc.unikernel.initrd":  "initrd_value",
+			"com.urunc.unikernel.cmdline":     "cmd_value",
+			"com.urunc.unikernel.binary":      "binary_value",
+			"com.urunc.unikernel.initrd":      "initrd_value",
+			"com.urunc.unikernel.blkMntPoint": "point_value",
+			"com.urunc.unikernel.useDMBlock":  "0",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
@@ -268,7 +293,9 @@ func TestMap(t *testing.T) {
 	t.Run("unikernelConfig map no fields", func(t *testing.T) {
 		t.Parallel()
 		config := &UnikernelConfig{}
-		expectedMap := map[string]string{}
+		expectedMap := map[string]string{
+			"com.urunc.unikernel.useDMBlock": "",
+		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
 	})
