@@ -23,144 +23,167 @@ import (
 	common "github.com/nubificus/urunc/tests"
 )
 
-func TestCtrHvtRumprun(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun-nonet:latest"
-	containerName := "hvt-rumprun-hello"
-	procName := "solo5-hvt"
-	pullParams := strings.Fields("ctr image pull " + containerImage)
-	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
-	err := pullCmd.Run()
-	if err != nil {
-		t.Fatalf("Error pulling %s: %v", containerImage, err)
+type testMethod func(testSpecificArgs) error
+
+var matchTest testMethod
+
+type ctrTestArgs struct {
+	Name      string
+	Image     string
+	Devmapper bool
+	Seccomp   bool
+	Skippable bool
+	TestFunc  testMethod
+	TestArgs  testSpecificArgs
+}
+
+type testSpecificArgs struct {
+	ContainerID string
+	Seccomp     bool
+	Expected    string
+}
+
+// func TestsWithCtr(t *testing.T) {
+func TestCtr(t *testing.T) {
+	tests := []ctrTestArgs{
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun-nonet:latest",
+			Name:      "Hvt-rumprun-hello",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestArgs: testSpecificArgs{
+				Expected: "Hello world",
+			},
+			TestFunc: matchTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-spt-rumprun-nonet:latest",
+			Name:      "Spt-rumprun-hello",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestArgs: testSpecificArgs{
+				Expected: "Hello world",
+			},
+			TestFunc: matchTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-qemu-unikraft:latest",
+			Name:      "Qemu-unikraft-hello",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestArgs: testSpecificArgs{
+				Expected: "\"Urunc\" \"Unikraft\" \"Qemu\"",
+			},
+			TestFunc: matchTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-firecracker-unikraft:latest",
+			Name:      "Firecracker-unikraft-hello",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestArgs: testSpecificArgs{
+				Expected: "\"Urunc\" \"Unikraft\" \"FC\"",
+			},
+			TestFunc: matchTest,
+		},
 	}
-	cmdString := fmt.Sprintf("ctr run --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 %s %s", containerImage, containerName)
-	params := strings.Fields(cmdString)
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error executing unikernel %s with %s using ctr: %s", err, containerName, procName, output)
-	}
-	expectedContain := "Hello world"
-	if !strings.Contains(string(output), expectedContain) {
-		t.Fatalf("Expected: %s, Got: %s", expectedContain, output)
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := pullImage(tc.Image)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			err = runTest(tc)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+		})
 	}
 }
 
-func TestCtrSptRumprun(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-spt-rumprun-nonet:latest"
-	containerName := "spt-rumprun-hello"
-	procName := "solo5-spt"
-	pullParams := strings.Fields("ctr image pull " + containerImage)
+func pullImage(image string) error {
+	pullParams := strings.Fields("ctr image pull " + image)
 	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
 	err := pullCmd.Run()
 	if err != nil {
-		t.Fatalf("Error pulling %s: %v", containerImage, err)
+		return fmt.Errorf("Error pulling %s: %v", image, err)
 	}
-	cmdString := fmt.Sprintf("ctr run --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 %s %s", containerImage, containerName)
-	params := strings.Fields(cmdString)
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error executing unikernel %s with %s using ctr: %s", err, containerName, procName, output)
-	}
-	expectedContain := "Hello world"
-	if !strings.Contains(string(output), expectedContain) {
-		t.Fatalf("Expected: %s, Got: %s", expectedContain, output)
-	}
+
+	return nil
 }
 
-func TestCtrQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unikraft-nginx"
-	procName := "qemu-system"
-	pullParams := strings.Fields("ctr image pull " + containerImage)
-	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
-	err := pullCmd.Run()
+func runTest(ctrArgs ctrTestArgs) error {
+	output, err := startCtrUnikernel(ctrArgs)
 	if err != nil {
-		t.Fatalf("Error pulling %s: %v", containerImage, err)
+		return fmt.Errorf("Failed to start unikernel container: %v", err)
 	}
-	cmdString := fmt.Sprintf("ctr run -d --runtime io.containerd.urunc.v2 %s %s", containerImage, containerName)
-	params := strings.Fields(cmdString)
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error executing unikernel %s with %s using ctr: %s", err, containerName, procName, output)
+	if !strings.Contains(string(output), ctrArgs.TestArgs.Expected) {
+		return fmt.Errorf("Expected: %s, Got: %s", ctrArgs.TestArgs.Expected, output)
 	}
-	params = strings.Fields("ctr c ls -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error listing containers using ctr: %s", err, output)
-	}
-	if !strings.Contains(string(output), containerName) {
-		t.Fatalf("Container not running. Expected: %s, Got: %s", containerName, output)
-	}
-	proc, _ := common.FindProc(containerName)
-	err = proc.Kill()
-	if err != nil {
-		t.Fatalf("%v: Error killing urunc process", err)
-	}
-	params = strings.Fields("ctr c rm " + containerName)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error deleting container using ctr: %s", err, output)
-	}
-	params = strings.Fields("ctr c ls -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error listing containers using ctr: %s", err, output)
-	}
-	if strings.Contains(string(output), containerName) {
-		t.Fatalf("Container still running. Got: %s", output)
-	}
+	defer func() {
+		// We do not want a successful cleanup to overwrite any previous error
+		if tempErr := ctrCleanup(ctrArgs.Name); tempErr != nil {
+			err = tempErr
+		}
+	}()
+	return nil
 }
 
-func TestCtrFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
-	containerName := "fc-unikraft-nginx"
-	procName := "firecracker"
-	pullParams := strings.Fields("ctr image pull " + containerImage)
-	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
-	err := pullCmd.Run()
-	if err != nil {
-		t.Fatalf("Error pulling %s: %v", containerImage, err)
+func startCtrUnikernel(ctrArgs ctrTestArgs) (output []byte, err error) {
+	cmdBase := "ctr "
+	cmdBase += "run "
+	cmdBase += "--rm "
+	cmdBase += "--runtime io.containerd.urunc.v2 "
+	if ctrArgs.Devmapper {
+		cmdBase += "--snapshotter devmapper "
 	}
-	cmdString := fmt.Sprintf("ctr run -d --runtime io.containerd.urunc.v2 %s %s", containerImage, containerName)
-	params := strings.Fields(cmdString)
+	cmdBase += ctrArgs.Image + " "
+	cmdBase += ctrArgs.Name
+	params := strings.Fields(cmdBase)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	return cmd.CombinedOutput()
+}
+
+func ctrCleanup(containerID string) error {
+	err := removeCtrUnikernel(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = verifyCtrRemoved(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = common.VerifyNoStaleFiles(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove all stale files: %v", err)
+	}
+
+	return nil
+}
+
+func removeCtrUnikernel(containerID string) error {
+	params := strings.Fields(fmt.Sprintf("ctr rm %s", containerID))
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("deleting %s failed: - %v", containerID, err)
+	}
+	return nil
+}
+
+func verifyCtrRemoved(containerID string) error {
+	params := strings.Fields("ctr c ls -q")
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%v: Error executing unikernel %s with %s using ctr: %s", err, containerName, procName, output)
+		return fmt.Errorf("%v: Error listing containers using ctr: %s", err, output)
 	}
-	params = strings.Fields("ctr c ls -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error listing containers using ctr: %s", err, output)
+	if strings.Contains(string(output), containerID) {
+		return fmt.Errorf("Container still running. Got: %s", output)
 	}
-	if !strings.Contains(string(output), containerName) {
-		t.Fatalf("Container not running. Expected: %s, Got: %s", containerName, output)
-	}
-	proc, _ := common.FindProc(containerName)
-	err = proc.Kill()
-	if err != nil {
-		t.Fatalf("%v: Error killing urunc process", err)
-	}
-	params = strings.Fields("ctr c rm " + containerName)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error deleting container using ctr: %s", err, output)
-	}
-	params = strings.Fields("ctr c ls -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error listing containers using ctr: %s", err, output)
-	}
-	if strings.Contains(string(output), containerName) {
-		t.Fatalf("Container still running. Got: %s", output)
-	}
+	return nil
 }
