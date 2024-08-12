@@ -224,7 +224,7 @@ test_nerdctl_%:
 .PHONY: test_ctr_%
 test_ctr_%:
 	@echo "Testing ctr"
-	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v -run $*
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v -run "TestCtr/$*"
 	@echo " "
 
 ## test_crictl_[pattern] Run all end-to-end tests with crictl that match pattern
