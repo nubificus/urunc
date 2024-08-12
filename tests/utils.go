@@ -15,7 +15,9 @@
 package tests
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -63,4 +65,39 @@ func PingUnikernel(ipAddress string) error {
 		return fmt.Errorf("no packets were sent")
 	}
 	return nil
+}
+
+func VerifyNoStaleFiles(containerID string) error {
+	// Check /run/containerd/runc/default/containerID directory does not exist
+	dirPath := "/run/containerd/runc/default/" + containerID
+	_, err := os.Stat(dirPath)
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("root directory %s still exists", dirPath)
+	}
+
+	// Check /run/containerd/io.containerd.runtime.v2.task/default/containerID directory does not exist
+	dirPath = "run/containerd/io.containerd.runtime.v2.task/default/" + containerID
+	_, err = os.Stat(dirPath)
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("bundle directory %s still exists", dirPath)
+	}
+	return nil
+}
+
+func FindLineInFile(filePath string, pattern string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to open %s: %v", filePath, err)
+	}
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, pattern) {
+			return line, nil
+		}
+	}
+
+	return "", fmt.Errorf("Pattern %s was not found in any line of %s", pattern, filePath)
 }
