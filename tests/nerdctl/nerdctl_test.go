@@ -17,8 +17,8 @@ package urunc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -27,188 +27,197 @@ import (
 	"time"
 )
 
-const NotImplemented = "Not implemented"
+type testMethod func(testSpecificArgs) error
 
-func TestNerdctlHvtRumprunHello(t *testing.T) {
-	params := strings.Fields("nerdctl run --name hello --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest")
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: Error executing rumprun unikernel with solo5-hvt using nerdctl: %s", err, output)
+type nerdctlTestArgs struct {
+	Name      string
+	Image     string
+	Devmapper bool
+	Seccomp   bool
+	Skippable bool
+	TestFunc  testMethod
+	TestArgs  testSpecificArgs
+}
+
+type testSpecificArgs struct {
+	ContainerID string
+	Seccomp     bool
+	Expected    string
+}
+
+// func TestsWithNerdctl(t *testing.T) {
+func TestNerdctl(t *testing.T) {
+	tests := []nerdctlTestArgs{
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest",
+			Name:      "Hvt-rumprun-capture-hello",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestArgs: testSpecificArgs{
+				Expected: "Hello world",
+			},
+			TestFunc: matchTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest",
+			Name:      "Hvt-rumprun-ping-redis",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  pingTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest",
+			Name:      "Hvt-rumprun-ping-redis-with-block",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  pingTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest",
+			Name:      "Hvt-rumprun-with-seccomp",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  seccompTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest",
+			Name:      "Hvt-rumprun-without-seccomp",
+			Devmapper: true,
+			Seccomp:   false,
+			Skippable: false,
+			TestFunc:  seccompTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest",
+			Name:      "Spt-rumprun-ping-redis",
+			Devmapper: true,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  pingTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:      "Qemu-unikraft-ping-redis",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  pingTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest",
+			Name:      "Qemu-unikraft-ping-nginx",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  pingTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:      "Qemu-unikraft-with-seccomp",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  seccompTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:      "Qemu-unikraft-without-seccomp",
+			Devmapper: false,
+			Seccomp:   false,
+			Skippable: false,
+			TestFunc:  seccompTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:      "Firecracker-unikraft-ping-nginx",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  pingTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:      "Firecracker-unikraft-with-seccomp",
+			Devmapper: false,
+			Seccomp:   true,
+			Skippable: false,
+			TestFunc:  seccompTest,
+		},
+		{
+			Image:     "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:      "Firecracker-unikraft-without-seccomp",
+			Devmapper: false,
+			Seccomp:   false,
+			Skippable: false,
+			TestFunc:  seccompTest,
+		},
 	}
-	if !strings.Contains(string(output), "Hello world") {
-		t.Fatalf("Expected: %s, Got: %s", "Hello world", output)
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := runTest(tc)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+		})
 	}
 }
 
-func TestNerdctlHvtRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
-	containerName := "hvt-rumprun-redis-test"
-	err := nerdctlTest(containerName, containerImage, true)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlHvtRumprunRedisBlock(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest"
-	containerName := "hvt-rumprun-redis-block-test"
-	err := nerdctlTest(containerName, containerImage, true)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlHvtSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
-	containerName := "hvt-rumprun-redis-test"
-	err := nerdctlSeccompTest(containerName, containerImage, true, true)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlHvtSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
-	containerName := "hvt-rumprun-redis-test"
-	err := nerdctlSeccompTest(containerName, containerImage, true, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlSptRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest"
-	containerName := "spt-rumprun-redis-test"
-	err := nerdctlTest(containerName, containerImage, true)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuUnikraftRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
-	err := nerdctlTest(containerName, containerImage, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-nginx-test"
-	err := nerdctlTest(containerName, containerImage, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
-	err := nerdctlSeccompTest(containerName, containerImage, true, true)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
-	err := nerdctlSeccompTest(containerName, containerImage, true, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
-	containerName := "fc-unik-nginx-test"
-	err := nerdctlTest(containerName, containerImage, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlFCSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
-	containerName := "fc-unik-nginx-test"
-	err := nerdctlSeccompTest(containerName, containerImage, true, true)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlFCSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
-	containerName := "fc-unik-nginx-test"
-	err := nerdctlSeccompTest(containerName, containerImage, true, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func nerdctlSeccompTest(containerName string, containerImage string, devmapper bool, seccomp bool) error {
-	containerID, err := startNerdctlUnikernel(containerImage, containerName, devmapper, seccomp)
+func runTest(nerdctlArgs nerdctlTestArgs) error {
+	containerID, err := startNerdctlUnikernel(nerdctlArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
 	}
+	// Give some time till the unikernel is up and running.
+	// Maybe we need to revisit this in the future.
 	time.Sleep(2 * time.Second)
+	defer func() {
+		// We do not want a successful cleanup to overwrite any previous error
+		if tempErr := nerdctlCleanup(containerID); tempErr != nil {
+			err = tempErr
+		}
+	}()
+	testArguments := testSpecificArgs{
+		ContainerID: containerID,
+		Seccomp:     nerdctlArgs.Seccomp,
+		Expected:    nerdctlArgs.TestArgs.Expected,
+	}
+	return nerdctlArgs.TestFunc(testArguments)
+}
 
-	unikernelPID, err := findUnikernelPID(containerID)
+func seccompTest(args testSpecificArgs) error {
+	unikernelPID, err := findUnikernelKey(args.ContainerID, "State", "Pid")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
 	}
-	extractedPID := uint64(unikernelPID)
-	procPath := fmt.Sprintf("/proc/%d/status", extractedPID)
-	statusData, err := os.ReadFile(procPath) // just pass the file name
+	procPath := "/proc/" + unikernelPID + "/status"
+	seccompLine, err := common.FindLineInFile(procPath, "Seccomp")
 	if err != nil {
-		return fmt.Errorf("Failed to read status file of process %d: %v", extractedPID, err)
+		return err
 	}
-	statusInfo := strings.TrimSpace(string(statusData))
-	lines := strings.Split(statusInfo, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Seccomp") == true {
-			tokens := strings.Split(line, ":")
-			if strings.TrimSpace(tokens[1]) == "2" {
-				if seccomp == false {
-					return fmt.Errorf("Seccomp should not be enabled")
-				}
-			} else {
-				if seccomp == true {
-					return fmt.Errorf("Seccomp should be enabled")
-				}
-			}
-			break
+	wordsInLine := strings.Split(seccompLine, ":")
+	if strings.TrimSpace(wordsInLine[1]) == "2" {
+		if args.Seccomp == false {
+			return fmt.Errorf("Seccomp should not be enabled")
+		}
+	} else {
+		if args.Seccomp == true {
+			return fmt.Errorf("Seccomp should be enabled")
 		}
 	}
-	err = stopNerdctlUnikernel(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to stop container: %v", err)
-	}
-	err = removeNerdctlUnikernel(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to remove container: %v", err)
-	}
-	err = verifyNerdctlRemoved(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to remove container: %v", err)
-	}
-	err = verifyNoStaleFiles(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to remove all stale files: %v", err)
-	}
+
 	return nil
 }
 
-func nerdctlTest(containerName string, containerImage string, devmapper bool) error {
-	containerID, err := startNerdctlUnikernel(containerImage, containerName, devmapper, true)
-	if err != nil {
-		return fmt.Errorf("Failed to start unikernel container: %v", err)
-	}
-	time.Sleep(4 * time.Second)
-	extractedIPAddr, err := findUnikernelIP(containerID)
+func matchTest(args testSpecificArgs) error {
+	return findInUnikernelLogs(args.ContainerID, args.Expected)
+}
+
+func pingTest(args testSpecificArgs) error {
+	extractedIPAddr, err := findUnikernelKey(args.ContainerID, "NetworkSettings", "IPAddress")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
 	}
@@ -216,7 +225,12 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 	if err != nil {
 		return fmt.Errorf("ping failed: %v", err)
 	}
-	err = stopNerdctlUnikernel(containerID)
+
+	return nil
+}
+
+func nerdctlCleanup(containerID string) error {
+	err := stopNerdctlUnikernel(containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to stop container: %v", err)
 	}
@@ -228,49 +242,19 @@ func nerdctlTest(containerName string, containerImage string, devmapper bool) er
 	if err != nil {
 		return fmt.Errorf("Failed to remove container: %v", err)
 	}
-	err = verifyNoStaleFiles(containerID)
+	err = common.VerifyNoStaleFiles(containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to remove all stale files: %v", err)
 	}
+
 	return nil
 }
 
-func findUnikernelPID(containerID string) (float64, error) {
+func findUnikernelKey(containerID string, field string, key string) (string, error) {
 	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	var result []map[string]any
-	var stateInfo map[string]any
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, fmt.Errorf("failed to inspect %s", output)
-	}
-	err = json.Unmarshal(output, &result)
-	if err != nil {
-		return 0, err
-	}
-	containerInfo := result[0]
-	for key, value := range containerInfo {
-		// Each value is an `any` type, that is type asserted as a string
-		if key == "State" {
-			// t.Log(key, fmt.Sprintf("%v", value))
-			stateInfo = value.(map[string]any)
-			break
-		}
-	}
-	for key, value := range stateInfo {
-		if key == "Pid" {
-			return value.(float64), nil
-		}
-	}
-	return 0, nil
-}
-
-func findUnikernelIP(containerID string) (string, error) {
-	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	var result []map[string]any
-	var networkSettings map[string]any
-	time.Sleep(4 * time.Second)
+	var fieldInfo map[string]any
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect %s", output)
@@ -280,41 +264,65 @@ func findUnikernelIP(containerID string) (string, error) {
 		return "", err
 	}
 	containerInfo := result[0]
-	for key, value := range containerInfo {
+	for object, value := range containerInfo {
 		// Each value is an `any` type, that is type asserted as a string
-		if key == "NetworkSettings" {
+		if object == field {
 			// t.Log(key, fmt.Sprintf("%v", value))
-			networkSettings = value.(map[string]any)
+			fieldInfo = value.(map[string]any)
 			break
 		}
 	}
-	for key, value := range networkSettings {
-		if key == "IPAddress" {
-			return value.(string), nil
+	for object, value := range fieldInfo {
+		if object == key {
+			retVal, ok := value.(string)
+			if ok {
+				return retVal, nil
+			}
+			return strconv.FormatFloat(value.(float64), 'f', -1, 64), nil
 		}
 	}
 	return "", nil
 }
 
-func startNerdctlUnikernel(containerImage string, containerName string, devmapper bool, seccomp bool) (containerID string, err error) {
-	cmdBase := "nerdctl run "
-	if devmapper {
+func startNerdctlUnikernel(nerdctlArgs nerdctlTestArgs) (containerID string, err error) {
+	cmdBase := "nerdctl "
+	cmdBase += "run "
+	cmdBase += "-d "
+	cmdBase += "--runtime io.containerd.urunc.v2 "
+	if nerdctlArgs.Devmapper {
 		cmdBase += "--snapshotter devmapper "
 	}
-	if seccomp == false {
+	if nerdctlArgs.Seccomp == false {
 		cmdBase += "--security-opt seccomp=unconfined "
 	}
-	cmdline := fmt.Sprintf("%s--name %s -d --runtime io.containerd.urunc.v2 %s unikernel", cmdBase, containerName, containerImage)
-	params := strings.Fields(cmdline)
+	if nerdctlArgs.Name != "" {
+		cmdBase += "--name " + nerdctlArgs.Name + " "
+	}
+	cmdBase += nerdctlArgs.Image + " "
+	cmdBase += "unikernel "
+	params := strings.Fields(cmdBase)
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	containerIDBytes, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("%s - %v", string(containerIDBytes), err)
 	}
-	time.Sleep(4 * time.Second)
 	containerID = string(containerIDBytes)
 	containerID = strings.TrimSpace(containerID)
 	return containerID, nil
+}
+
+func findInUnikernelLogs(containerID string, pattern string) error {
+	cmdStr := "nerdctl logs " + containerID
+	params := strings.Fields(cmdStr)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("Could not retrieve logs for container %s: %v", containerID, err)
+	}
+	if !strings.Contains(string(output), pattern) {
+		return fmt.Errorf("Expected: %s, Got: %s", pattern, output)
+	}
+	return nil
 }
 
 func stopNerdctlUnikernel(containerID string) error {
@@ -367,23 +375,6 @@ func verifyNerdctlRemoved(containerID string) error {
 	}
 	if found {
 		return fmt.Errorf("unikernel %s was not successfully removed from nerdctl", containerID)
-	}
-	return nil
-}
-
-func verifyNoStaleFiles(containerID string) error {
-	// Check /run/containerd/runc/default/containerID directory does not exist
-	dirPath := "/run/containerd/runc/default/" + containerID
-	_, err := os.Stat(dirPath)
-	if !os.IsNotExist(err) {
-		return fmt.Errorf("root directory %s still exists", dirPath)
-	}
-
-	// Check /run/containerd/io.containerd.runtime.v2.task/default/containerID directory does not exist
-	dirPath = "run/containerd/io.containerd.runtime.v2.task/default/" + containerID
-	_, err = os.Stat(dirPath)
-	if !os.IsNotExist(err) {
-		return fmt.Errorf("bundle directory %s still exists", dirPath)
 	}
 	return nil
 }
