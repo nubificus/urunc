@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type testMethod func(testArgs) error
+type testMethod func(testSpecificArgs) error
 
 type nerdctlTestArgs struct {
 	Name string
@@ -21,129 +21,131 @@ type nerdctlTestArgs struct {
 	Devmapper bool
 	Seccomp bool
 	Skippable bool
+	TestFunc testMethod
+	TestArgs testSpecificArgs
 }
 
-type testArgs struct {
+type testSpecificArgs struct {
 	ContainerID string
 	Seccomp bool
 	Expected string
 }
 
-func TestNerdctlHvtRumprunHello(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest"
-	containerName := "hvt-rumprun-hello-test"
-	err := runTest(containerName, containerImage, true, true, "Hello world", matchTest)
-	if err != nil {
-		t.Fatal(err.Error())
+//func TestsWithNerdctl(t *testing.T) {
+func TestNerdctl(t *testing.T) {
+	tests := []nerdctlTestArgs {
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest",
+			Name : "hvt-rumprun-capture-hello",
+			Devmapper : true,
+			Seccomp : true,
+			Skippable: false,
+			TestArgs : testSpecificArgs {
+				Expected : "Hello world",
+			},
+			TestFunc: matchTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
+			Name : "hvt-rumprun-ping-redis",
+			Devmapper : true,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: pingTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
+			Name : "hvt-rumprun-with-seccomp",
+			Devmapper : true,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: seccompTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
+			Name : "hvt-rumprun-without-seccomp",
+			Devmapper : true,
+			Seccomp : false,
+			Skippable: false,
+			TestFunc: seccompTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest",
+			Name : "spt-rumprun-ping-redis",
+			Devmapper : true,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: pingTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name : "qemu-unikraft-ping-redis",
+			Devmapper : false,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: pingTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest",
+			Name : "qemu-unikraft-ping-nginx",
+			Devmapper : false,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: pingTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name : "qemu-unikraft-with-seccomp",
+			Devmapper : false,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: seccompTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name : "qemu-unikraft-without-seccomp",
+			Devmapper : false,
+			Seccomp : false,
+			Skippable: false,
+			TestFunc: seccompTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest",
+			Name : "fc-unikraft-ping-nginx",
+			Devmapper : false,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: pingTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest",
+			Name : "fc-unikraft-with-seccomp",
+			Devmapper : false,
+			Seccomp : true,
+			Skippable: false,
+			TestFunc: seccompTest,
+		},
+		{
+			Image : "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest",
+			Name : "fc-unikraft-without-seccomp",
+			Devmapper : false,
+			Seccomp : false,
+			Skippable: false,
+			TestFunc: seccompTest,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := runTest(tc)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+		})
 	}
 }
 
-func TestNerdctlHvtRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
-	containerName := "hvt-rumprun-redis-test"
-	err := runTest(containerName, containerImage, true, true, "", pingTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
 
-func TestNerdctlHvtSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
-	containerName := "hvt-rumprun-redis-test"
-	err := runTest(containerName, containerImage, true, true, "", seccompTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlHvtSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
-	containerName := "hvt-rumprun-redis-test"
-	err := runTest(containerName, containerImage, true, false, "", seccompTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlSptRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest"
-	containerName := "spt-rumprun-redis-test"
-	err := runTest(containerName, containerImage, true, true, "", pingTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuUnikraftRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
-	err := runTest(containerName, containerImage, false, true, "", pingTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
-	containerName := "qemu-unik-nginx-test"
-	err := runTest(containerName, containerImage, false, true, "", pingTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
-	err := runTest(containerName, containerImage, true, true, "", seccompTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlQemuSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	containerName := "qemu-unik-redis-test"
-	err := runTest(containerName, containerImage, true, false, "", seccompTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
-	containerName := "fc-unik-nginx-test"
-	err := runTest(containerName, containerImage, false, true, "", pingTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlFCSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
-	containerName := "fc-unik-nginx-test"
-	err := runTest(containerName, containerImage, true, true, "", seccompTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestNerdctlFCSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
-	containerName := "fc-unik-nginx-test"
-	err := runTest(containerName, containerImage, true, false, "", seccompTest)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func runTest(containerName string, containerImage string, devmapper bool, seccomp bool, pattern string, fn testMethod) error {
-	nerdctlArgs := nerdctlTestArgs {
-		Image : containerImage,
-		Name : containerName,
-		Devmapper : devmapper,
-		Seccomp : seccomp,
-	}
+func runTest(nerdctlArgs nerdctlTestArgs) error {
 	containerID, err := startNerdctlUnikernel(nerdctlArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
@@ -157,15 +159,15 @@ func runTest(containerName string, containerImage string, devmapper bool, seccom
 			err = tempErr
 		}
 	}()
-	testArguments := testArgs {
+	testArguments := testSpecificArgs {
 		ContainerID : containerID,
-		Seccomp : seccomp,
-		Expected : pattern,
+		Seccomp : nerdctlArgs.Seccomp,
+		Expected : nerdctlArgs.TestArgs.Expected,
 	}
-	return fn(testArguments)
+	return nerdctlArgs.TestFunc(testArguments)
 }
 
-func seccompTest(args testArgs) error {
+func seccompTest(args testSpecificArgs) error {
 	unikernelPID, err := findUnikernelKey(args.ContainerID, "State", "Pid")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
@@ -189,11 +191,11 @@ func seccompTest(args testArgs) error {
 	return nil
 }
 
-func matchTest(args testArgs) error {
+func matchTest(args testSpecificArgs) error {
 	return findInUnikernelLogs(args.ContainerID, args.Expected)
 }
 
-func pingTest(args testArgs) error {
+func pingTest(args testSpecificArgs) error {
 	extractedIPAddr, err := findUnikernelKey(args.ContainerID, "NetworkSettings", "IPAddress")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
