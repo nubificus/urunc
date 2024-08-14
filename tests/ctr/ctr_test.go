@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package urunc
+package urunce2etesting
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ type testMethod func(testSpecificArgs) error
 
 var matchTest testMethod
 
-type ctrTestArgs struct {
+type containerTestArgs struct {
 	Name      string
 	Image     string
 	Devmapper bool
@@ -45,7 +45,7 @@ type testSpecificArgs struct {
 
 // func TestsWithCtr(t *testing.T) {
 func TestCtr(t *testing.T) {
-	tests := []ctrTestArgs{
+	tests := []containerTestArgs{
 		{
 			Image:     "harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun-nonet:latest",
 			Name:      "Hvt-rumprun-hello",
@@ -116,7 +116,7 @@ func pullImage(image string) error {
 	return nil
 }
 
-func runTest(ctrArgs ctrTestArgs) error {
+func runTest(ctrArgs containerTestArgs) error {
 	output, err := startCtrUnikernel(ctrArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
@@ -133,7 +133,7 @@ func runTest(ctrArgs ctrTestArgs) error {
 	return nil
 }
 
-func startCtrUnikernel(ctrArgs ctrTestArgs) (output []byte, err error) {
+func startCtrUnikernel(ctrArgs containerTestArgs) (output []byte, err error) {
 	cmdBase := "ctr "
 	cmdBase += "run "
 	cmdBase += "--rm "

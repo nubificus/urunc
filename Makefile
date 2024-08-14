@@ -196,14 +196,14 @@ test_unikontainers:
 .PHONY: test_nerdctl
 test_nerdctl:
 	@echo "Testing nerdctl"
-	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/nerdctl -v
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -run TestNerdctl -v
 	@echo " "
 
 ## test_ctr Run all end-to-end tests with ctr
 .PHONY: test_ctr
 test_ctr:
 	@echo "Testing ctr"
-	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -run TestCtr -v
 	@echo " "
 
 ## test_crictl Run all end-to-end tests with crictl
@@ -217,14 +217,14 @@ test_crictl:
 .PHONY: test_nerdctl_%
 test_nerdctl_%:
 	@echo "Testing nerdctl"
-	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/nerdctl -v -run "TestNerdctl/$*"
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -v -run "TestNerdctl/$*"
 	@echo " "
 
 ## test_ctr_[pattern] Run all end-to-end tests with ctr that match pattern
 .PHONY: test_ctr_%
 test_ctr_%:
 	@echo "Testing ctr"
-	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v -run "TestCtr/$*"
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -v -run "TestCtr/$*"
 	@echo " "
 
 ## test_crictl_[pattern] Run all end-to-end tests with crictl that match pattern
