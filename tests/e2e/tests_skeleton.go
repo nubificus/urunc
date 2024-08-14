@@ -1,4 +1,4 @@
-package urunc
+package uruncE2ETesting
 
 import (
 	"encoding/json"
@@ -6,146 +6,13 @@ import (
 	"os/exec"
 	"strings"
 	"strconv"
-	"testing"
 
 	common "github.com/nubificus/urunc/tests"
 
 	"time"
 )
 
-type testMethod func(testSpecificArgs) error
-
-type nerdctlTestArgs struct {
-	Name string
-	Image string
-	Devmapper bool
-	Seccomp bool
-	Skippable bool
-	TestFunc testMethod
-	TestArgs testSpecificArgs
-}
-
-type testSpecificArgs struct {
-	ContainerID string
-	Seccomp bool
-	Expected string
-}
-
-//func TestsWithNerdctl(t *testing.T) {
-func TestNerdctl(t *testing.T) {
-	tests := []nerdctlTestArgs {
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest",
-			Name : "hvt-rumprun-capture-hello",
-			Devmapper : true,
-			Seccomp : true,
-			Skippable: false,
-			TestArgs : testSpecificArgs {
-				Expected : "Hello world",
-			},
-			TestFunc: matchTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
-			Name : "hvt-rumprun-ping-redis",
-			Devmapper : true,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: pingTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
-			Name : "hvt-rumprun-with-seccomp",
-			Devmapper : true,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: seccompTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
-			Name : "hvt-rumprun-without-seccomp",
-			Devmapper : true,
-			Seccomp : false,
-			Skippable: false,
-			TestFunc: seccompTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest",
-			Name : "spt-rumprun-ping-redis",
-			Devmapper : true,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: pingTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
-			Name : "qemu-unikraft-ping-redis",
-			Devmapper : false,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: pingTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest",
-			Name : "qemu-unikraft-ping-nginx",
-			Devmapper : false,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: pingTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
-			Name : "qemu-unikraft-with-seccomp",
-			Devmapper : false,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: seccompTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
-			Name : "qemu-unikraft-without-seccomp",
-			Devmapper : false,
-			Seccomp : false,
-			Skippable: false,
-			TestFunc: seccompTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest",
-			Name : "fc-unikraft-ping-nginx",
-			Devmapper : false,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: pingTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest",
-			Name : "fc-unikraft-with-seccomp",
-			Devmapper : false,
-			Seccomp : true,
-			Skippable: false,
-			TestFunc: seccompTest,
-		},
-		{
-			Image : "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest",
-			Name : "fc-unikraft-without-seccomp",
-			Devmapper : false,
-			Seccomp : false,
-			Skippable: false,
-			TestFunc: seccompTest,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.Name, func(t *testing.T) {
-			err := runTest(tc)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-		})
-	}
-}
-
-
-func runTest(nerdctlArgs nerdctlTestArgs) error {
+func nerdctlRunTest(nerdctlArgs containerTestArgs) error {
 	containerID, err := startNerdctlUnikernel(nerdctlArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
@@ -264,7 +131,7 @@ func findUnikernelKey(containerID string, field string, key string) (string, err
 	return "", nil
 }
 
-func startNerdctlUnikernel(nerdctlArgs nerdctlTestArgs) (containerID string, err error) {
+func startNerdctlUnikernel(nerdctlArgs containerTestArgs) (containerID string, err error) {
 	cmdBase := "nerdctl "
 	cmdBase += "run "
 	cmdBase += "-d "
@@ -355,6 +222,89 @@ func verifyNerdctlRemoved(containerID string) error {
 	}
 	if found {
 		return fmt.Errorf("unikernel %s was not successfully removed from nerdctl", containerID)
+	}
+	return nil
+}
+
+func pullImage(Image string) error {
+	pullParams := strings.Fields("ctr image pull " + Image)
+	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
+	err := pullCmd.Run()
+	if err != nil {
+		return fmt.Errorf("Error pulling %s: %v", Image, err)
+	}
+
+	return nil
+}
+
+func ctrRunTest(ctrArgs containerTestArgs) error {
+	output, err := startCtrUnikernel(ctrArgs)
+	if err != nil {
+		return fmt.Errorf("Failed to start unikernel container: %v", err)
+	}
+	if !strings.Contains(string(output), ctrArgs.TestArgs.Expected) {
+		return fmt.Errorf("Expected: %s, Got: %s", ctrArgs.TestArgs.Expected, output)
+	}
+	defer func() {
+		// We do not want a succesful cleanup to overwrite any previous error
+		if tempErr := ctrCleanup(ctrArgs.Name); tempErr != nil {
+			err = tempErr
+		}
+	}()
+	return nil
+}
+
+func startCtrUnikernel(ctrArgs containerTestArgs) (output []byte, err error) {
+	cmdBase := "ctr "
+	cmdBase += "run "
+	cmdBase += "--rm "
+	cmdBase += "--runtime io.containerd.urunc.v2 "
+	if ctrArgs.Devmapper {
+		cmdBase += "--snapshotter devmapper "
+	}
+	cmdBase += ctrArgs.Image + " "
+	cmdBase += ctrArgs.Name
+	params := strings.Fields(cmdBase)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	return cmd.CombinedOutput()
+}
+
+func ctrCleanup(containerID string) error {
+	err := removeCtrUnikernel(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = verifyCtrRemoved(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	err = common.VerifyNoStaleFiles(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove all stale files: %v", err)
+	}
+
+	return nil
+}
+
+func removeCtrUnikernel(containerID string) error {
+	params := strings.Fields(fmt.Sprintf("ctr rm %s", containerID))
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("deleting %s failed: - %v", containerID, err)
+	}
+	return nil
+}
+
+func verifyCtrRemoved(containerID string) error {
+	params := strings.Fields("ctr c ls -q")
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v: Error listing containers using ctr: %s", err, output)
+	}
+	if strings.Contains(string(output), containerID) {
+		return fmt.Errorf("Container still running. Got: %s", output)
 	}
 	return nil
 }

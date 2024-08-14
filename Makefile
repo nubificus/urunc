@@ -51,12 +51,12 @@ all: urunc_aarch64 shim_aarch64 urunc_amd64 shim_amd64
 
 test_nerdctl:
 	@echo "Testing nerdctl"
-	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/nerdctl -v
+	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/e2e -run TestNerdctl -v
 	@echo " "
 
 test_ctr:
 	@echo "Testing ctr"
-	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/ctr -v
+	-@sudo GOFLAGS="-count=1" $$(which go) test ./tests/e2e -run TestCtr -v
 	@echo " "
 
 test_crictl:
