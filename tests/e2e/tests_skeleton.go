@@ -25,90 +25,41 @@ func pullImage(Image string) error {
 	return nil
 }
 
-func runTest(tool string, cntrArgs containerTestArgs) error {
+func runTest(tool string, cntrArgs containerTestArgs) (err error) {
 	var output string
-	var containerID string
-	var err error
 	if cntrArgs.TestFunc == nil {
 		output, err = startContainer(tool, cntrArgs, false)
-		containerID = cntrArgs.Name
 	} else {
 		output, err = startContainer(tool, cntrArgs, true)
-		containerID = output
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
 	}
 	defer func() {
 		// We do not want a succesful cleanup to overwrite any previous error
-		if tempErr := testCleanup(tool, containerID); tempErr != nil {
+		if tempErr := testCleanup(tool, cntrArgs.Name); tempErr != nil {
 			err = tempErr
 		}
 	}()
 	if cntrArgs.TestFunc == nil {
-		if !strings.Contains(string(output), cntrArgs.TestArgs.Expected) {
-			return fmt.Errorf("Expected: %s, Got: %s", cntrArgs.TestArgs.Expected, output)
+		if !strings.Contains(string(output), cntrArgs.ExpectOut) {
+			return fmt.Errorf("Expected: %s, Got: %s", cntrArgs.ExpectOut, output)
 		}
-		return nil
+		return err
 	}
 	// Give some time till the unikernel is up and running.
 	// Maybe we need to revisit this in the future.
 	time.Sleep(2 * time.Second)
-	testArguments := testSpecificArgs {
-		ContainerID : containerID,
-		Seccomp : cntrArgs.Seccomp,
-		Expected : cntrArgs.TestArgs.Expected,
-	}
-	return cntrArgs.TestFunc(testArguments)
-}
-
-func seccompTest(args testSpecificArgs) error {
-	unikernelPID, err := findUnikernelKey(args.ContainerID, "State", "Pid")
-	if err != nil {
-		return fmt.Errorf("Failed to extract container IP: %v", err)
-	}
-	procPath := "/proc/" + unikernelPID + "/status"
-	seccompLine, err:= common.FindLineInFile(procPath, "Seccomp")
-	if err != nil {
-		return err
-	}
-	wordsInLine := strings.Split(seccompLine, ":")
-	if strings.TrimSpace(wordsInLine[1]) == "2" {
-		if args.Seccomp == false {
-			return fmt.Errorf("Seccomp should not be enabled")
-		}
-	} else {
-		if args.Seccomp == true {
-			return fmt.Errorf("Seccomp should be enabled")
-		}
-	}
-
-	return nil
-}
-
-func pingTest(args testSpecificArgs) error {
-	extractedIPAddr, err := findUnikernelKey(args.ContainerID, "NetworkSettings", "IPAddress")
-	if err != nil {
-		return fmt.Errorf("Failed to extract container IP: %v", err)
-	}
-	err = common.PingUnikernel(extractedIPAddr)
-	if err != nil {
-		return fmt.Errorf("ping failed: %v", err)
-	}
-
-	return nil
+	return cntrArgs.TestFunc(cntrArgs)
 }
 
 func testCleanup(tool string,containerID string) error {
-	var err error
 	if tool != "ctr" && tool != "nerdctl" {
 		return fmt.Errorf("Unknown tool %s", tool)
 	}
-	if tool == "nerdctl" {
-		err = stopNerdctlUnikernel(containerID)
-		if err != nil {
-			return fmt.Errorf("Failed to stop container: %v", err)
-		}
+	err := stopContainer(tool, containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to stop container: %v", err)
 	}
 	err = removeContainer(tool, containerID)
 	if err != nil {
@@ -124,41 +75,6 @@ func testCleanup(tool string,containerID string) error {
 	}
 
 	return nil
-}
-
-func findUnikernelKey(containerID string, field string, key string) (string, error) {
-	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	var result []map[string]any
-	var fieldInfo map[string]any
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to inspect %s", output)
-	}
-	err = json.Unmarshal(output, &result)
-	if err != nil {
-		return "", err
-	}
-	containerInfo := result[0]
-	for object, value := range containerInfo {
-		// Each value is an `any` type, that is type asserted as a string
-		if object == field {
-			// t.Log(key, fmt.Sprintf("%v", value))
-			fieldInfo = value.(map[string]any)
-			break
-		}
-	}
-	for object, value := range fieldInfo {
-		if object == key {
-			retVal, ok := value.(string)
-			if ok {
-				return retVal, nil
-			} else {
-				return strconv.FormatFloat(value.(float64), 'f', -1, 64), nil
-			}
-		}
-	}
-	return "", nil
 }
 
 func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (output string, err error) {
@@ -181,12 +97,11 @@ func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (outpu
 		if cntrArgs.Seccomp == false {
 			cmdBase += "--security-opt seccomp=unconfined "
 		}
-		cmdBase += cntrArgs.Image + " "
-		cmdBase += "-name " + cntrArgs.Name
+		cmdBase += "--name " + cntrArgs.Name
+		cmdBase += " " + cntrArgs.Image
 	default:
 		return "", fmt.Errorf("Unknown tool %s", tool)
 	}
-	fmt.Println(cmdBase)
 	params := strings.Fields(cmdBase)
 	cmd := exec.Command(tool, params...) //nolint:gosec
 	outBytes, err := cmd.CombinedOutput()
@@ -198,41 +113,37 @@ func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (outpu
 	return output, nil
 }
 
-func findInUnikernelLogs(containerID string, pattern string) error {
-	cmdStr := "nerdctl logs " + containerID
-	params := strings.Fields(cmdStr)
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("Could not retrieve logs for container %s: %v", containerID, err)
+func stopContainer(tool string, containerID string) error {
+	var params []string
+	switch tool {
+	case "ctr":
+		params = strings.Fields("ctr t kill " + containerID)
+	case "nerdctl":
+		params = strings.Fields("nerdctl stop " + containerID)
+	default:
+		return fmt.Errorf("Unknown tool %s", tool)
 	}
-	if !strings.Contains(string(output), pattern) {
-		return fmt.Errorf("Expected: %s, Got: %s", pattern, output)
-	}
-	return nil
-}
-
-func stopNerdctlUnikernel(containerID string) error {
-	params := strings.Fields(fmt.Sprintf("nerdctl stop %s", containerID))
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	retMsg := strings.TrimSpace(string(output))
-	if err != nil {
+	if err != nil && (tool != "ctr" || !strings.Contains(retMsg, "not found")) {
 		return fmt.Errorf("stop %s failed: %s - %v", containerID, retMsg, err)
 	}
-	if containerID != retMsg {
+	if tool == "nerdctl" && containerID != retMsg {
 		return fmt.Errorf("unexpected output when stopping %s. expected: %s, got: %s", containerID, containerID, retMsg)
 	}
 	return nil
 }
 
 func removeContainer(tool string, containerID string) error {
-	if tool != "ctr" && tool != "nerdctl" {
-		return fmt.Errorf("Unknown tool %s", tool)
+	var rmcmd string
+	if tool == "ctr" {
+		rmcmd = " c"
 	}
-	params := strings.Fields(fmt.Sprintf("rm %s", containerID))
+	rmcmd += " rm " + containerID
+	params := strings.Fields(rmcmd)
 	cmd := exec.Command(tool, params...) //nolint:gosec
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	retMsg := strings.TrimSpace(string(output))
 	if err != nil {
 		return fmt.Errorf("deleting %s failed: %s - %v", containerID, retMsg, err)
@@ -275,4 +186,39 @@ func verifyContainerRemoved(tool string, containerID string) error {
 		return fmt.Errorf("unikernel %s was not successfully removed from nerdctl", containerID)
 	}
 	return nil
+}
+
+func findUnikernelKey(containerID string, field string, key string) (string, error) {
+	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	var result []map[string]any
+	var fieldInfo map[string]any
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect %s", output)
+	}
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		return "", err
+	}
+	containerInfo := result[0]
+	for object, value := range containerInfo {
+		// Each value is an `any` type, that is type asserted as a string
+		if object == field {
+			// t.Log(key, fmt.Sprintf("%v", value))
+			fieldInfo = value.(map[string]any)
+			break
+		}
+	}
+	for object, value := range fieldInfo {
+		if object == key {
+			retVal, ok := value.(string)
+			if ok {
+				return retVal, nil
+			} else {
+				return strconv.FormatFloat(value.(float64), 'f', -1, 64), nil
+			}
+		}
+	}
+	return "", nil
 }

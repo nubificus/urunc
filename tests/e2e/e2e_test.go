@@ -1,10 +1,14 @@
 package uruncE2ETesting
 
 import (
+	"fmt"
 	"testing"
+	"strings"
+
+	common "github.com/nubificus/urunc/tests"
 )
 
-type testMethod func(testSpecificArgs) error
+type testMethod func(containerTestArgs) error
 
 type containerTestArgs struct {
 	Name string
@@ -13,13 +17,7 @@ type containerTestArgs struct {
 	Seccomp bool
 	Skippable bool
 	TestFunc testMethod
-	TestArgs testSpecificArgs
-}
-
-type testSpecificArgs struct {
-	ContainerID string
-	Seccomp bool
-	Expected string
+	ExpectOut string
 }
 
 //func TestsWithNerdctl(t *testing.T) {
@@ -31,9 +29,7 @@ func TestNerdctl(t *testing.T) {
 			Devmapper : true,
 			Seccomp : true,
 			Skippable: false,
-			TestArgs : testSpecificArgs {
-				Expected : "Hello world",
-			},
+			ExpectOut : "Hello world",
 			TestFunc: matchTest,
 		},
 		{
@@ -144,9 +140,7 @@ func TestCtr(t *testing.T) {
 			Devmapper : true,
 			Seccomp : true,
 			Skippable: false,
-			TestArgs : testSpecificArgs {
-				Expected : "Hello world",
-			},
+			ExpectOut : "Hello world",
 			TestFunc: matchTest,
 		},
 		{
@@ -155,9 +149,7 @@ func TestCtr(t *testing.T) {
 			Devmapper : true,
 			Seccomp : true,
 			Skippable: false,
-			TestArgs : testSpecificArgs {
-				Expected : "Hello world",
-			},
+			ExpectOut : "Hello world",
 			TestFunc: matchTest,
 		},
 		{
@@ -166,9 +158,7 @@ func TestCtr(t *testing.T) {
 			Devmapper : false,
 			Seccomp : true,
 			Skippable: false,
-			TestArgs : testSpecificArgs {
-				Expected : "\"Urunc\" \"Unikraft\" \"Qemu\"",
-			},
+			ExpectOut : "\"Urunc\" \"Unikraft\" \"Qemu\"",
 			TestFunc: matchTest,
 		},
 		{
@@ -177,9 +167,7 @@ func TestCtr(t *testing.T) {
 			Devmapper : false,
 			Seccomp : true,
 			Skippable: false,
-			TestArgs : testSpecificArgs {
-				Expected : "\"Urunc\" \"Unikraft\" \"FC\"",
-			},
+			ExpectOut : "\"Urunc\" \"Unikraft\" \"FC\"",
 			TestFunc: matchTest,
 		},
 	}
@@ -195,4 +183,41 @@ func TestCtr(t *testing.T) {
 			}
 		})
 	}
+}
+
+func seccompTest(args containerTestArgs) error {
+	unikernelPID, err := findUnikernelKey(args.Name, "State", "Pid")
+	if err != nil {
+		return fmt.Errorf("Failed to extract container IP: %v", err)
+	}
+	procPath := "/proc/" + unikernelPID + "/status"
+	seccompLine, err:= common.FindLineInFile(procPath, "Seccomp")
+	if err != nil {
+		return err
+	}
+	wordsInLine := strings.Split(seccompLine, ":")
+	if strings.TrimSpace(wordsInLine[1]) == "2" {
+		if args.Seccomp == false {
+			return fmt.Errorf("Seccomp should not be enabled")
+		}
+	} else {
+		if args.Seccomp == true {
+			return fmt.Errorf("Seccomp should be enabled")
+		}
+	}
+
+	return nil
+}
+
+func pingTest(args containerTestArgs) error {
+	extractedIPAddr, err := findUnikernelKey(args.Name, "NetworkSettings", "IPAddress")
+	if err != nil {
+		return fmt.Errorf("Failed to extract container IP: %v", err)
+	}
+	err = common.PingUnikernel(extractedIPAddr)
+	if err != nil {
+		return fmt.Errorf("ping failed: %v", err)
+	}
+
+	return nil
 }
