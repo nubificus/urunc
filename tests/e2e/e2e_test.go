@@ -127,7 +127,7 @@ func TestNerdctl(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := nerdctlRunTest(tc)
+			err := runTest("nerdctl", tc)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -189,7 +189,7 @@ func TestCtr(t *testing.T) {
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			err = ctrRunTest(tc)
+			err = runTest("ctr", tc)
 			if err != nil {
 				t.Fatal(err.Error())
 			}

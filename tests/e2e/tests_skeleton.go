@@ -12,26 +12,54 @@ import (
 	"time"
 )
 
-func nerdctlRunTest(nerdctlArgs containerTestArgs) error {
-	containerID, err := startNerdctlUnikernel(nerdctlArgs)
+var matchTest testMethod = nil
+
+func pullImage(Image string) error {
+	pullParams := strings.Fields("ctr image pull " + Image)
+	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
+	err := pullCmd.Run()
+	if err != nil {
+		return fmt.Errorf("Error pulling %s: %v", Image, err)
+	}
+
+	return nil
+}
+
+func runTest(tool string, cntrArgs containerTestArgs) error {
+	var output string
+	var containerID string
+	var err error
+	if cntrArgs.TestFunc == nil {
+		output, err = startContainer(tool, cntrArgs, false)
+		containerID = cntrArgs.Name
+	} else {
+		output, err = startContainer(tool, cntrArgs, true)
+		containerID = output
+	}
 	if err != nil {
 		return fmt.Errorf("Failed to start unikernel container: %v", err)
+	}
+	defer func() {
+		// We do not want a succesful cleanup to overwrite any previous error
+		if tempErr := testCleanup(tool, containerID); tempErr != nil {
+			err = tempErr
+		}
+	}()
+	if cntrArgs.TestFunc == nil {
+		if !strings.Contains(string(output), cntrArgs.TestArgs.Expected) {
+			return fmt.Errorf("Expected: %s, Got: %s", cntrArgs.TestArgs.Expected, output)
+		}
+		return nil
 	}
 	// Give some time till the unikernel is up and running.
 	// Maybe we need to revisit this in the future.
 	time.Sleep(2 * time.Second)
-	defer func() {
-		// We do not want a succesful cleanup to overwrite any previous error
-		if tempErr := nerdctlCleanup(containerID); tempErr != nil {
-			err = tempErr
-		}
-	}()
 	testArguments := testSpecificArgs {
 		ContainerID : containerID,
-		Seccomp : nerdctlArgs.Seccomp,
-		Expected : nerdctlArgs.TestArgs.Expected,
+		Seccomp : cntrArgs.Seccomp,
+		Expected : cntrArgs.TestArgs.Expected,
 	}
-	return nerdctlArgs.TestFunc(testArguments)
+	return cntrArgs.TestFunc(testArguments)
 }
 
 func seccompTest(args testSpecificArgs) error {
@@ -58,10 +86,6 @@ func seccompTest(args testSpecificArgs) error {
 	return nil
 }
 
-func matchTest(args testSpecificArgs) error {
-	return findInUnikernelLogs(args.ContainerID, args.Expected)
-}
-
 func pingTest(args testSpecificArgs) error {
 	extractedIPAddr, err := findUnikernelKey(args.ContainerID, "NetworkSettings", "IPAddress")
 	if err != nil {
@@ -75,16 +99,22 @@ func pingTest(args testSpecificArgs) error {
 	return nil
 }
 
-func nerdctlCleanup(containerID string) error {
-	err := stopNerdctlUnikernel(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to stop container: %v", err)
+func testCleanup(tool string,containerID string) error {
+	var err error
+	if tool != "ctr" && tool != "nerdctl" {
+		return fmt.Errorf("Unknown tool %s", tool)
 	}
-	err = removeNerdctlUnikernel(containerID)
+	if tool == "nerdctl" {
+		err = stopNerdctlUnikernel(containerID)
+		if err != nil {
+			return fmt.Errorf("Failed to stop container: %v", err)
+		}
+	}
+	err = removeContainer(tool, containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to remove container: %v", err)
 	}
-	err = verifyNerdctlRemoved(containerID)
+	err = verifyContainerRemoved(tool, containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to remove container: %v", err)
 	}
@@ -131,31 +161,41 @@ func findUnikernelKey(containerID string, field string, key string) (string, err
 	return "", nil
 }
 
-func startNerdctlUnikernel(nerdctlArgs containerTestArgs) (containerID string, err error) {
-	cmdBase := "nerdctl "
-	cmdBase += "run "
-	cmdBase += "-d "
+func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (output string, err error) {
+	cmdBase := "run "
+	if detach {
+		cmdBase += "-d "
+	}
 	cmdBase += "--runtime io.containerd.urunc.v2 "
-	if nerdctlArgs.Devmapper {
+	if cntrArgs.Devmapper {
 		cmdBase += "--snapshotter devmapper "
 	}
-	if nerdctlArgs.Seccomp == false {
-		cmdBase += "--security-opt seccomp=unconfined "
+	switch tool {
+	case "ctr":
+		if cntrArgs.Seccomp {
+			cmdBase += "--seccomp "
+		}
+		cmdBase += cntrArgs.Image + " "
+		cmdBase += cntrArgs.Name
+	case "nerdctl":
+		if cntrArgs.Seccomp == false {
+			cmdBase += "--security-opt seccomp=unconfined "
+		}
+		cmdBase += cntrArgs.Image + " "
+		cmdBase += "-name " + cntrArgs.Name
+	default:
+		return "", fmt.Errorf("Unknown tool %s", tool)
 	}
-	if nerdctlArgs.Name != "" {
-		cmdBase += "--name " + nerdctlArgs.Name + " "
-	}
-	cmdBase += nerdctlArgs.Image + " "
-	cmdBase += "unikernel "
+	fmt.Println(cmdBase)
 	params := strings.Fields(cmdBase)
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	containerIDBytes, err := cmd.Output()
+	cmd := exec.Command(tool, params...) //nolint:gosec
+	outBytes, err := cmd.CombinedOutput()
+	output = string(outBytes)
+	output = strings.TrimSpace(output)
 	if err != nil {
-		return "", fmt.Errorf("%s - %v", string(containerIDBytes), err)
+		return "", fmt.Errorf("%s - %v", output, err)
 	}
-	containerID = string(containerIDBytes)
-	containerID = strings.TrimSpace(containerID)
-	return containerID, nil
+	return output, nil
 }
 
 func findInUnikernelLogs(containerID string, pattern string) error {
@@ -186,22 +226,33 @@ func stopNerdctlUnikernel(containerID string) error {
 	return nil
 }
 
-func removeNerdctlUnikernel(containerID string) error {
-	params := strings.Fields(fmt.Sprintf("nerdctl rm %s", containerID))
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+func removeContainer(tool string, containerID string) error {
+	if tool != "ctr" && tool != "nerdctl" {
+		return fmt.Errorf("Unknown tool %s", tool)
+	}
+	params := strings.Fields(fmt.Sprintf("rm %s", containerID))
+	cmd := exec.Command(tool, params...) //nolint:gosec
 	output, err := cmd.Output()
 	retMsg := strings.TrimSpace(string(output))
 	if err != nil {
 		return fmt.Errorf("deleting %s failed: %s - %v", containerID, retMsg, err)
 	}
-	if containerID != retMsg {
+	if tool == "nerdctl" && containerID != retMsg {
 		return fmt.Errorf("unexpected output when deleting %s. expected: %s, got: %s", containerID, containerID, retMsg)
 	}
 	return nil
 }
 
-func verifyNerdctlRemoved(containerID string) error {
-	params := strings.Fields("nerdctl ps -a --no-trunc -q")
+func verifyContainerRemoved(tool string, containerID string) error {
+	var params []string
+	switch tool {
+	case "ctr":
+		params = strings.Fields("ctr c ls -q")
+	case "nerdctl":
+		params = strings.Fields("nerdctl ps -a --no-trunc -q")
+	default:
+		return fmt.Errorf("Unknown tool %s", tool)
+	}
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.Output()
 	retMsg := strings.TrimSpace(string(output))
@@ -222,89 +273,6 @@ func verifyNerdctlRemoved(containerID string) error {
 	}
 	if found {
 		return fmt.Errorf("unikernel %s was not successfully removed from nerdctl", containerID)
-	}
-	return nil
-}
-
-func pullImage(Image string) error {
-	pullParams := strings.Fields("ctr image pull " + Image)
-	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
-	err := pullCmd.Run()
-	if err != nil {
-		return fmt.Errorf("Error pulling %s: %v", Image, err)
-	}
-
-	return nil
-}
-
-func ctrRunTest(ctrArgs containerTestArgs) error {
-	output, err := startCtrUnikernel(ctrArgs)
-	if err != nil {
-		return fmt.Errorf("Failed to start unikernel container: %v", err)
-	}
-	if !strings.Contains(string(output), ctrArgs.TestArgs.Expected) {
-		return fmt.Errorf("Expected: %s, Got: %s", ctrArgs.TestArgs.Expected, output)
-	}
-	defer func() {
-		// We do not want a succesful cleanup to overwrite any previous error
-		if tempErr := ctrCleanup(ctrArgs.Name); tempErr != nil {
-			err = tempErr
-		}
-	}()
-	return nil
-}
-
-func startCtrUnikernel(ctrArgs containerTestArgs) (output []byte, err error) {
-	cmdBase := "ctr "
-	cmdBase += "run "
-	cmdBase += "--rm "
-	cmdBase += "--runtime io.containerd.urunc.v2 "
-	if ctrArgs.Devmapper {
-		cmdBase += "--snapshotter devmapper "
-	}
-	cmdBase += ctrArgs.Image + " "
-	cmdBase += ctrArgs.Name
-	params := strings.Fields(cmdBase)
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	return cmd.CombinedOutput()
-}
-
-func ctrCleanup(containerID string) error {
-	err := removeCtrUnikernel(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to remove container: %v", err)
-	}
-	err = verifyCtrRemoved(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to remove container: %v", err)
-	}
-	err = common.VerifyNoStaleFiles(containerID)
-	if err != nil {
-		return fmt.Errorf("Failed to remove all stale files: %v", err)
-	}
-
-	return nil
-}
-
-func removeCtrUnikernel(containerID string) error {
-	params := strings.Fields(fmt.Sprintf("ctr rm %s", containerID))
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("deleting %s failed: - %v", containerID, err)
-	}
-	return nil
-}
-
-func verifyCtrRemoved(containerID string) error {
-	params := strings.Fields("ctr c ls -q")
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%v: Error listing containers using ctr: %s", err, output)
-	}
-	if strings.Contains(string(output), containerID) {
-		return fmt.Errorf("Container still running. Got: %s", output)
 	}
 	return nil
 }
