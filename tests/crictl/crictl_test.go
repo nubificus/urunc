@@ -15,7 +15,6 @@
 package urunc
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -33,436 +32,217 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-func TestCrictlHvtRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
-	procName := "solo5-hvt"
-	podConfig := crictlSandboxConfig("hvt-rumprun-redis-sandbox")
-	containerConfig := crictlContainerConfig("hvt-rumprun-redis", containerImage)
+type testMethod func(containerInfo) error
 
-	// create config files
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Failed to retrieve current directory")
-	}
-	absPodConf := filepath.Join(cwd, "pod.json")
-	absContConf := filepath.Join(cwd, "cont.json")
-	err = writeToFile(absPodConf, podConfig)
-	if err != nil {
-		t.Fatalf("Failed to write pod config: %v", err)
-	}
-	defer os.Remove(absPodConf)
-	err = writeToFile(absContConf, containerConfig)
-	if err != nil {
-		t.Fatalf("Failed to write container config: %v", err)
-	}
-	defer os.Remove(absContConf)
+type containerTestArgs struct {
+	Name           string
+	Image          string
+	Devmapper      bool
+	Seccomp        bool
+	StaticNet      bool
+	SideContainers []string
+	Skippable      bool
+	TestPath       string
+	TestFunc       testMethod
+	ExpectOut      string
+}
 
-	// pull image
-	params := []string{"crictl", "pull", containerImage}
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to pull image: %v\n%s", err, output)
-	}
+type containerInfo struct {
+	PodID       string
+	ContainerID string
+	Name        string
+	Seccomp     bool
+}
 
-	// start unikernel in pod
-	params = strings.Fields("crictl run --runtime=urunc cont.json pod.json")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to run unikernel: %v\n%s", err, output)
+func TestCrictl(t *testing.T) {
+	tests := []containerTestArgs{
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest",
+			Name:           "Hvt-rumptun-redis",
+			Devmapper:      true,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestPath:       t.TempDir(),
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest",
+			Name:           "Spt-rumptun-redis",
+			Devmapper:      true,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestPath:       t.TempDir(),
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:           "Qemu-unikraft-redis",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestPath:       t.TempDir(),
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft:latest",
+			Name:           "Firecracker-unikraft-nginx",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestPath:       t.TempDir(),
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/httpreply-firecracker-unikraft:latest",
+			Name:           "Firecracker-unikraft-httpreply-static-net",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      true,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestPath:       t.TempDir(),
+			TestFunc:       httpStaticNetTest,
+		},
 	}
-	time.Sleep(2 * time.Second)
-	proc, err := common.FindProc(procName)
-	if err != nil {
-		t.Fatalf("Failed to find %s process: %v", procName, err)
-	}
-	cmdLine, err := proc.Cmdline()
-	if err != nil {
-		t.Fatalf("Failed to find %s process' command line: %v", procName, err)
-	}
-
-	// Extract the IP address
-	re := regexp.MustCompile(`"addr":"([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)"`)
-	match := re.FindStringSubmatch(cmdLine)
-	extractedIPAddr := ""
-	if len(match) == 2 {
-		extractedIPAddr = match[1]
-	} else {
-		t.Fatalf("Failed to extract IP address for %s process", procName)
-
-	}
-
-	err = common.PingUnikernel(extractedIPAddr)
-	if err != nil {
-		t.Fatalf("ping failed: %v", err)
-	}
-
-	// Find pod ID
-	params = strings.Fields("crictl pods -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to find pod: %v\n%s", err, output)
-	}
-
-	podID := string(output)
-	podID = strings.TrimSpace(podID)
-
-	// Stop and remove pod
-	params = strings.Fields("crictl rmp --force " + podID)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to stop and remove pod: %v\n%s", err, output)
-	}
-
-	proc, _ = common.FindProc(procName)
-	if proc != nil {
-		t.Fatalf("%s process is still alive", procName)
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := pullImage(tc.Image)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			err = runTest(tc)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+		})
 	}
 }
 
-func TestCrictlSptRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest"
-	procName := "solo5-spt"
-	podConfig := crictlSandboxConfig("spt-rumprun-redis-sandbox")
-	containerConfig := crictlContainerConfig("spt-rumprun-redis", containerImage)
-
-	// create config files
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Failed to retrieve current directory")
-	}
-	absPodConf := filepath.Join(cwd, "pod.json")
-	absContConf := filepath.Join(cwd, "cont.json")
-	err = writeToFile(absPodConf, podConfig)
-	if err != nil {
-		t.Fatalf("Failed to write pod config: %v", err)
-	}
-	defer os.Remove(absPodConf)
-	err = writeToFile(absContConf, containerConfig)
-	if err != nil {
-		t.Fatalf("Failed to write container config: %v", err)
-	}
-	defer os.Remove(absContConf)
-
-	// pull image
-	params := []string{"crictl", "pull", containerImage}
+func pullImage(image string) error {
+	params := []string{"crictl", "pull", image}
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to pull image: %v\n%s", err, output)
+		return fmt.Errorf("Failed to pull image %s: %v\n%s", image, err, output)
 	}
 
-	// start unikernel in pod
-	params = strings.Fields("crictl run --runtime=urunc cont.json pod.json")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to run unikernel: %v\n%s", err, output)
-	}
-	time.Sleep(2 * time.Second)
-	proc, err := common.FindProc(procName)
-	if err != nil {
-		t.Fatalf("Failed to find %s process: %v", procName, err)
-	}
-	cmdLine, err := proc.Cmdline()
-	if err != nil {
-		t.Fatalf("Failed to find %s process' command line: %v", procName, err)
-	}
-
-	// Extract the IP address
-	re := regexp.MustCompile(`"addr":"([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)"`)
-	match := re.FindStringSubmatch(cmdLine)
-	extractedIPAddr := ""
-	if len(match) == 2 {
-		extractedIPAddr = match[1]
-	} else {
-		t.Fatalf("Failed to extract IP address for %s process", procName)
-
-	}
-
-	err = common.PingUnikernel(extractedIPAddr)
-	if err != nil {
-		t.Fatalf("ping failed: %v", err)
-	}
-
-	// Find pod ID
-	params = strings.Fields("crictl pods -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to find pod: %v\n%s", err, output)
-	}
-
-	podID := string(output)
-	podID = strings.TrimSpace(podID)
-
-	// Stop and remove pod
-	params = strings.Fields("crictl rmp --force " + podID)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to stop and remove pod: %v\n%s", err, output)
-	}
-
-	proc, _ = common.FindProc(procName)
-	if proc != nil {
-		t.Fatalf("%s process is still alive", procName)
-	}
+	return nil
 }
 
-func TestCrictlQemuUnikraftRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
-	procName := "qemu-system"
-	podConfig := crictlSandboxConfig("qemu-unikraft-redis-sandbox")
-	containerConfig := crictlContainerConfig("qemu-unikraft-redis", containerImage)
+func runTest(args containerTestArgs) error {
+	// podConfig := crictlSandboxConfig(args.Name + "-sandbox")
 
-	// create config files
-	cwd, err := os.Getwd()
+	containerID, err := startContainer(args)
 	if err != nil {
-		t.Fatal("Failed to retrieve current directory")
+		return fmt.Errorf("Failed to start container: %v", err)
 	}
-	absPodConf := filepath.Join(cwd, "pod.json")
-	absContConf := filepath.Join(cwd, "cont.json")
-	err = writeToFile(absPodConf, podConfig)
+	time.Sleep(2 * time.Second)
+
+	podID, err := inspectAndFind(false, containerID, "sandboxID")
 	if err != nil {
-		t.Fatalf("Failed to write pod config: %v", err)
+		return fmt.Errorf("Failed to extract pod ID: %v", err)
 	}
-	defer os.Remove(absPodConf)
+	defer func() {
+		// We do not want a successful cleanup to overwrite any previous error
+		if tempErr := testCleanup(podID); tempErr != nil {
+			err = tempErr
+		}
+	}()
+	testContainer := containerInfo{
+		PodID:       podID,
+		ContainerID: containerID,
+		Name:        args.Name,
+		Seccomp:     args.Seccomp,
+	}
+	return args.TestFunc(testContainer)
+}
+
+func startContainer(args containerTestArgs) (string, error) {
+	// TODO: Handle Sidecar container
+	// First runp the pod
+	// Then create containers inside pod
+	// Then start containers
+	var containerConfig string
+	if args.StaticNet {
+		containerConfig = crictlContainerConfig("user-container", args.Image)
+	} else {
+		containerConfig = crictlContainerConfig(args.Name, args.Image)
+	}
+	podConfig := crictlSandboxConfig(args.Name)
+
+	absPodConf := filepath.Join(args.TestPath, "pod.json")
+	absContConf := filepath.Join(args.TestPath, "cont.json")
+	err := writeToFile(absPodConf, podConfig)
+	if err != nil {
+		return "", fmt.Errorf("Failed to write pod config: %v", err)
+	}
 	err = writeToFile(absContConf, containerConfig)
 	if err != nil {
-		t.Fatalf("Failed to write container config: %v", err)
+		return "", fmt.Errorf("Failed to write container config: %v", err)
 	}
-	defer os.Remove(absContConf)
-
-	// pull image
-	params := []string{"crictl", "pull", containerImage}
+	// start unikernel in pod
+	params := strings.Fields("crictl run --runtime=urunc " + absContConf + " " + absPodConf)
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to pull image: %v\n%s", err, output)
+		return "", fmt.Errorf("Failed to run unikernel: %v\n%s", err, output)
 	}
-
-	// start unikernel in pod
-	params = strings.Fields("crictl run --runtime=urunc cont.json pod.json")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to run unikernel: %v\n%s", err, output)
-	}
-	time.Sleep(2 * time.Second)
-	proc, err := common.FindProc(procName)
-	if err != nil {
-		t.Fatalf("Failed to find %s process: %v", procName, err)
-	}
-	cmdLine, err := proc.Cmdline()
-	if err != nil {
-		t.Fatalf("Failed to find %s process' command line: %v", procName, err)
-	}
-
-	// Extract the IP address
-	re := regexp.MustCompile(`netdev.ipv4_addr=([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)`)
-	match := re.FindStringSubmatch(cmdLine)
-	extractedIPAddr := ""
-	if len(match) == 2 {
-		extractedIPAddr = match[1]
-	} else {
-		t.Fatalf("Failed to extract IP address for %s process", procName)
-	}
-
-	err = common.PingUnikernel(extractedIPAddr)
-	if err != nil {
-		t.Fatalf("ping failed: %v", err)
-	}
-
-	// Find pod ID
-	params = strings.Fields("crictl pods -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to find pod: %v\n%s", err, output)
-	}
-
-	podID := string(output)
-	podID = strings.TrimSpace(podID)
-
-	// Stop and remove pod
-	params = strings.Fields("crictl rmp --force " + podID)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to stop and remove pod: %v\n%s", err, output)
-	}
-
-	proc, _ = common.FindProc(procName)
-	if proc != nil {
-		t.Fatalf("%s process is still alive", procName)
-	}
+	return string(output), nil
 }
 
-func TestCrictlFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
+func testCleanup(podID string) error {
+	// Stop and remove pod
+	params := strings.Fields("crictl rmp --force " + podID)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Failed to stop and remove pod: %v\n%s", err, output)
+	}
+
+	return nil
+}
+
+func inspectAndFind(pod bool, id, key string) (string, error) {
+	var params []string
+	if pod {
+		params = strings.Fields(fmt.Sprintf("crictl inspectp --output json %s", id))
+	} else {
+		params = strings.Fields(fmt.Sprintf("crictl inspect --output json %s", id))
+	}
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	keystr := "\"" + key + "\":[^,;\\]}]*"
+	r, err := regexp.Compile(keystr)
+	if err != nil {
+		return "", err
+	}
+	match := r.FindString(string(output))
+	keyValMatch := strings.Split(match, ":")
+	val := strings.ReplaceAll(keyValMatch[1], "\"", "")
+	return strings.TrimSpace(val), nil
+}
+
+func httpStaticNetTest(containerInfo) (err error) {
 	procName := "firecracker"
-	podConfig := crictlSandboxConfig("fc-unikraft-nginx-sandbox")
-	containerConfig := crictlContainerConfig("fc-unikraft-nginx", containerImage)
 
-	// create config files
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Failed to retrieve current directory")
-	}
-	absPodConf := filepath.Join(cwd, "pod.json")
-	absContConf := filepath.Join(cwd, "cont.json")
-	err = writeToFile(absPodConf, podConfig)
-	if err != nil {
-		t.Fatalf("Failed to write pod config: %v", err)
-	}
-	defer os.Remove(absPodConf)
-	err = writeToFile(absContConf, containerConfig)
-	if err != nil {
-		t.Fatalf("Failed to write container config: %v", err)
-	}
-	defer os.Remove(absContConf)
-
-	// pull image
-	params := []string{"crictl", "pull", containerImage}
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to pull image: %v\n%s", err, output)
-	}
-
-	// start unikernel in pod
-	params = strings.Fields("crictl run --runtime=urunc cont.json pod.json")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to run unikernel: %v\n%s", err, output)
-	}
-	time.Sleep(2 * time.Second)
 	proc, err := common.FindProc(procName)
 	if err != nil {
-		t.Fatalf("Failed to find %s process: %v", procName, err)
-	}
-	cmdLine, err := proc.Cmdline()
-	if err != nil {
-		t.Fatalf("Failed to find %s process' command line: %v", procName, err)
-	}
-
-	var extractedFCconfig string
-	re := regexp.MustCompile(`--config-file\s+([^\s]+)`)
-	match := re.FindStringSubmatch(cmdLine)
-	if len(match) == 2 {
-		extractedFCconfig = match[1]
-	} else {
-		t.Fatalf("Failed to extract config file for %s", procName)
-	}
-	var fcConfig struct {
-		BootSource struct {
-			BootArgs string `json:"boot_args"`
-		} `json:"boot-source"`
-	}
-	jsonData, err := os.ReadFile(extractedFCconfig)
-	if err != nil {
-		t.Fatalf("Failed to read config file for %s", procName)
-	}
-	err = json.Unmarshal(jsonData, &fcConfig)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config file for %s", procName)
-	}
-
-	// Extract the IP address
-	re = regexp.MustCompile(`netdev.ipv4_addr=([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)`)
-	match = re.FindStringSubmatch(fcConfig.BootSource.BootArgs)
-	extractedIPAddr := ""
-	if len(match) == 2 {
-		extractedIPAddr = match[1]
-	} else {
-		t.Fatalf("Failed to extract IP address for %s process", procName)
-	}
-
-	err = common.PingUnikernel(extractedIPAddr)
-	if err != nil {
-		t.Fatalf("ping failed: %v", err)
-	}
-
-	// Find pod ID
-	params = strings.Fields("crictl pods -q")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to find pod: %v\n%s", err, output)
-	}
-
-	podID := string(output)
-	podID = strings.TrimSpace(podID)
-
-	// Stop and remove pod
-	params = strings.Fields("crictl rmp --force " + podID)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to stop and remove pod: %v\n%s", err, output)
-	}
-
-	proc, _ = common.FindProc(procName)
-	if proc != nil {
-		t.Fatalf("%s process is still alive", procName)
-	}
-}
-
-func TestCrictlHTTPStaticNet(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/httpreply-firecracker-unikraft:latest"
-	procName := "firecracker"
-	podConfig := crictlSandboxConfig("fc-unikraft-knative-sandbox")
-
-	// user-container is used as "io.kubernetes.cri.container-name" annotation by crictl
-	// in order to trigger the static net mode
-	containerConfig := crictlContainerConfig("user-container", containerImage)
-
-	// create config files
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Failed to retrieve current directory")
-	}
-	absPodConf := filepath.Join(cwd, "pod.json")
-	absContConf := filepath.Join(cwd, "cont.json")
-	err = writeToFile(absPodConf, podConfig)
-	if err != nil {
-		t.Fatalf("Failed to write pod config: %v", err)
-	}
-	defer os.Remove(absPodConf)
-	err = writeToFile(absContConf, containerConfig)
-	if err != nil {
-		t.Fatalf("Failed to write container config: %v", err)
-	}
-	defer os.Remove(absContConf)
-
-	// pull image
-	params := []string{"crictl", "pull", containerImage}
-	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to pull image: %v\n%s", err, output)
-	}
-
-	// start unikernel in pod
-	params = strings.Fields("crictl run --runtime=urunc cont.json pod.json")
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to run unikernel: %v\n%s", err, output)
-	}
-	time.Sleep(2 * time.Second)
-	proc, err := common.FindProc(procName)
-	if err != nil {
-		t.Fatalf("Failed to find %s process: %v", procName, err)
+		return fmt.Errorf("Failed to find %s process: %v", procName, err)
 	}
 	netNs, err := netns.GetFromPid(int(proc.Pid))
 	if err != nil {
-		t.Fatalf("Failed to find %s process network namespace: %v", procName, err)
+		return fmt.Errorf("Failed to find %s process network namespace: %v", procName, err)
 	}
 	origns, _ := netns.Get()
 	defer origns.Close()
@@ -470,17 +250,17 @@ func TestCrictlHTTPStaticNet(t *testing.T) {
 	defer runtime.UnlockOSThread()
 	err = netns.Set(netNs)
 	defer func() {
-		err := netns.Set(origns)
-		if err != nil {
-			t.Fatalf("Failed to revert to default network nampespace: %v", err)
+		tempErr := netns.Set(origns)
+		if tempErr != nil {
+			err = fmt.Errorf("Failed to revert to default network nampespace: %v", err)
 		}
 	}()
 	if err != nil {
-		t.Fatalf("Failed to change network namespace: %v", err)
+		return fmt.Errorf("Failed to change network namespace: %v", err)
 	}
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		t.Fatalf("Failed to get all interfaces in current network namespace: %v", err)
+		return fmt.Errorf("Failed to get all interfaces in current network namespace: %v", err)
 	}
 	var tapUrunc net.Interface
 	for _, iface := range ifaces {
@@ -495,12 +275,12 @@ func TestCrictlHTTPStaticNet(t *testing.T) {
 			names = append(names, iface.Name)
 		}
 		err = fmt.Errorf("Expected tap0_urunc, got %v", names)
-		t.Fatalf("Failed to find urunc's tap device: %v", err)
+		return fmt.Errorf("Failed to find urunc's tap device: %v", err)
 	}
 
 	addrs, err := tapUrunc.Addrs()
 	if err != nil {
-		t.Fatalf("Failed to get %s interface's IP addresses: %v", tapUrunc.Name, err)
+		return fmt.Errorf("Failed to get %s interface's IP addresses: %v", tapUrunc.Name, err)
 	}
 	ipAddr := ""
 	for _, addr := range addrs {
@@ -511,20 +291,20 @@ func TestCrictlHTTPStaticNet(t *testing.T) {
 		}
 	}
 	if ipAddr == "" {
-		t.Fatalf("Failed to get %s interface's IPv4 address", tapUrunc.Name)
+		return fmt.Errorf("Failed to get %s interface's IPv4 address", tapUrunc.Name)
 	}
 	parts := strings.Split(ipAddr, ".")
 	newIP := fmt.Sprintf("%s.%s.%s.2", parts[0], parts[1], parts[2])
 	url := fmt.Sprintf("http://%s:8080", newIP)
 	curlCmd := fmt.Sprintf("curl %s", url)
-	params = strings.Fields(curlCmd)
-	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
-	output, err = cmd.CombinedOutput()
+	params := strings.Fields(curlCmd)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to run curl: %v\n%s", err, output)
+		return fmt.Errorf("Failed to run curl: %v\n%s", err, output)
 	}
 	if string(output) == "" {
-		t.Fatal("Failed to receive valid response")
+		return fmt.Errorf("Failed to receive valid response")
 	}
 
 	// FIXME: Investigate why the GET request using net/http fails, while is successful using curl
@@ -547,7 +327,7 @@ func TestCrictlHTTPStaticNet(t *testing.T) {
 	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to find pod: %v\n%s", err, output)
+		return fmt.Errorf("Failed to find pod: %v\n%s", err, output)
 	}
 
 	podID := string(output)
@@ -558,13 +338,15 @@ func TestCrictlHTTPStaticNet(t *testing.T) {
 	cmd = exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to stop and remove pod: %v\n%s", err, output)
+		return fmt.Errorf("Failed to stop and remove pod: %v\n%s", err, output)
 	}
 
 	proc, _ = common.FindProc(procName)
 	if proc != nil {
-		t.Fatalf("%s process is still alive", procName)
+		return fmt.Errorf("%s process is still alive", procName)
 	}
+
+	return nil
 }
 
 func crictlSandboxConfig(name string) string {
@@ -608,5 +390,18 @@ func writeToFile(filename string, content string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func pingTest(cntrInfo containerInfo) error {
+	extractedIPAddr, err := inspectAndFind(true, cntrInfo.PodID, "ip")
+	if err != nil {
+		return fmt.Errorf("Failed to extract container IP: %v", err)
+	}
+	err = common.PingUnikernel(extractedIPAddr)
+	if err != nil {
+		return fmt.Errorf("ping failed: %v", err)
+	}
+
 	return nil
 }
