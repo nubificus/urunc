@@ -73,6 +73,12 @@ func applySeccompFilter() error {
 		"rt_sigreturn",
 		"timerfd_settime",
 		"pwrite64",
+		"newfstatat",
+		"set_tid_address",
+		"set_robust_list",
+		"rseq",
+		"prlimit64",
+		"getrandom",
 	}
 	// Some of the actions that we can take for accessing non-permitted system calls are:
 	// - seccomp.ActionKillThread will kill the thread that tried to use a non-permitted
