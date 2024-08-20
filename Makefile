@@ -231,7 +231,7 @@ test_ctr_%:
 .PHONY: test_crictl_%
 test_crictl_%:
 	@echo "Testing crictl"
-	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/crictl -v -run $*
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/crictl -v -run "TestCrictl/$*"
 	@echo " "
 
 ## help Show this help message
