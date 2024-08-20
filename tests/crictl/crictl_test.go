@@ -19,6 +19,124 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+type testMethod func(containerTestArgs) error
+
+type containerTestArgs struct {
+	Name string
+	Image string
+	Devmapper bool
+	Seccomp bool
+	Skippable bool
+	TestPath string
+	TestFunc testMethod
+	ExpectOut string
+}
+
+func TestMyCrictlHvtRumprunRedis(t *testing.T) {
+	testArgs := containerTestArgs {
+		Image : "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest",
+		Name : "hvt-rumptun-redis",
+		Devmapper : true,
+		Seccomp : true,
+		Skippable: false,
+		TestPath: t.TempDir(),
+		TestFunc: nil,
+	}
+	err := pullImage(testArgs.Image)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = runTest(testArgs)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func pullImage(Image string) error {
+	params := []string{"crictl", "pull", Image}
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Failed to pull image: %v\n%s", err, output)
+	}
+
+	return nil
+}
+
+func runTest(args containerTestArgs) error {
+	//podConfig := crictlSandboxConfig(args.Name + "-sandbox")
+	podConfig := crictlSandboxConfig(args.Name)
+	containerConfig := crictlContainerConfig(args.Name, args.Image)
+
+	absPodConf := filepath.Join(args.TestPath, "pod.json")
+	absContConf := filepath.Join(args.TestPath, "cont.json")
+	err := writeToFile(absPodConf, podConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to write pod config: %v", err)
+	}
+	err = writeToFile(absContConf, containerConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to write container config: %v", err)
+	}
+
+	containerID, err := startContainer(absPodConf, absContConf)
+	if err != nil {
+		return fmt.Errorf("Failed to start container: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+
+	podID, err := inspectAndFind(false, containerID, "sandboxID")
+	extractedIPAddr, err := inspectAndFind(true, podID, "ip")
+	err = common.PingUnikernel(extractedIPAddr)
+	if err != nil {
+		return fmt.Errorf("ping failed: %v", err)
+	}
+
+	// Stop and remove pod
+	params := strings.Fields("crictl rmp --force " + podID)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Errorf("Failed to stop and remove pod: %v\n%s", err, output)
+	}
+
+	return nil
+}
+
+func startContainer(podConfPath string, containerConfPath string) (string, error) {
+	// start unikernel in pod
+	params := strings.Fields("crictl run --runtime=urunc "  + containerConfPath + " " + podConfPath)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("Failed to run unikernel: %v\n%s", err, output)
+	}
+	return string(output), nil
+}
+
+func inspectAndFind(pod bool, id, key string) (string, error) {
+	var params []string
+	if pod {
+		params = strings.Fields(fmt.Sprintf("crictl inspectp --output json %s", id))
+	} else {
+		params = strings.Fields(fmt.Sprintf("crictl inspect --output json %s", id))
+	}
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	keystr := "\"" + key + "\":[^,;\\]}]*"
+	r, err := regexp.Compile(keystr)
+	if err != nil {
+		return "", err
+	}
+	match := r.FindString(string(output))
+	keyValMatch := strings.Split(match, ":")
+	val := strings.ReplaceAll(keyValMatch[1], "\"", "")
+	return strings.TrimSpace(val), nil
+}
+
 func TestCrictlHvtRumprunRedis(t *testing.T) {
 	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
 	procName := "solo5-hvt"
