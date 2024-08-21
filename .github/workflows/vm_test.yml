@@ -134,7 +134,7 @@ jobs:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin GOFLAGS="-count=1" go test /root/develop/urunc/tests/ctr -v'
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_ctr'
         else
           exit 1
         fi
@@ -146,7 +146,7 @@ jobs:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin GOFLAGS="-count=1" go test /root/develop/urunc/tests/nerdctl -v'
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_nerdctl'
         else
           exit 1
         fi
@@ -158,7 +158,7 @@ jobs:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
         if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin GOFLAGS="-count=1" go test /root/develop/urunc/tests/crictl -v'
+          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_crictl'
         else
           exit 1
         fi
