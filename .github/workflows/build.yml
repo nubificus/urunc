@@ -52,7 +52,7 @@ jobs:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/urunc_aarch64
+        local-path: dist/urunc_static_arm64
         remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
         policy: 1
 
@@ -63,7 +63,7 @@ jobs:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/urunc_amd64
+        local-path: dist/urunc_static_amd64
         remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
         policy: 1
 
@@ -74,7 +74,7 @@ jobs:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/containerd-shim-urunc-v2_aarch64
+        local-path: dist/containerd-shim-urunc-v2_arm64
         remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
         policy: 1
 
