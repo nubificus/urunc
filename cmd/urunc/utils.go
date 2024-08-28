@@ -15,17 +15,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"syscall"
 
-	"github.com/nubificus/urunc/internal/constants"
 	"github.com/nubificus/urunc/pkg/unikontainers"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -74,13 +69,20 @@ func handleNonBimaContainer(context *cli.Context) error {
 	defer func() {
 		metrics.Capture(containerID, "cTS01")
 	}()
-	root := context.GlobalString("root")
 	if containerID == "" {
 		// cli.ShowAppHelpAndExit(context, 129)
 		return nil
 	}
-	ctrNamespace := filepath.Base(root)
-	bundle := filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
+	bundle := context.String("bundle")
+	if bundle == "" {
+		rootDir := context.GlobalString("root")
+		// get Unikontainer data from state.json
+		unikontainer, err := unikontainers.Get(containerID, rootDir)
+		if err != nil {
+			return err
+		}
+		bundle = unikontainer.State.Bundle
+	}
 
 	if unikontainers.IsBimaContainer(bundle) {
 		logrus.Info("This is a bima container! Proceeding...")
@@ -119,69 +121,4 @@ func fatalWithCode(err error, ret int) {
 	}
 
 	os.Exit(ret)
-}
-
-// handleQueueProxy checks if the provided bundle contains a queue-proxy container
-// and adds a hardcoded IP to the process's environment.
-// Then, the container is identified as a non-bima container
-// is spawned using runc.
-func handleQueueProxy(context *cli.Context) error {
-	logrus.Error("handleQueueProxy")
-	containerID := context.Args().First()
-	root := context.GlobalString("root")
-	if containerID == "" {
-		return nil
-	}
-	ctrNamespace := filepath.Base(root)
-	bundle := filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
-
-	var spec specs.Spec
-	absDir, err := filepath.Abs(bundle)
-	if err != nil {
-		return fmt.Errorf("failed to find absolute bundle path: %w", err)
-	}
-	configDir := filepath.Join(absDir, "config.json")
-	data, err := os.ReadFile(configDir)
-	if err != nil {
-		return fmt.Errorf("failed to read config.json: %w", err)
-	}
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return fmt.Errorf("failed to parse config.json: %w", err)
-	}
-	containerName := spec.Annotations["io.kubernetes.cri.container-name"]
-	if containerName == "queue-proxy" {
-		logrus.Error("This is a queue-proxy container. Adding IP env.")
-		for i, envVar := range spec.Process.Env {
-			if strings.HasPrefix(envVar, "SERVING_READINESS_PROBE") {
-				spec.Process.Env = remove(spec.Process.Env, i)
-				break
-			}
-		}
-		readinessProbeEnv := fmt.Sprintf("SERVING_READINESS_PROBE={\"tcpSocket\":{\"port\":8080,\"host\":\"%s\"},\"successThreshold\":1}", constants.QueueProxyRedirectIP)
-		redirectIPEnv := fmt.Sprintf("REDIRECT_IP=%s", constants.QueueProxyRedirectIP)
-		envs := []string{readinessProbeEnv, redirectIPEnv}
-		spec.Process.Env = append(spec.Process.Env, envs...)
-		fileInfo, err := os.Stat(configDir)
-		if err != nil {
-			return fmt.Errorf("error getting file info: %v", err)
-		}
-		permissions := fileInfo.Mode()
-		// Write the modified struct back to the JSON file
-		updatedData, err := json.MarshalIndent(spec, "", "  ")
-		if err != nil {
-			return fmt.Errorf("error marshalling JSON: %v", err)
-		}
-
-		err = os.WriteFile(configDir, updatedData, permissions)
-		if err != nil {
-			return fmt.Errorf("error writing to file: %v", err)
-		}
-		return runcExec()
-	}
-	return nil
-}
-
-func remove(s []string, i int) []string {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
 }

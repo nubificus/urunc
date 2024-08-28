@@ -21,7 +21,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
+	"github.com/nubificus/urunc/internal/constants"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -122,6 +124,45 @@ func writePidFile(path string, pid int) error {
 	return os.Rename(tmpName, path)
 }
 
+// handleQueueProxy adds a hardcoded IP to the process's environment.
+// Then, the container is identified as a non-bima container
+// is spawned using runc.
+func handleQueueProxy(spec specs.Spec, configFile string) error {
+	for i, envVar := range spec.Process.Env {
+		if strings.HasPrefix(envVar, "SERVING_READINESS_PROBE") {
+			spec.Process.Env = remove(spec.Process.Env, i)
+			break
+		}
+	}
+
+	// Set new environment variables for Queue Proxy container
+	readinessProbeEnv := fmt.Sprintf("SERVING_READINESS_PROBE={\"tcpSocket\":{\"port\":8080,\"host\":\"%s\"},\"successThreshold\":1}", constants.QueueProxyRedirectIP)
+	redirectIPEnv := fmt.Sprintf("REDIRECT_IP=%s", constants.QueueProxyRedirectIP)
+	envs := []string{readinessProbeEnv, redirectIPEnv}
+	spec.Process.Env = append(spec.Process.Env, envs...)
+
+	// Get permissions of specification file
+	fileInfo, err := os.Stat(configFile)
+	if err != nil {
+		return fmt.Errorf("error getting file info: %v", err)
+	}
+	permissions := fileInfo.Mode()
+
+	// Write the modified struct back to the JSON file
+	updatedData, err := json.MarshalIndent(spec, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling JSON: %v", err)
+	}
+
+	err = os.WriteFile(configFile, updatedData, permissions)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %v", err)
+	}
+
+	// Exec runc to handle the Queue Proxy container
+	return nil
+}
+
 // isBimaContainer attempts to find any bima related annotations
 // in the given bundle to verify the image is compatible with urunc
 func IsBimaContainer(bundle string) bool {
@@ -133,4 +174,9 @@ func IsBimaContainer(bundle string) bool {
 
 	_, err = GetUnikernelConfig(bundle, spec)
 	return err == nil
+}
+
+func remove(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
 }

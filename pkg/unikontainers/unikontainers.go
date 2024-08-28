@@ -17,6 +17,7 @@ package unikontainers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,6 +39,9 @@ import (
 )
 
 var Log = logrus.WithField("subsystem", "unikontainers")
+
+var ErrQueueProxy = errors.New("This a queue proxy container")
+var ErrNotUnikernel = errors.New("This is not a unikernel container")
 
 // type ExecData struct {
 // 	Container     string
@@ -63,10 +67,23 @@ func New(bundlePath string, containerID string, rootDir string) (*Unikontainer, 
 	if err != nil {
 		return nil, err
 	}
+
+	containerName := spec.Annotations["io.kubernetes.cri.container-name"]
+	if containerName == "queue-proxy" {
+		logrus.Info("This is a queue-proxy container. Adding IP env.")
+		configFile := filepath.Join(bundlePath, "config.json")
+		err = handleQueueProxy(*spec, configFile)
+		if err != nil {
+			return nil, err
+		}
+		return nil, ErrQueueProxy
+	}
+
 	config, err := GetUnikernelConfig(bundlePath, spec)
 	if err != nil {
-		return nil, err
+		return nil, ErrNotUnikernel
 	}
+
 	confMap := config.Map()
 	containerDir := filepath.Join(rootDir, containerID)
 
