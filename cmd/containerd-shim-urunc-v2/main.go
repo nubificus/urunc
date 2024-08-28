@@ -16,6 +16,8 @@ package main
 
 import (
 	"context"
+	"log"
+	"log/syslog"
 
 	"github.com/containerd/containerd/runtime/v2/runc/manager"
 	_ "github.com/containerd/containerd/runtime/v2/runc/task/plugin"
@@ -23,5 +25,13 @@ import (
 )
 
 func main() {
+	sysLogger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "containerd-shim-urunc")
+	if err != nil {
+		log.Fatal("Failed to connect to syslog:", err)
+	}
+	log.SetOutput(sysLogger)
+	log.Println("containerd-shim-urunc CALLED")
+	sysLogger.Close()
+
 	shim.RunManager(context.Background(), manager.NewShimManager("io.containerd.urunc.v2"))
 }
