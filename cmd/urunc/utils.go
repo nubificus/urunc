@@ -74,13 +74,20 @@ func handleNonBimaContainer(context *cli.Context) error {
 	defer func() {
 		metrics.Capture(containerID, "cTS01")
 	}()
-	root := context.GlobalString("root")
 	if containerID == "" {
 		// cli.ShowAppHelpAndExit(context, 129)
 		return nil
 	}
-	ctrNamespace := filepath.Base(root)
-	bundle := filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
+	bundle := context.String("bundle")
+	if bundle == "" {
+		rootDir := context.GlobalString("root")
+		// get Unikontainer data from state.json
+		unikontainer, err := unikontainers.Get(containerID, rootDir)
+		if err != nil {
+			return err
+		}
+		bundle = unikontainer.State.Bundle
+	}
 
 	if unikontainers.IsBimaContainer(bundle) {
 		logrus.Info("This is a bima container! Proceeding...")
@@ -128,12 +135,20 @@ func fatalWithCode(err error, ret int) {
 func handleQueueProxy(context *cli.Context) error {
 	logrus.Error("handleQueueProxy")
 	containerID := context.Args().First()
-	root := context.GlobalString("root")
 	if containerID == "" {
 		return nil
 	}
-	ctrNamespace := filepath.Base(root)
-	bundle := filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
+	bundle := context.String("bundle")
+	if bundle == "" {
+		rootDir := context.GlobalString("root")
+		// get Unikontainer data from state.json
+		unikontainer, err := unikontainers.Get(containerID, rootDir)
+		if err != nil {
+			return err
+		}
+		bundle = unikontainer.State.Bundle
+	}
+
 
 	var spec specs.Spec
 	absDir, err := filepath.Abs(bundle)
