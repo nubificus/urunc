@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -70,18 +71,9 @@ var createCommand = cli.Command{
 		}
 
 		if !context.Bool("reexec") {
-			containerID := context.Args().First()
-			metrics.Capture(containerID, "TS00")
-			err := handleQueueProxy(context)
-			if err != nil {
-				return err
-			}
-			err = handleNonBimaContainer(context)
-			if err != nil {
-				return err
-			}
 			return createUnikontainer(context)
 		}
+
 		err := handleNonBimaContainer(context)
 		if err != nil {
 			return err
@@ -89,6 +81,7 @@ var createCommand = cli.Command{
 
 		containerID := context.Args().First()
 		metrics.Capture(containerID, "TS04")
+
 		return reexecUnikontainer(context)
 	},
 }
@@ -99,20 +92,33 @@ var createCommand = cli.Command{
 // sends ACK to reexec process and executes CreateContainer hooks
 func createUnikontainer(context *cli.Context) error {
 	containerID := context.Args().First()
-	rootDir := context.GlobalString("root")
-	if rootDir == "" {
-		rootDir = "/run/urunc"
+	if containerID == "" {
+		return fmt.Errorf("container id cannot be empty")
 	}
-	// in the case of urunc create, the bundle is either given or the current directory
-	// FIXME: remove the next 2 lines from create and add to commands that require it for CRI
-	// ctrNamespace := filepath.Base(rootDir)
-	// bundlePath := filepath.Join("/run/containerd/io.containerd.runtime.v2.task/", ctrNamespace, containerID)
+	metrics.Capture(containerID, "TS00")
 
+	// We have already made sure in main.go that root is not nil
+	rootDir := context.GlobalString("root")
+
+	// bundle option cli option is optional. Therefore the bundle directory
+	// is either the CWD or the one defined in the cli option
 	bundlePath := context.String("bundle")
+	if bundlePath == "" {
+		var err error
+		bundlePath, err = os.Getwd()
+		if err != nil {
+			return err
+		}
+	}
 
 	// new unikernel from bundle
 	unikontainer, err := unikontainers.New(bundlePath, containerID, rootDir)
 	if err != nil {
+		if errors.Is(err, unikontainers.ErrQueueProxy) ||
+			errors.Is(err, unikontainers.ErrNotUnikernel) {
+			// Exec runc to handle non unikernel containers
+			return runcExec()
+		}
 		return err
 	}
 	metrics.Capture(containerID, "TS01")
