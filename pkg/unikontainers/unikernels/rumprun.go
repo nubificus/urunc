@@ -20,6 +20,7 @@ import (
 )
 
 const RumprunUnikernel UnikernelType = "rumprun"
+const SubnetMask125 = "128.0.0.0"
 
 type Rumprun struct {
 	Command string     `json:"cmdline"`
@@ -94,7 +95,7 @@ func (r *Rumprun) Init(data UnikernelParams) error {
 		// FIXME: in the case of rumprun & k8s, we need to explicitly set the mask
 		// to an inclusive value (eg 1 or 0), as NetBSD complains and does not set the default gw
 		// if it is not reachable from the IP address directly.
-		mask, err := subnetMaskToCIDR(data.EthDeviceMask)
+		mask, err := subnetMaskToCIDR(SubnetMask125)
 		if err != nil {
 			return err
 		}
