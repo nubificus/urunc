@@ -98,6 +98,7 @@ func (r *Rumprun) Init(data UnikernelParams) error {
 		if err != nil {
 			return err
 		}
+		mask = 1
 		r.Net.Interface = "ukvmif0"
 		r.Net.Cloner = "True"
 		r.Net.Type = "inet"
