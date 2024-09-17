@@ -11,11 +11,17 @@ on:
 env:
   vm_profile: ubuntufat
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+
 jobs:
   prepare:
     name: VM test
     if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
-    runs-on: [ self-hosted, gcc, lite, "x86_64" ]
+    #runs-on: [ self-hosted, gcc, lite, "x86_64" ]
+    runs-on: ${{ format('{0}-{1}', join(fromJSON('["gcc","dind","2204"]'), '-'), 'amd64') }}
     # outputs:
 
     steps:
@@ -29,10 +35,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: get & install kcli
+    - name: get & install kcli & ssh
       id: kcli-install
       run: |
         curl -s https://raw.githubusercontent.com/karmab/kcli/main/install.sh | bash
+        sudo apt update && sudo apt install -y ssh genisoimage
 
     - name: 'Setup yq'
       uses: dcarbone/install-yq-action@v1.1.1

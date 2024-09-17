@@ -12,11 +12,16 @@ permissions:
   # allow read access to pull request. Use with `only-new-issues` option.
   pull-requests: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+
 jobs:
   unit-test:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     name: unit-test
-    runs-on: ubuntu-latest
+    runs-on: gcc-dind-2204-amd64
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
