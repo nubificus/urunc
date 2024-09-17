@@ -10,13 +10,19 @@ on:
   
   workflow_dispatch:
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+
 jobs:
   build:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
-    runs-on: [ self-hosted, "${{ matrix.archconfig }}", go]
+    runs-on: ${{ format('{0}-{1}', join(fromJSON('["go", "dind", "2204"]'), '-'), matrix.archconfig) }}
     strategy:
       matrix:
-        archconfig: [ x86_64, aarch64 ]
+        archconfig: [ amd64, arm64 ]
       fail-fast: false
     
     steps:
@@ -57,7 +63,7 @@ jobs:
         policy: 1
 
     - name: Upload urunc_amd64 to S3
-      if: matrix.archconfig == 'x86_64'
+      if: matrix.archconfig == 'amd64'
       uses: cloudkernels/minio-upload@v3
       with:
         url: https://s3.nbfc.io
@@ -79,7 +85,7 @@ jobs:
         policy: 1
 
     - name: Upload containerd-shim-urunc-v2_amd64 to S3
-      if: matrix.archconfig == 'x86_64'
+      if: matrix.archconfig == 'amd64'
       uses: cloudkernels/minio-upload@v3
       with:
         url: https://s3.nbfc.io
