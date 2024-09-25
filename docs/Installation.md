@@ -1,4 +1,9 @@
-# urunc installation guide
+---
+layout: default # Specifies the layout template (e.g., default.html)
+title: "Installation"  # Title of the page
+description: "Installation Guide"
+permalink: /installation/  # URL path for the page
+---
 
 This document guides you through the installation of `urunc` and all required components in a fresh Ubuntu 22.04 machine. An example unikernel spawn is also included.
 
