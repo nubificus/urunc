@@ -15,10 +15,8 @@
 package main
 
 import (
-	"errors"
 	"os"
 
-	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -42,30 +40,26 @@ your host.`,
 	},
 }
 
+// We keep it as a separate function, since it is also called from
+// the run command
 func startUnikontainer(context *cli.Context) error {
+	// No need to check if containerID is valid, because it will get
+	// checked later. We just want it for the metrics
 	containerID := context.Args().First()
-	if containerID == "" {
-		return ErrContainerID
-	}
 	metrics.Capture(containerID, "TS12")
 
-	// We have already made sure in main.go that root is not nil
-	rootDir := context.GlobalString("root")
-
 	// get Unikontainer data from state.json
-	unikontainer, err := unikontainers.Get(containerID, rootDir)
+	unikontainer, err := getUnikontainer(context)
 	if err != nil {
-		if errors.Is(err, unikontainers.ErrNotUnikernel) {
-			// Exec runc to handle non unikernel containers
-			return runcExec()
-		}
 		return err
 	}
 	metrics.Capture(containerID, "TS13")
+
 	err = unikontainer.SendStartExecve()
 	if err != nil {
 		return err
 	}
 	metrics.Capture(containerID, "TS14")
+
 	return unikontainer.ExecuteHooks("Poststart")
 }

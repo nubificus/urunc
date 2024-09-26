@@ -242,24 +242,17 @@ func createUnikontainer(context *cli.Context) error {
 // waits StartExecve message on urunc.sock,
 // executes Prestart hooks and finally execve's the unikernel vmm.
 func reexecUnikontainer(context *cli.Context) error {
+	// No need to check if containerID is valid, because it will get
+	// checked later. We just want it for the metrics
 	containerID := context.Args().First()
-	if containerID == "" {
-		return fmt.Errorf("container id cannot be empty")
-	}
 	metrics.Capture(containerID, "TS04")
 
-	// We have already made sure in main.go that root is not nil
-	rootDir := context.GlobalString("root")
-
 	// get Unikontainer data from state.json
-	unikontainer, err := unikontainers.Get(containerID, rootDir)
+	unikontainer, err := getUnikontainer(context)
 	if err != nil {
-		if errors.Is(err, unikontainers.ErrNotUnikernel) {
-			// Exec runc to handle non unikernel containers
-			return runcExec()
-		}
 		return err
 	}
+
 	metrics.Capture(containerID, "TS05")
 
 	// send ReexecStarted message to init.sock to parent process

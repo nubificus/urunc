@@ -15,10 +15,8 @@
 package main
 
 import (
-	"errors"
 	"os"
 
-	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -48,33 +46,17 @@ status of "ubuntu01" as "stopped" the following will delete resources held for
 			return err
 		}
 
-		return deleteUnikernelContainer(context)
-	},
-}
-
-func deleteUnikernelContainer(context *cli.Context) error {
-	containerID := context.Args().First()
-	if containerID == "" {
-		return ErrContainerID
-	}
-
-	// We have already made sure in main.go that root is not nil
-	rootDir := context.GlobalString("root")
-
-	// get Unikontainer data from state.json
-	unikontainer, err := unikontainers.Get(containerID, rootDir)
-	if err != nil {
-		if errors.Is(err, unikontainers.ErrNotUnikernel) {
-			// Exec runc to handle non unikernel containers
-			return runcExec()
-		}
-		return err
-	}
-	if context.Bool("force") {
-		err := unikontainer.Kill()
+		// get Unikontainer data from state.json
+		unikontainer, err := getUnikontainer(context)
 		if err != nil {
 			return err
 		}
-	}
-	return unikontainer.Delete()
+		if context.Bool("force") {
+			err := unikontainer.Kill()
+			if err != nil {
+				return err
+			}
+		}
+		return unikontainer.Delete()
+	},
 }
