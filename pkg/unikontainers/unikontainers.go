@@ -111,6 +111,9 @@ func Get(containerID string, rootDir string) (*Unikontainer, error) {
 	if err != nil {
 		return nil, err
 	}
+	if state.Annotations["com.urunc.unikernel.unikernelType"] == "" {
+		return nil, ErrNotUnikernel
+	}
 	u.State = state
 
 	spec, err := loadSpec(state.Bundle)

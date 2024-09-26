@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 
 	"github.com/nubificus/urunc/pkg/unikontainers"
@@ -46,23 +47,27 @@ status of "ubuntu01" as "stopped" the following will delete resources held for
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}
-		err := handleNonBimaContainer(context)
-		if err != nil {
-			return err
-		}
+
 		return deleteUnikernelContainer(context)
 	},
 }
 
 func deleteUnikernelContainer(context *cli.Context) error {
 	containerID := context.Args().First()
-	rootDir := context.GlobalString("root")
-	if rootDir == "" {
-		rootDir = "/run/urunc"
+	if containerID == "" {
+		return ErrContainerID
 	}
+
+	// We have already made sure in main.go that root is not nil
+	rootDir := context.GlobalString("root")
+
 	// get Unikontainer data from state.json
 	unikontainer, err := unikontainers.Get(containerID, rootDir)
 	if err != nil {
+		if errors.Is(err, unikontainers.ErrNotUnikernel) {
+			// Exec runc to handle non unikernel containers
+			return runcExec()
+		}
 		return err
 	}
 	if context.Bool("force") {

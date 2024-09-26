@@ -163,19 +163,6 @@ func handleQueueProxy(spec specs.Spec, configFile string) error {
 	return nil
 }
 
-// isBimaContainer attempts to find any bima related annotations
-// in the given bundle to verify the image is compatible with urunc
-func IsBimaContainer(bundle string) bool {
-	spec, err := loadSpec(bundle)
-	if err != nil {
-		Log.WithError(err).WithField("bundle", bundle).Error("Couldn't load spec from bundle")
-		return false
-	}
-
-	_, err = GetUnikernelConfig(bundle, spec)
-	return err == nil
-}
-
 func remove(s []string, i int) []string {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
