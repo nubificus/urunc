@@ -15,10 +15,8 @@
 package main
 
 import (
-	"errors"
 	"os"
 
-	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -52,27 +50,11 @@ signal to the init process of the "ubuntu01" container:
 			return err
 		}
 
-		return killUnikontainer(context)
-	},
-}
-
-func killUnikontainer(context *cli.Context) error {
-	containerID := context.Args().First()
-	if containerID == "" {
-		return ErrContainerID
-	}
-
-	// We have already made sure in main.go that root is not nil
-	rootDir := context.GlobalString("root")
-
-	// get Unikontainer data from state.json
-	unikontainer, err := unikontainers.Get(containerID, rootDir)
-	if err != nil {
-		if errors.Is(err, unikontainers.ErrNotUnikernel) {
-			// Exec runc to handle non unikernel containers
-			return runcExec()
+		// get Unikontainer data from state.json
+		unikontainer, err := getUnikontainer(context)
+		if err != nil {
+			return err
 		}
-		return err
-	}
-	return unikontainer.Kill()
+		return unikontainer.Kill()
+	},
 }

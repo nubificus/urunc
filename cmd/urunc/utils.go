@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -32,7 +33,7 @@ const (
 	maxArgs          // Checks for a maximum number of arguments.
 )
 
-var ErrContainerID = errors.New("Container ID can not be empty")
+var ErrEmptyContainerID = errors.New("Container ID can not be empty")
 
 // checkArgs checks the number of arguments provided in the command-line context
 // against the expected number, based on the specified checkType.
@@ -61,6 +62,30 @@ func checkArgs(context *cli.Context, expected, checkType int) error {
 		return err
 	}
 	return nil
+}
+
+func getUnikontainer(context *cli.Context) (*unikontainers.Unikontainer, error) {
+	containerID := context.Args().First()
+	if containerID == "" {
+		return nil, ErrEmptyContainerID
+	}
+
+	// We have already made sure in main.go that root is not nil
+	rootDir := context.GlobalString("root")
+
+	// get Unikontainer data from state.json
+	unikontainer, err := unikontainers.Get(containerID, rootDir)
+	if err != nil {
+		if errors.Is(err, unikontainers.ErrNotUnikernel) {
+			// Exec runc to handle non unikernel containers
+			// It should never return
+			err = runcExec()
+			return nil, err
+		}
+		return nil, err
+	}
+
+	return unikontainer, nil
 }
 
 func runcExec() error {
