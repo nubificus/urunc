@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 
 	"github.com/nubificus/urunc/pkg/unikontainers"
@@ -33,14 +34,8 @@ your host.`,
 	Description: `The start command executes the user defined process in a created container.`,
 	Action: func(context *cli.Context) error {
 		// FIXME: Remove or change level of log
-		containerID := context.Args().First()
 		logrus.WithField("args", os.Args).Info("urunc INVOKED")
-		metrics.Capture(containerID, "TS12")
 		if err := checkArgs(context, 1, exactArgs); err != nil {
-			return err
-		}
-		err := handleNonBimaContainer(context)
-		if err != nil {
 			return err
 		}
 		return startUnikontainer(context)
@@ -49,13 +44,21 @@ your host.`,
 
 func startUnikontainer(context *cli.Context) error {
 	containerID := context.Args().First()
-	rootDir := context.GlobalString("root")
-	if rootDir == "" {
-		rootDir = "/run/urunc"
+	if containerID == "" {
+		return ErrContainerID
 	}
+	metrics.Capture(containerID, "TS12")
+
+	// We have already made sure in main.go that root is not nil
+	rootDir := context.GlobalString("root")
+
 	// get Unikontainer data from state.json
 	unikontainer, err := unikontainers.Get(containerID, rootDir)
 	if err != nil {
+		if errors.Is(err, unikontainers.ErrNotUnikernel) {
+			// Exec runc to handle non unikernel containers
+			return runcExec()
+		}
 		return err
 	}
 	metrics.Capture(containerID, "TS13")

@@ -13,7 +13,7 @@ The timestamps currently depicting each unikernel container execution are the fo
 | TS02         | create  | initial setup completed                       |
 | TS03         | create  | start reexec process (with or without pty)    |
 | TS04         | reexec  | `urunc create --reexec` was invoked           |
-| TS05         | reexec  | unikontainer struct created for spec          |
+| TS05         | reexec  | unikontainer struct created from spec         |
 | TS06         | reexec  | sent `BOOTED` IPC message to `create` process |
 | TS07         | create  | received `BOOTED` message from `reexec`       |
 | TS08         | create  | executed `CreateRuntime` hooks                |
@@ -21,20 +21,13 @@ The timestamps currently depicting each unikernel container execution are the fo
 | TS10         | reexec  | received `ACK` message from `create`          |
 | TS11         | create  | `urunc create` terminated                     |
 | TS12         | start   | `urunc start` was invoked                     |
-| TS13         | start   | unikontainer struct created for spec          |
+| TS13         | start   | unikontainer struct created from spec         |
 | TS14         | start   | sent `START` IPC message to `reexec`          |
 | TS15         | reexec  | received `START` message from `start`         |
 | TS16         | reexec  | joined sandbox network namespace              |
 | TS17         | reexec  | network setup completed                       |
 | TS18         | reexec  | disk setup completed                          |
 | TS19         | reexec  | `execve` the hypervisor process               |
-
-In addition to these timestamps, two more are added to measure the delay caused by the `handleNonBimaContainer` function that is run every time `urunc` is invoked:
-
-| Timestamp ID | Description                               |
-|--------------|-------------------------------------------|
-| cTS00        | before invoking  `handleNonBimaContainer` |
-| cTS01        | after invoking  `handleNonBimaContainer`  |
 
 ## Timestamping logging method
 

@@ -74,14 +74,6 @@ var createCommand = cli.Command{
 			return createUnikontainer(context)
 		}
 
-		err := handleNonBimaContainer(context)
-		if err != nil {
-			return err
-		}
-
-		containerID := context.Args().First()
-		metrics.Capture(containerID, "TS04")
-
 		return reexecUnikontainer(context)
 	},
 }
@@ -251,14 +243,21 @@ func createUnikontainer(context *cli.Context) error {
 // executes Prestart hooks and finally execve's the unikernel vmm.
 func reexecUnikontainer(context *cli.Context) error {
 	containerID := context.Args().First()
-	rootDir := context.GlobalString("root")
-	if rootDir == "" {
-		rootDir = "/run/urunc"
+	if containerID == "" {
+		return fmt.Errorf("container id cannot be empty")
 	}
+	metrics.Capture(containerID, "TS04")
+
+	// We have already made sure in main.go that root is not nil
+	rootDir := context.GlobalString("root")
 
 	// get Unikontainer data from state.json
 	unikontainer, err := unikontainers.Get(containerID, rootDir)
 	if err != nil {
+		if errors.Is(err, unikontainers.ErrNotUnikernel) {
+			// Exec runc to handle non unikernel containers
+			return runcExec()
+		}
 		return err
 	}
 	metrics.Capture(containerID, "TS05")

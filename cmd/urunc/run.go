@@ -66,10 +66,6 @@ var runCommand = cli.Command{
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}
-		err := handleNonBimaContainer(context)
-		if err != nil {
-			return err
-		}
 
 		// FIXME: This is a refactor of what the previous code did, however I have a feeling
 		// that it will not work...

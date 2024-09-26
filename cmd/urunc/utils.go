@@ -15,12 +15,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
 
-	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -31,6 +31,8 @@ const (
 	minArgs          // Checks for a minimum number of arguments.
 	maxArgs          // Checks for a maximum number of arguments.
 )
+
+var ErrContainerID = errors.New("Container ID can not be empty")
 
 // checkArgs checks the number of arguments provided in the command-line context
 // against the expected number, based on the specified checkType.
@@ -59,37 +61,6 @@ func checkArgs(context *cli.Context, expected, checkType int) error {
 		return err
 	}
 	return nil
-}
-
-// handleNonBimaContainer check if bundle is supported by urunc
-// if not, it execve's itself using the exact same arguments and runc
-func handleNonBimaContainer(context *cli.Context) error {
-	containerID := context.Args().First()
-	metrics.Capture(containerID, "cTS00")
-	defer func() {
-		metrics.Capture(containerID, "cTS01")
-	}()
-	if containerID == "" {
-		// cli.ShowAppHelpAndExit(context, 129)
-		return nil
-	}
-	bundle := context.String("bundle")
-	if bundle == "" {
-		rootDir := context.GlobalString("root")
-		// get Unikontainer data from state.json
-		unikontainer, err := unikontainers.Get(containerID, rootDir)
-		if err != nil {
-			return err
-		}
-		bundle = unikontainer.State.Bundle
-	}
-
-	if unikontainers.IsBimaContainer(bundle) {
-		logrus.Info("This is a bima container! Proceeding...")
-		return nil
-	}
-	logrus.Info("This is a normal container. Calling runc...")
-	return runcExec()
 }
 
 func runcExec() error {
