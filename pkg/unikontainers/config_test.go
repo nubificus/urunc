@@ -107,11 +107,11 @@ func TestGetConfigFromJSON(t *testing.T) {
 		configData, err := json.Marshal(expectedConfig)
 		assert.NoError(t, err)
 
-		rootfsDir := filepath.Join(tempDir, "rootfs")
+		rootfsDir := filepath.Join(tempDir, rootfsDirName)
 		err = os.Mkdir(rootfsDir, 0755)
 		assert.NoError(t, err)
 
-		configPath := filepath.Join(rootfsDir, "urunc.json")
+		configPath := filepath.Join(rootfsDir, uruncJsonFilename)
 		err = os.WriteFile(configPath, configData, 0600)
 		assert.NoError(t, err)
 
@@ -128,7 +128,8 @@ func TestGetConfigFromJSON(t *testing.T) {
 
 		// Call the function with a missing urunc.json file
 		_, err := getConfigFromJSON(tempDir)
-		assert.Error(t, err, "Expected an error for missing urunc.json file")
+		assert.Error(t, err, "Expected an error for missing "+
+			uruncJsonFilename+" file")
 		assert.Contains(t, err.Error(), "no such file or directory", "Expected specific error message")
 	})
 
@@ -138,17 +139,17 @@ func TestGetConfigFromJSON(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Create a directory instead of a urunc.json file
-		rootfsDir := filepath.Join(tempDir, "rootfs")
+		rootfsDir := filepath.Join(tempDir, rootfsDirName)
 		err := os.Mkdir(rootfsDir, 0755)
 		assert.NoError(t, err)
-		configDirPath := filepath.Join(rootfsDir, "urunc.json")
+		configDirPath := filepath.Join(rootfsDir, uruncJsonFilename)
 		err = os.Mkdir(configDirPath, 0755)
 		assert.NoError(t, err)
 
 		// Call the function
 		_, err = getConfigFromJSON(tempDir)
-		assert.Error(t, err, "Expected an error for urunc.json being a directory")
-		assert.Contains(t, err.Error(), "urunc.json is a directory", "Expected specific error message")
+		assert.Error(t, err, "Expected an error for "+uruncJsonFilename+" being a directory")
+		assert.Contains(t, err.Error(), uruncJsonFilename+" is a directory", "Expected specific error message")
 	})
 
 	t.Run("get config from invalid JSON", func(t *testing.T) {
@@ -157,17 +158,17 @@ func TestGetConfigFromJSON(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Create an invalid urunc.json file
-		rootfsDir := filepath.Join(tempDir, "rootfs")
+		rootfsDir := filepath.Join(tempDir, rootfsDirName)
 		err := os.Mkdir(rootfsDir, 0755)
 		assert.NoError(t, err)
 
-		configPath := filepath.Join(rootfsDir, "urunc.json")
+		configPath := filepath.Join(rootfsDir, uruncJsonFilename)
 		err = os.WriteFile(configPath, []byte("invalid json"), 0600)
 		assert.NoError(t, err)
 
 		// Call the function
 		_, err = getConfigFromJSON(tempDir)
-		assert.Error(t, err, "Expected an error for invalid urunc.json file")
+		assert.Error(t, err, "Expected an error for invalid "+uruncJsonFilename+" file")
 		assert.Contains(t, err.Error(), "invalid character", "Expected specific error message")
 	})
 }

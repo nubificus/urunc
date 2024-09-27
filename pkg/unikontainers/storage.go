@@ -87,7 +87,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 		return "", err
 	}
 
-	currentUnikernelPath := filepath.Join(bundle, "rootfs", unikernel)
+	currentUnikernelPath := filepath.Join(bundle, rootfsDirName, unikernel)
 	targetUnikernelPath := filepath.Join(tmpDir, unikernel)
 	targetUnikernelDir, _ := filepath.Split(targetUnikernelPath)
 	err = moveFile(currentUnikernelPath, targetUnikernelDir)
@@ -100,7 +100,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 	}
 
 	if initrd != "" {
-		currentInitrdPath := filepath.Join(bundle, "rootfs", initrd)
+		currentInitrdPath := filepath.Join(bundle, rootfsDirName, initrd)
 		targetInitrdPath := filepath.Join(tmpDir, initrd)
 		targetInitrdDir, _ := filepath.Split(targetInitrdPath)
 		err = moveFile(currentInitrdPath, targetInitrdDir)
@@ -113,7 +113,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 		}
 	}
 
-	currentConfigPath := filepath.Join(bundle, "rootfs", uruncJSON)
+	currentConfigPath := filepath.Join(bundle, rootfsDirName, uruncJSON)
 	err = moveFile(currentConfigPath, tmpDir)
 	if err != nil {
 		err1 := os.RemoveAll(tmpDir)
@@ -132,7 +132,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 // directory as the container rootfs. This is needed to keep the same paths
 // for the unikernel files.
 func prepareDMAsBlock(bundle string, unikernel string, uruncJSON string, initrd string) error {
-	rootfsPath := filepath.Join(bundle, "rootfs")
+	rootfsPath := filepath.Join(bundle, rootfsDirName)
 	// extract unikernel
 	// FIXME: This approach fills up /run with unikernel binaries and
 	// urunc.json files for each unikernel instance we run
@@ -165,6 +165,6 @@ func prepareDMAsBlock(bundle string, unikernel string, uruncJSON string, initrd 
 // For the time being it acts as a placeholder for future changes, where we might
 // need to do more advanced things than removing files.
 func cleanupExtractedFiles(bundle string) error {
-	rootfsPath := filepath.Join(bundle, "rootfs")
+	rootfsPath := filepath.Join(bundle, rootfsDirName)
 	return os.RemoveAll(rootfsPath)
 }
