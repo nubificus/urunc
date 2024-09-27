@@ -29,6 +29,23 @@ import (
 
 var ErrEmptyAnnotations = errors.New("spec annotations are empty")
 
+// Important: Unfortunately GOlang does not allow to use constant values for
+// struct tagsAs a result, please always keep the constant definitions and the
+// UnikernelConfig struct below in sync.
+
+// Urunc specific annotations
+// ALways keep it in sync with the struct UnikernelConfig struct
+const (
+	annotType          = "com.urunc.unikernel.unikernelType"
+	annotBinary        = "com.urunc.unikernel.binary"
+	annotCmdLine       = "com.urunc.unikernel.cmdline"
+	annotHypervisor    = "com.urunc.unikernel.hypervisor"
+	annotInitrd        = "com.urunc.unikernel.initrd"
+	annotBlock         = "com.urunc.unikernel.block"
+	annotBlockMntPoint = "com.urunc.unikernel.blkMntPoint"
+	annotUseDMBlock    = "com.urunc.unikernel.useDMBlock"
+)
+
 // A UnikernelConfig struct holds the info provided by bima image on how to execute our unikernel
 type UnikernelConfig struct {
 	UnikernelType   string `json:"com.urunc.unikernel.unikernelType"`
@@ -69,14 +86,14 @@ func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, e
 
 // getConfigFromSpec retrieves the urunc specific annotations from the spec and populates the Unikernel config.
 func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
-	unikernelType := spec.Annotations["com.urunc.unikernel.unikernelType"]
-	unikernelCmd := spec.Annotations["com.urunc.unikernel.cmdline"]
-	unikernelBinary := spec.Annotations["com.urunc.unikernel.binary"]
-	hypervisor := spec.Annotations["com.urunc.unikernel.hypervisor"]
-	initrd := spec.Annotations["com.urunc.unikernel.initrd"]
-	block := spec.Annotations["com.urunc.unikernel.block"]
-	blkMntPoint := spec.Annotations["com.urunc.unikernel.blkMntPoint"]
-	useDMBlock := spec.Annotations["com.urunc.unikernel.useDMBlock"]
+	unikernelType := spec.Annotations[annotType]
+	unikernelCmd := spec.Annotations[annotCmdLine]
+	unikernelBinary := spec.Annotations[annotBinary]
+	hypervisor := spec.Annotations[annotHypervisor]
+	initrd := spec.Annotations[annotInitrd]
+	block := spec.Annotations[annotBlock]
+	blkMntPoint := spec.Annotations[annotBlockMntPoint]
+	useDMBlock := spec.Annotations[annotUseDMBlock]
 
 	Log.WithFields(logrus.Fields{
 		"unikernelType":   unikernelType,
@@ -108,7 +125,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 
 // getConfigFromJSON retrieves the Unikernel config parameters from the urunc.json file inside the rootfs.
 func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
-	jsonFilePath := filepath.Join(bundleDir, rootfsDirName, uruncJsonFilename)
+	jsonFilePath := filepath.Join(bundleDir, rootfsDirName, uruncJSONFilename)
 	file, err := os.Open(jsonFilePath)
 	if err != nil {
 		return nil, err
@@ -120,7 +137,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		return nil, err
 	}
 	if fileInfo.IsDir() {
-		return nil, errors.New(uruncJsonFilename + " is a directory")
+		return nil, errors.New(uruncJSONFilename + " is a directory")
 	}
 
 	byteData, err := io.ReadAll(file)
@@ -142,7 +159,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		"block":           conf.Block,
 		"blkMntPoint":     conf.BlkMntPoint,
 		"useDMBlock":      conf.UseDMBlock,
-	}).Info(uruncJsonFilename + " annotations")
+	}).Info(uruncJSONFilename + " annotations")
 	return &conf, nil
 }
 
@@ -203,30 +220,30 @@ func (c *UnikernelConfig) decode() error {
 func (c *UnikernelConfig) Map() map[string]string {
 	myMap := make(map[string]string)
 	if c.UnikernelCmd != "" {
-		myMap["com.urunc.unikernel.cmdline"] = c.UnikernelCmd
+		myMap[annotCmdLine] = c.UnikernelCmd
 	}
 	if c.UnikernelType != "" {
-		myMap["com.urunc.unikernel.unikernelType"] = c.UnikernelType
+		myMap[annotType] = c.UnikernelType
 	}
 	if c.Hypervisor != "" {
-		myMap["com.urunc.unikernel.hypervisor"] = c.Hypervisor
+		myMap[annotHypervisor] = c.Hypervisor
 	}
 	if c.UnikernelBinary != "" {
-		myMap["com.urunc.unikernel.binary"] = c.UnikernelBinary
+		myMap[annotBinary] = c.UnikernelBinary
 	}
 	if c.Initrd != "" {
-		myMap["com.urunc.unikernel.initrd"] = c.Initrd
+		myMap[annotInitrd] = c.Initrd
 	}
 	if c.Block != "" {
-		myMap["com.urunc.unikernel.block"] = c.Block
+		myMap[annotBlock] = c.Block
 	}
 	if c.BlkMntPoint != "" {
-		myMap["com.urunc.unikernel.blkMntPoint"] = c.BlkMntPoint
+		myMap[annotBlockMntPoint] = c.BlkMntPoint
 	}
 	if c.UseDMBlock != "" {
-		myMap["com.urunc.unikernel.useDMBlock"] = c.UseDMBlock
+		myMap[annotUseDMBlock] = c.UseDMBlock
 	} else {
-		myMap["com.urunc.unikernel.useDMBlock"] = os.Getenv("USE_DEVMAPPER_AS_BLOCK")
+		myMap[annotUseDMBlock] = os.Getenv("USE_DEVMAPPER_AS_BLOCK")
 	}
 
 	return myMap

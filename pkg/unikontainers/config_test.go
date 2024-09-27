@@ -30,14 +30,14 @@ func TestGetConfigFromSpec(t *testing.T) {
 		t.Parallel()
 		spec := &specs.Spec{
 			Annotations: map[string]string{
-				"com.urunc.unikernel.unikernelType": "type1",
-				"com.urunc.unikernel.cmdline":       "cmd1",
-				"com.urunc.unikernel.binary":        "binary1",
-				"com.urunc.unikernel.hypervisor":    "hypervisor1",
-				"com.urunc.unikernel.initrd":        "initrd1",
-				"com.urunc.unikernel.block":         "block1",
-				"com.urunc.unikernel.blkMntPoint":   "point1",
-				"com.urunc.unikernel.useDMBlock":    "true",
+				annotType:          "type1",
+				annotCmdLine:       "cmd1",
+				annotBinary:        "binary1",
+				annotHypervisor:    "hypervisor1",
+				annotInitrd:        "initrd1",
+				annotBlock:         "block1",
+				annotBlockMntPoint: "point1",
+				annotUseDMBlock:    "true",
 			},
 		}
 
@@ -73,7 +73,7 @@ func TestGetConfigFromSpec(t *testing.T) {
 		t.Parallel()
 		spec := &specs.Spec{
 			Annotations: map[string]string{
-				"com.urunc.unikernel.unikernelType": "type1",
+				annotType: "type1",
 			},
 		}
 
@@ -111,7 +111,7 @@ func TestGetConfigFromJSON(t *testing.T) {
 		err = os.Mkdir(rootfsDir, 0755)
 		assert.NoError(t, err)
 
-		configPath := filepath.Join(rootfsDir, uruncJsonFilename)
+		configPath := filepath.Join(rootfsDir, uruncJSONFilename)
 		err = os.WriteFile(configPath, configData, 0600)
 		assert.NoError(t, err)
 
@@ -129,7 +129,7 @@ func TestGetConfigFromJSON(t *testing.T) {
 		// Call the function with a missing urunc.json file
 		_, err := getConfigFromJSON(tempDir)
 		assert.Error(t, err, "Expected an error for missing "+
-			uruncJsonFilename+" file")
+			uruncJSONFilename+" file")
 		assert.Contains(t, err.Error(), "no such file or directory", "Expected specific error message")
 	})
 
@@ -142,14 +142,14 @@ func TestGetConfigFromJSON(t *testing.T) {
 		rootfsDir := filepath.Join(tempDir, rootfsDirName)
 		err := os.Mkdir(rootfsDir, 0755)
 		assert.NoError(t, err)
-		configDirPath := filepath.Join(rootfsDir, uruncJsonFilename)
+		configDirPath := filepath.Join(rootfsDir, uruncJSONFilename)
 		err = os.Mkdir(configDirPath, 0755)
 		assert.NoError(t, err)
 
 		// Call the function
 		_, err = getConfigFromJSON(tempDir)
-		assert.Error(t, err, "Expected an error for "+uruncJsonFilename+" being a directory")
-		assert.Contains(t, err.Error(), uruncJsonFilename+" is a directory", "Expected specific error message")
+		assert.Error(t, err, "Expected an error for "+uruncJSONFilename+" being a directory")
+		assert.Contains(t, err.Error(), uruncJSONFilename+" is a directory", "Expected specific error message")
 	})
 
 	t.Run("get config from invalid JSON", func(t *testing.T) {
@@ -162,13 +162,13 @@ func TestGetConfigFromJSON(t *testing.T) {
 		err := os.Mkdir(rootfsDir, 0755)
 		assert.NoError(t, err)
 
-		configPath := filepath.Join(rootfsDir, uruncJsonFilename)
+		configPath := filepath.Join(rootfsDir, uruncJSONFilename)
 		err = os.WriteFile(configPath, []byte("invalid json"), 0600)
 		assert.NoError(t, err)
 
 		// Call the function
 		_, err = getConfigFromJSON(tempDir)
-		assert.Error(t, err, "Expected an error for invalid "+uruncJsonFilename+" file")
+		assert.Error(t, err, "Expected an error for invalid "+uruncJSONFilename+" file")
 		assert.Contains(t, err.Error(), "invalid character", "Expected specific error message")
 	})
 }
@@ -237,14 +237,14 @@ func TestMap(t *testing.T) {
 			UseDMBlock:      "false",
 		}
 		expectedMap := map[string]string{
-			"com.urunc.unikernel.cmdline":       "cmd_value",
-			"com.urunc.unikernel.unikernelType": "type_value",
-			"com.urunc.unikernel.hypervisor":    "hypervisor_value",
-			"com.urunc.unikernel.binary":        "binary_value",
-			"com.urunc.unikernel.initrd":        "initrd_value",
-			"com.urunc.unikernel.block":         "block_value",
-			"com.urunc.unikernel.blkMntPoint":   "point_value",
-			"com.urunc.unikernel.useDMBlock":    "false",
+			annotCmdLine:       "cmd_value",
+			annotType:          "type_value",
+			annotHypervisor:    "hypervisor_value",
+			annotBinary:        "binary_value",
+			annotInitrd:        "initrd_value",
+			annotBlock:         "block_value",
+			annotBlockMntPoint: "point_value",
+			annotUseDMBlock:    "false",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
@@ -262,7 +262,7 @@ func TestMap(t *testing.T) {
 			UseDMBlock:      "",
 		}
 		expectedMap := map[string]string{
-			"com.urunc.unikernel.useDMBlock": "",
+			annotUseDMBlock: "",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
@@ -280,11 +280,11 @@ func TestMap(t *testing.T) {
 			UseDMBlock:      "0",
 		}
 		expectedMap := map[string]string{
-			"com.urunc.unikernel.cmdline":     "cmd_value",
-			"com.urunc.unikernel.binary":      "binary_value",
-			"com.urunc.unikernel.initrd":      "initrd_value",
-			"com.urunc.unikernel.blkMntPoint": "point_value",
-			"com.urunc.unikernel.useDMBlock":  "0",
+			annotCmdLine:       "cmd_value",
+			annotBinary:        "binary_value",
+			annotInitrd:        "initrd_value",
+			annotBlockMntPoint: "point_value",
+			annotUseDMBlock:    "0",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)
@@ -294,7 +294,7 @@ func TestMap(t *testing.T) {
 		t.Parallel()
 		config := &UnikernelConfig{}
 		expectedMap := map[string]string{
-			"com.urunc.unikernel.useDMBlock": "",
+			annotUseDMBlock: "",
 		}
 		resultMap := config.Map()
 		assert.Equal(t, expectedMap, resultMap)

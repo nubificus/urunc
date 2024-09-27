@@ -31,7 +31,7 @@ const (
 	configFilename    = "config.json"
 	stateFilename     = "state.json"
 	initPidFilename   = "init.pid"
-	uruncJsonFilename = "urunc.json"
+	uruncJSONFilename = "urunc.json"
 	rootfsDirName     = "rootfs"
 )
 

@@ -113,7 +113,7 @@ func Get(containerID string, rootDir string) (*Unikontainer, error) {
 	if err != nil {
 		return nil, err
 	}
-	if state.Annotations["com.urunc.unikernel.unikernelType"] == "" {
+	if state.Annotations[annotType] == "" {
 		return nil, ErrNotUnikernel
 	}
 	u.State = state
@@ -163,10 +163,10 @@ func (u *Unikontainer) Exec() error {
 
 	metrics.Capture(u.State.ID, "TS16")
 
-	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
-	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
-	unikernelPath := u.State.Annotations["com.urunc.unikernel.binary"]
-	initrdPath := u.State.Annotations["com.urunc.unikernel.initrd"]
+	vmmType := u.State.Annotations[annotHypervisor]
+	unikernelType := u.State.Annotations[annotType]
+	unikernelPath := u.State.Annotations[annotBinary]
+	initrdPath := u.State.Annotations[annotInitrd]
 	rootfsDir := filepath.Join(u.State.Bundle, rootfsDirName)
 	unikernelAbsPath := filepath.Join(rootfsDir, unikernelPath)
 	initrdAbsPath := ""
@@ -192,7 +192,7 @@ func (u *Unikontainer) Exec() error {
 
 	// populate unikernel params
 	unikernelParams := unikernels.UnikernelParams{
-		CmdLine: u.State.Annotations["com.urunc.unikernel.cmdline"],
+		CmdLine: u.State.Annotations[annotCmdLine],
 	}
 
 	// handle network
@@ -243,14 +243,14 @@ func (u *Unikontainer) Exec() error {
 	// block/FS of devmapper) then we wiil use the devmapper as a block device
 	// for the unikernel.
 	useDevmapper := false
-	useDevmapper, err = strconv.ParseBool(u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+	useDevmapper, err = strconv.ParseBool(u.State.Annotations[annotUseDMBlock])
 	if err != nil {
 		Log.Errorf("Invalide value in useDMBlock: %s. Urunc will try to use it",
-			u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+			u.State.Annotations[annotUseDMBlock])
 		useDevmapper = true
 	}
-	if u.State.Annotations["com.urunc.unikernel.block"] != "" && unikernel.SupportsBlock() {
-		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations["com.urunc.unikernel.block"])
+	if u.State.Annotations[annotBlock] != "" && unikernel.SupportsBlock() {
+		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations[annotBlock])
 	}
 
 	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
@@ -259,7 +259,7 @@ func (u *Unikontainer) Exec() error {
 			return err
 		}
 		if unikernel.SupportsFS(rootFsDevice.FsType) {
-			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, uruncJsonFilename, initrdPath)
+			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, uruncJSONFilename, initrdPath)
 			if err != nil {
 				return err
 			}
@@ -308,7 +308,7 @@ func (u *Unikontainer) Exec() error {
 // Kill stops the VMM process, first by asking the VMM struct to stop
 // and consequently by killing the process described in u.State.Pid
 func (u *Unikontainer) Kill() error {
-	vmmType := u.State.Annotations["com.urunc.unikernel.hypervisor"]
+	vmmType := u.State.Annotations[annotHypervisor]
 	vmm, err := hypervisors.NewVMM(hypervisors.VmmType(vmmType))
 	if err != nil {
 		return err
@@ -346,17 +346,17 @@ func (u *Unikontainer) Delete() error {
 	if u.isRunning() {
 		return fmt.Errorf("cannot delete running unikernel: %s", u.State.ID)
 	}
-	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
+	unikernelType := u.State.Annotations[annotType]
 	unikernel, err := unikernels.New(unikernels.UnikernelType(unikernelType))
 	if err != nil {
 		return err
 	}
 	useDevmapper := false
-	useDevmapper, err = strconv.ParseBool(u.State.Annotations["com.urunc.unikernel.useDMBlock"])
+	useDevmapper, err = strconv.ParseBool(u.State.Annotations[annotUseDMBlock])
 	if err != nil {
 		useDevmapper = true
 	}
-	annotBlock := u.State.Annotations["com.urunc.unikernel.block"]
+	annotBlock := u.State.Annotations[annotBlock]
 	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
 		err := cleanupExtractedFiles(u.State.Bundle)
 		if err != nil {
@@ -621,7 +621,7 @@ func (u *Unikontainer) SendStartExecve() error {
 
 // isRunning returns true if the PID is alive or hedge.ListVMs returns our containerID
 func (u *Unikontainer) isRunning() bool {
-	vmmType := hypervisors.VmmType(u.State.Annotations["com.urunc.unikernel.type"])
+	vmmType := hypervisors.VmmType(u.State.Annotations[annotType])
 	if vmmType != hypervisors.HedgeVmm {
 		return syscall.Kill(u.State.Pid, syscall.Signal(0)) == nil
 	}
