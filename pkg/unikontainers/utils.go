@@ -27,6 +27,14 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
+const (
+	configFilename    = "config.json"
+	stateFilename     = "state.json"
+	initPidFilename   = "init.pid"
+	uruncJsonFilename = "urunc.json"
+	rootfsDirName     = "rootfs"
+)
+
 // getInitPid extracts "init_process_pid" value from the given JSON file
 func getInitPid(filePath string) (float64, error) {
 	// Open the JSON file for reading
@@ -92,17 +100,22 @@ func moveFile(sourceFile string, targetDir string) error {
 // loadSpec returns the Spec found in the given bundle directory
 func loadSpec(bundleDir string) (*specs.Spec, error) {
 	var spec specs.Spec
-	absDir, err := filepath.Abs(bundleDir)
+
+	absBundleDir, err := filepath.Abs(bundleDir)
 	if err != nil {
-		return &spec, fmt.Errorf("failed to find absolute bundle path: %w", err)
+		return nil, fmt.Errorf("failed to find absolute path of bundle: %w", err)
 	}
-	data, err := os.ReadFile(filepath.Join(absDir, "config.json"))
+
+	configFile := filepath.Join(absBundleDir, configFilename)
+	specData, err := os.ReadFile(configFile)
 	if err != nil {
-		return &spec, fmt.Errorf("failed to read config.json: %w", err)
+		return nil, fmt.Errorf("failed to read specification file: %w", err)
 	}
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return &spec, fmt.Errorf("failed to parse config.json: %w", err)
+
+	if err := json.Unmarshal(specData, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse specification json: %w", err)
 	}
+
 	return &spec, nil
 }
 

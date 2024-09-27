@@ -108,7 +108,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 
 // getConfigFromJSON retrieves the Unikernel config parameters from the urunc.json file inside the rootfs.
 func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
-	jsonFilePath := filepath.Join(bundleDir, "rootfs", "urunc.json")
+	jsonFilePath := filepath.Join(bundleDir, rootfsDirName, uruncJsonFilename)
 	file, err := os.Open(jsonFilePath)
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		return nil, err
 	}
 	if fileInfo.IsDir() {
-		return nil, errors.New("urunc.json is a directory")
+		return nil, errors.New(uruncJsonFilename + " is a directory")
 	}
 
 	byteData, err := io.ReadAll(file)
@@ -142,7 +142,7 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		"block":           conf.Block,
 		"blkMntPoint":     conf.BlkMntPoint,
 		"useDMBlock":      conf.UseDMBlock,
-	}).Info("urunc.json annotations")
+	}).Info(uruncJsonFilename + " annotations")
 	return &conf, nil
 }
 

@@ -26,6 +26,7 @@ import (
 const (
 	FirecrackerVmm    VmmType = "firecracker"
 	FirecrackerBinary string  = "firecracker"
+	FCJsonFilename    string  = "fc.json"
 )
 
 type Firecracker struct {
@@ -80,7 +81,7 @@ func (fc *Firecracker) Path() string {
 func (fc *Firecracker) Execve(args ExecArgs) error {
 	cmdString := fc.Path() + " --no-api --config-file "
 	JSONConfigDir := filepath.Dir(args.UnikernelPath)
-	JSONConfigFile := filepath.Join(JSONConfigDir, "fc.json")
+	JSONConfigFile := filepath.Join(JSONConfigDir, FCJsonFilename)
 	cmdString += JSONConfigFile
 	if !args.Seccomp {
 		cmdString += " --no-seccomp"

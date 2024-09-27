@@ -59,6 +59,7 @@ type Unikontainer struct {
 	State   *specs.State
 	Spec    *specs.Spec
 	BaseDir string
+	RootDir string
 }
 
 // New parses the bundle and creates a new Unikontainer object
@@ -71,7 +72,7 @@ func New(bundlePath string, containerID string, rootDir string) (*Unikontainer, 
 	containerName := spec.Annotations["io.kubernetes.cri.container-name"]
 	if containerName == "queue-proxy" {
 		logrus.Info("This is a queue-proxy container. Adding IP env.")
-		configFile := filepath.Join(bundlePath, "config.json")
+		configFile := filepath.Join(bundlePath, configFilename)
 		err = handleQueueProxy(*spec, configFile)
 		if err != nil {
 			return nil, err
@@ -97,6 +98,7 @@ func New(bundlePath string, containerID string, rootDir string) (*Unikontainer, 
 	}
 	return &Unikontainer{
 		BaseDir: containerDir,
+		RootDir: rootDir,
 		Spec:    spec,
 		State:   state,
 	}, nil
@@ -106,7 +108,7 @@ func New(bundlePath string, containerID string, rootDir string) (*Unikontainer, 
 func Get(containerID string, rootDir string) (*Unikontainer, error) {
 	u := &Unikontainer{}
 	containerDir := filepath.Join(rootDir, containerID)
-	stateFilePath := filepath.Join(containerDir, "state.json")
+	stateFilePath := filepath.Join(containerDir, stateFilename)
 	state, err := loadUnikontainerState(stateFilePath)
 	if err != nil {
 		return nil, err
@@ -121,6 +123,7 @@ func Get(containerID string, rootDir string) (*Unikontainer, error) {
 		return nil, err
 	}
 	u.BaseDir = containerDir
+	u.RootDir = rootDir
 	u.Spec = spec
 	return u, nil
 }
@@ -141,7 +144,7 @@ func (u *Unikontainer) InitialSetup() error {
 // Create sets the Unikernel status as created,
 // and saves the given PID in init.pid
 func (u *Unikontainer) Create(pid int) error {
-	err := writePidFile(filepath.Join(u.State.Bundle, "init.pid"), pid)
+	err := writePidFile(filepath.Join(u.State.Bundle, initPidFilename), pid)
 	if err != nil {
 		return err
 	}
@@ -164,7 +167,7 @@ func (u *Unikontainer) Exec() error {
 	unikernelType := u.State.Annotations["com.urunc.unikernel.unikernelType"]
 	unikernelPath := u.State.Annotations["com.urunc.unikernel.binary"]
 	initrdPath := u.State.Annotations["com.urunc.unikernel.initrd"]
-	rootfsDir := filepath.Join(u.State.Bundle, "rootfs")
+	rootfsDir := filepath.Join(u.State.Bundle, rootfsDirName)
 	unikernelAbsPath := filepath.Join(rootfsDir, unikernelPath)
 	initrdAbsPath := ""
 	if initrdPath != "" {
@@ -256,7 +259,7 @@ func (u *Unikontainer) Exec() error {
 			return err
 		}
 		if unikernel.SupportsFS(rootFsDevice.FsType) {
-			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, "urunc.json", initrdPath)
+			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, uruncJsonFilename, initrdPath)
 			if err != nil {
 				return err
 			}
@@ -372,9 +375,9 @@ func (u Unikontainer) joinSandboxNetNs() error {
 	if sandboxID == "" {
 		return nil
 	}
-	ctrNamespace := filepath.Base(filepath.Dir(u.BaseDir))
-	sandboxStatePath := filepath.Join("/run/containerd/runc", ctrNamespace, sandboxID, "state.json")
-	sandboxInitPid, err := getInitPid(sandboxStatePath)
+	containerDir := filepath.Join(u.RootDir, sandboxID)
+	stateFilePath := filepath.Join(containerDir, stateFilename)
+	sandboxInitPid, err := getInitPid(stateFilePath)
 	if err != nil {
 		return err
 	}
@@ -409,7 +412,7 @@ func (u *Unikontainer) saveContainerState() error {
 		return err
 	}
 
-	stateName := filepath.Join(u.BaseDir, "state.json")
+	stateName := filepath.Join(u.BaseDir, stateFilename)
 	return os.WriteFile(stateName, data, 0o644) //nolint: gosec
 }
 

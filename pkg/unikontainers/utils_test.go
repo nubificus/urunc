@@ -320,7 +320,7 @@ func TestLoadSpec(t *testing.T) {
 		configData, err := json.Marshal(spec)
 		assert.NoError(t, err)
 
-		configPath := filepath.Join(tempDir, "config.json")
+		configPath := filepath.Join(tempDir, configFilename)
 		err = os.WriteFile(configPath, configData, 0600)
 		assert.NoError(t, err)
 
@@ -345,8 +345,8 @@ func TestLoadSpec(t *testing.T) {
 
 		// Call the function with a valid bundle path but without config.json
 		_, err := loadSpec(tempDir)
-		assert.Error(t, err, "Expected an error for missing config.json file")
-		assert.Contains(t, err.Error(), "failed to read config.json", "Expected specific error message")
+		assert.Error(t, err, "Expected an error for missing "+configFilename+" file")
+		assert.Contains(t, err.Error(), "failed to read specification file", "Expected specific error message")
 	})
 
 	t.Run("load spec invalid config file", func(t *testing.T) {
@@ -355,13 +355,13 @@ func TestLoadSpec(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Create an invalid config.json file
-		configPath := filepath.Join(tempDir, "config.json")
+		configPath := filepath.Join(tempDir, configFilename)
 		err := os.WriteFile(configPath, []byte("invalid json"), 0600)
 		assert.NoError(t, err)
 
 		// Call the function
 		_, err = loadSpec(tempDir)
-		assert.Error(t, err, "Expected an error for invalid config.json file")
-		assert.Contains(t, err.Error(), "failed to parse config.json", "Expected specific error message")
+		assert.Error(t, err, "Expected an error for invalid "+configFilename+" file")
+		assert.Contains(t, err.Error(), "failed to parse specification json", "Expected specific error message")
 	})
 }
