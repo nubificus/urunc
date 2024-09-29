@@ -15,9 +15,23 @@
 site_name: urunc Documentation
 nav:
   - Home: index.md
+  - Quickstart: quickstart.md
+  - Installation: installation.md
+  - Hypervisor Support: hypervisor-support.md
+  - Unikernel Support: unikernel-support.md
+  - Container image building: image-building.md
+  - Design:
+      - design/*.md
+  - Developer Guide: 
+      - developer-guide/*.md
+      - API Reference: https://pkg.go.dev/github.com/nubificus/urunc@v0.3.0/pkg/unikontainers
+  - Tutorials:
+      - tutorials/*.md
 
 theme:
   name: material
+  favicon: img/urunc-logo.png
+  logo: img/urunc-logo.png
   palette: 
 
     # Palette toggle for light mode
@@ -50,3 +64,11 @@ toc:
   - permalink: true
 
 copyright: Copyright &copy; 2022 - 2024 Nubificus LTD
+
+extra_css:
+  - stylesheets/extra.css
+gtags:
+  - G-X2S0PFR6ZY
+plugins:
+  - section-index
+  - literate-nav
