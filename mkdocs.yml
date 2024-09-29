@@ -1,0 +1,60 @@
+site_name: urunc Documentation
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Installation:
+      - Build from source: installation-source.md
+      - Download binaries: installation-binaries.md
+  - Hypervisor Support: hypervisor-support.md
+  - Unikernel Support: unikernel-support.md
+  - Container image building: image-building.md
+  - Development Guide: development-guide.md
+  - Tutorials:
+      - Install on K8s: tutorial-k8s.md
+      - Install on K3s: tutorial-k3s.md
+      - Knative Integration: tutorial-knative.md
+  - API Reference: api.md
+
+theme:
+  name: material
+  favicon: img/urunc-img-logo.png
+  logo: img/urunc-logo-full.svg
+  palette: 
+
+    # Palette toggle for light mode
+    - scheme: default
+      primary: white
+      accent: indigo
+      toggle:
+        icon: material/eye
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: black
+      accent: light blue
+      toggle:
+        icon: material/eye-outline
+        name: Switch to light mode
+
+features:
+  - navigation.instant
+  - navigation.sections
+  - navigation.expand
+  - toc.integrate
+
+markdown_extensions:
+  - footnotes
+  - attr_list
+
+toc:
+  - permalink: true
+
+copyright: Copyright &copy; 2022 - 2024 Nubificus LTD
+
+extra_css:
+  - stylesheets/extra.css
+gtags:
+  - G-X2S0PFR6ZY
+plugins:
+  - section-index
