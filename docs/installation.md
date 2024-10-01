@@ -1,11 +1,5 @@
----
-layout: default # Specifies the layout template (e.g., default.html)
-title: "Installation"  # Title of the page
-description: "Installation Guide"
-permalink: /installation/  # URL path for the page
----
-
-This document guides you through the installation of `urunc` and all required components in a fresh Ubuntu 22.04 machine. An example unikernel spawn is also included.
+This document guides you through the installation of `urunc` and all required
+components in a vanilla Ubuntu 22.04 machine.
 
 We will be installing and setting up:
 
@@ -16,22 +10,14 @@ We will be installing and setting up:
 - [nerdctl](https://github.com/containerd/nerdctl)
 - [devmapper](https://docs.docker.com/storage/storagedriver/device-mapper-driver/)
 - [bima](https://github.com/nubificus/bima)
-- urunc
+- [urunc](https://github.com/nubificus/urunc)
 
 ## Install urunc
 
-### Update Ubuntu
+### Install required dependencies (through package management)
 
-Before we continue, let's make sure Ubuntu is up to date:
-
-```bash
-sudo apt-get update
-sudo apt-get upgrade -y
-```
-
-### Install required apt packages
-
-The following apt packages are required to complete the installation. Depending on your specific needs, some of them may not be necessary in your use case.
+The following apt packages are required to complete the installation. Depending
+on your specific needs, some of them may not be necessary in your use case.
 
 ```bash
 sudo apt-get install git wget bc make build-essential -y
@@ -43,18 +29,21 @@ To install Go 1.20.6:
 
 ```bash
 wget -q https://go.dev/dl/go1.20.6.linux-$(dpkg --print-architecture).tar.gz
-sudo rm -rf /usr/local/go
-sudo tar -C /usr/local -xzf go1.20.6.linux-$(dpkg --print-architecture).tar.gz
+sudo mkdir go1.20.6
+sudo tar -C /usr/local/go1.20.6 -xzf go1.20.6.linux-$(dpkg --print-architecture).tar.gz
 sudo tee -a /etc/profile > /dev/null << 'EOT'
-export PATH=$PATH:/usr/local/go/bin
+export PATH=$PATH:/usr/local/go1.20.6/go/bin
 EOT
 rm -f go1.20.6.linux-$(dpkg --print-architecture).tar.gz
 ```
 
-
 ### Install runc
 
-`urunc` requires `runc` to handle any unsupported container images (for example, in k8s pods the pause container is delegated to `runc` and urunc handles only the unikernel container). You can [build runc from source](https://github.com/opencontainers/runc/tree/main#building) or download the latest binary following the commands:
+`urunc` requires `runc` to handle any unsupported container images (for
+example, in k8s pods the pause container is delegated to `runc` and urunc
+handles only the unikernel container). You can [build runc from
+source](https://github.com/opencontainers/runc/tree/main#building) or download
+the latest binary following the commands:
 
 ```bash
 RUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/opencontainers/runc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
@@ -94,7 +83,9 @@ sudo containerd config default | sudo tee /etc/containerd/config.toml
 sudo systemctl restart containerd
 ```
 
-For more information, you can read containerd's [Getting Started](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) guide. 
+For more information, you can read containerd's [Getting
+Started](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)
+guide. 
 
 ### Install CNI plugins
 
@@ -123,7 +114,7 @@ sudo rm -f nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
 
 ```bash
 sudo mkdir -p /usr/local/bin/scripts
-git clone git@github.com:nubificus/urunc.git
+git clone https://github.com/nubificus/urunc.git
 
 sudo cp urunc/script/dm_create.sh /usr/local/bin/scripts/dm_create.sh
 sudo chmod 755 /usr/local/bin/scripts/dm_create.sh
@@ -164,22 +155,36 @@ sudo systemctl restart containerd
 sudo /usr/local/bin/scripts/dm_create.sh
 ```
 
-### Install bima
+### Option 1: Build from source
 
-```bash
-git clone git@github.com:nubificus/bima.git
-cd bima
-make && sudo make install
-cd ..
-```
-
-### Build and install urunc 
+#### Build and install urunc 
 
 ```bash
 git clone git@github.com:nubificus/urunc.git
 cd urunc
 make && sudo make install
 cd ..
+```
+
+### Option 2: Install from binaries
+
+```bash
+declare -A ARCH_MAP
+ARCH_MAP["x86_64"]="amd64"
+ARCH_MAP["aarch64"]="aarch64"
+SYSTEM_ARCH=$(uname -m)
+ARCHITECTURE=${ARCH_MAP[$SYSTEM_ARCH]}
+LATEST_RELEASE_URL="https://api.github.com/repos/nubificus/urunc/releases/latest"
+RELEASE_JSON=$(curl -s $LATEST_RELEASE_URL)
+LATEST_TAG=$(echo $RELEASE_JSON | jq -r '.tag_name')
+ASSETS_URL=$(echo $RELEASE_JSON | jq -r '.assets[].browser_download_url')
+BINARY_URLS=$(echo "$ASSETS_URL" | grep "$ARCHITECTURE")
+for BINARY_URL in $BINARY_URLS; do
+  echo "Downloading $BINARY_URL..."
+  curl -LO "$BINARY_URL"
+  chmod +x `basename $BINARY_URL`
+  sudo mv `basename $BINARY_URL` /usr/local/bin
+done
 ```
 
 ### Add urunc runtime to containerd
@@ -195,7 +200,7 @@ EOT
 sudo systemctl restart containerd
 ```
 
-Now, we are ready to build and run our unikernel images!
+Now, we are ready to run our unikernel images!
 
 ## Run an example unikernel
 
@@ -217,7 +222,7 @@ sudo cp tenders/hvt/solo5-hvt /usr/local/bin
 sudo cp tenders/spt/solo5-spt /usr/local/bin
 ```
 
-### Run a redis unikernel
+### Run a redis rumprun unikernel over solo5
 
 Now, let's run a unikernel image:
 

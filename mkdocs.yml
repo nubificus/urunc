@@ -1,24 +1,37 @@
+# Copyright (c) 2023-2024, Nubificus LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 site_name: urunc Documentation
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
-  - Installation:
-      - Build from source: installation-source.md
-      - Download binaries: installation-binaries.md
+  - Installation: installation.md
   - Hypervisor Support: hypervisor-support.md
   - Unikernel Support: unikernel-support.md
   - Container image building: image-building.md
-  - Development Guide: development-guide.md
+  - Design:
+      - design/*.md
+  - Developer Guide: 
+      - developer-guide/*.md
+      - API Reference: https://pkg.go.dev/github.com/nubificus/urunc@v0.3.0/pkg/unikontainers
   - Tutorials:
-      - Install on K8s: tutorial-k8s.md
-      - Install on K3s: tutorial-k3s.md
-      - Knative Integration: tutorial-knative.md
-  - API Reference: api.md
+      - tutorials/*.md
 
 theme:
   name: material
-  favicon: img/urunc-img-logo.png
-  logo: img/urunc-logo-full.svg
+  favicon: img/urunc-logo.png
+  logo: img/urunc-logo.png
   palette: 
 
     # Palette toggle for light mode
@@ -58,3 +71,4 @@ gtags:
   - G-X2S0PFR6ZY
 plugins:
   - section-index
+  - literate-nav

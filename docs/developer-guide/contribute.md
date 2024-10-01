@@ -4,20 +4,20 @@ title: "Contributing"
 description: "Contributing guidelines"
 ---
 
-Urunc is an open-source project licenced under the [Apache License 2.0](LICENSE).
+Urunc is an open-source project licenced under the [Apache License 2.0](https://github.com/nubificus/urunc/blob/main/LICENSE).
 We welcome anyone who would be interested in contributing to `urunc`.
 As a first step, please take a look at the following document.
 The current document provides a high level overview of `urunc`'s code structure, along with a few guidelines regarding contributions to the project.
 
 ## Table of contents:
 
-1. [Code organization](CONTRIBUTING.md#Code-organization)
-2. [How to contribute](CONTRIBUTING.md#How-to-contribute)
-3. [Opening a new issue](CONTRIBUTING.md#Opening-a-new-issue)
-4. [Requesting a new feature](CONTRIBUTING.md#Requesting-a-new-feature)
-5. [Submitting a PR](CONTRIBUTING.md#Submitting-a-PR)
-6. [Style guide](CONTRIBUTING.md#Style-guide)
-7. [Contact](CONTRIBUTING.md#Contact)
+1. [Code organization](#code-organization)
+2. [How to contribute](#how-to-contribute)
+3. [Opening an issue](#opening-an-issue)
+4. [Requesting new features](#requesting-new-features)
+5. [Submitting a PR](#submitting-a-pr)
+6. [Style guide](#style-guide)
+7. [Contact](#contact)
 
 ## Code organization
 
