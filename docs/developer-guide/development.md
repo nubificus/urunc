@@ -1,3 +1,6 @@
+title: Setup a Build environment
+------
+
 # Development
 
 ## Setting Up the Development Environment
@@ -21,6 +24,7 @@ make test
 
 ## Contribution Guidelines
 
-Follow the [contributing](/contribute) guidelines before submitting any pull
-requests.
+Follow the
+[contributing](https://github.com/nubificus/urunc/blob/main/CONTRIBUTE.md)
+guidelines before submitting any pull requests.
 

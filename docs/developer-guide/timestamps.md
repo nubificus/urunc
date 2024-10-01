@@ -1,14 +1,12 @@
 ---
 layout: base
-title: "Performance"
+title: "Execution time breakdown"
 description: "Measuring `urunc` execution"
 ---
 
-# Measuring urunc execution
-
-## Adding timestamps
-
 To facilitate performance measurements, a few timestamps have been added to the code base to provide a clear view of the time spent on each part of the execution flow.
+
+## Timestamps
 
 The timestamps currently depicting each unikernel container execution are the following:
 
