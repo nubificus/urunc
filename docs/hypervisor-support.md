@@ -1,10 +1,18 @@
-# Installing urunc with all supported hypervisors
+# Hypervisor Support
 
-In this document, we will go through the installation process of the various hypervisors currently supported by `urunc`.
+`urunc` supports the execution of pre-packaged applications in pre-defined
+sandboxes. These sandboxes can be software-based, like
+[seccomp](https://en.wikipedia.org/wiki/Seccomp)-based sandboxes (`solo5-spt`)
+or hardware-assisted enclaves, such as traditional or lightweight hypervisors,
+eg.  [QEMU](https://qemu.org), [AWS
+Firecracker](https://github.com/firecracker-microvm/firecracker) etc.).
+
+In this document, we will go through the installation process of the various
+sandboxes currently supported by `urunc`.
 
 > Note: In general, `urunc` expects all supported hypervisors to be available somewhere in the `$PATH`.
 
-## urunc with solo5-hvt
+## urunc with `solo5-hvt` / `solo5-spt`
 
 First, let's install the apt packages required to build solo5:
 
@@ -26,7 +34,7 @@ cd solo5
 sudo cp tenders/hvt/solo5-hvt /usr/local/bin
 ```
 
-Next, we need to configure the [devmapper snapshotter](https://github.com/nubificus/urunc/blob/main/docs/Installation.md#setup-thinpool-devmapper).
+Next, we need to configure the [devmapper snapshotter](/installation/#setup-thinpool-devmapper).
 
 Now we can run a test unikernel:
 
@@ -34,9 +42,14 @@ Now we can run a test unikernel:
 sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
 ```
 
+> Note: as `solo5-hvt` and `solo5-spt` share command-line options and features,
+> replacing `hvt` with `spt` in the above instructions installs the `solo5-spt`
+> sandbox.
+
 ## urunc with qemu
 
-`urunc` expects to find the `qemu` binary located in the `$PATH` and named `qemu-system-{ARCH}`. You can ensure this by executing the following commands:
+`urunc` expects to find the `qemu` binary located in the `$PATH` and named
+`qemu-system-{ARCH}`. You can ensure this by executing the following commands:
 
 ```bash
 sudo apt-get install qemu-kvm -y
@@ -50,7 +63,8 @@ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubifi
 
 ## urunc with firecracker
 
-`urunc` expects to find the `firecracker` binary located in the `$PATH` and named `firecracker`. You can ensure this by executing the following commands:
+`urunc` expects to find the `firecracker` binary located in the `$PATH` and
+named `firecracker`. You can ensure this by executing the following commands:
 
 ```bash
 ARCH="$(uname -m)"

@@ -1,5 +1,5 @@
-This document guides you through the binary installation of `urunc` and all
-required components in a vanilla Ubuntu 22.04 machine.
+This document guides you through the installation of `urunc` and all required
+components in a vanilla Ubuntu 22.04 machine.
 
 We will be installing and setting up:
 
@@ -17,7 +17,7 @@ We will be installing and setting up:
 ### Install required dependencies (through package management)
 
 The following apt packages are required to complete the installation. Depending
-on your specific needs, some of them may not be neccessary in your use case.
+on your specific needs, some of them may not be necessary in your use case.
 
 ```bash
 sudo apt-get install git wget bc make build-essential -y
@@ -155,7 +155,18 @@ sudo systemctl restart containerd
 sudo /usr/local/bin/scripts/dm_create.sh
 ```
 
-### Install urunc 
+### Option 1: Build from source
+
+#### Build and install urunc 
+
+```bash
+git clone git@github.com:nubificus/urunc.git
+cd urunc
+make && sudo make install
+cd ..
+```
+
+### Option 2: Install from binaries
 
 ```bash
 declare -A ARCH_MAP
@@ -216,5 +227,5 @@ sudo cp tenders/spt/solo5-spt /usr/local/bin
 Now, let's run a unikernel image:
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest unikernel
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
 ```
