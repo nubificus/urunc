@@ -137,7 +137,7 @@ func (h *HVT) Ok() error {
 }
 
 func (h *HVT) Execve(args ExecArgs) error {
-	cmdString := h.binaryPath + " --mem=512"
+	cmdString := h.binaryPath + " --mem=256"
 	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
 	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
 	cmdString += " " + args.UnikernelPath + " " + args.Command
