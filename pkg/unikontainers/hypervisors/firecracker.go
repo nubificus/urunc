@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 )
@@ -107,6 +108,13 @@ func (fc *Firecracker) Execve(args ExecArgs) error {
 	// Block config for Firecracker
 	// TODO: Add support for block devices in FIrecracker
 	FCDrives := make([]FirecrackerDrive, 0)
+
+	// TODO: Check if this check causes any performance drop
+	// or explore alternative implementations
+	if runtime.GOARCH == "arm64" {
+		consoleStr := " console=ttyS0"
+		args.Command += consoleStr
+	}
 
 	FCSource := FirecrackerBootSource{
 		ImagePath:  args.UnikernelPath,
