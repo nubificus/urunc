@@ -8,6 +8,7 @@ require (
 	github.com/creack/pty v1.1.11
 	github.com/elastic/go-seccomp-bpf v1.4.0
 	github.com/go-ping/ping v1.1.0
+	github.com/hashicorp/go-version v1.7.0
 	github.com/jackpal/gateway v1.0.10
 	github.com/moby/sys/mount v0.3.3
 	github.com/nubificus/hedge_cli v0.0.3

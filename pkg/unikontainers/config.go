@@ -37,6 +37,7 @@ var ErrEmptyAnnotations = errors.New("spec annotations are empty")
 // ALways keep it in sync with the struct UnikernelConfig struct
 const (
 	annotType          = "com.urunc.unikernel.unikernelType"
+	annotVersion       = "com.urunc.unikernel.unikernelVersion"
 	annotBinary        = "com.urunc.unikernel.binary"
 	annotCmdLine       = "com.urunc.unikernel.cmdline"
 	annotHypervisor    = "com.urunc.unikernel.hypervisor"
@@ -48,14 +49,15 @@ const (
 
 // A UnikernelConfig struct holds the info provided by bima image on how to execute our unikernel
 type UnikernelConfig struct {
-	UnikernelType   string `json:"com.urunc.unikernel.unikernelType"`
-	UnikernelCmd    string `json:"com.urunc.unikernel.cmdline,omitempty"`
-	UnikernelBinary string `json:"com.urunc.unikernel.binary"`
-	Hypervisor      string `json:"com.urunc.unikernel.hypervisor"`
-	Initrd          string `json:"com.urunc.unikernel.initrd,omitempty"`
-	Block           string `json:"com.urunc.unikernel.block,omitempty"`
-	BlkMntPoint     string `json:"com.urunc.unikernel.blkMntPoint,omitempty"`
-	UseDMBlock      string `json:"com.urunc.unikernel.useDMBlock"`
+	UnikernelType    string `json:"com.urunc.unikernel.unikernelType"`
+	UnikernelVersion string `json:"com.urunc.unikernel.unikernelVersion"`
+	UnikernelCmd     string `json:"com.urunc.unikernel.cmdline,omitempty"`
+	UnikernelBinary  string `json:"com.urunc.unikernel.binary"`
+	Hypervisor       string `json:"com.urunc.unikernel.hypervisor"`
+	Initrd           string `json:"com.urunc.unikernel.initrd,omitempty"`
+	Block            string `json:"com.urunc.unikernel.block,omitempty"`
+	BlkMntPoint      string `json:"com.urunc.unikernel.blkMntPoint,omitempty"`
+	UseDMBlock       string `json:"com.urunc.unikernel.useDMBlock"`
 }
 
 // GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
@@ -87,6 +89,7 @@ func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, e
 // getConfigFromSpec retrieves the urunc specific annotations from the spec and populates the Unikernel config.
 func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	unikernelType := spec.Annotations[annotType]
+	unikernelVersion := spec.Annotations[annotVersion]
 	unikernelCmd := spec.Annotations[annotCmdLine]
 	unikernelBinary := spec.Annotations[annotBinary]
 	hypervisor := spec.Annotations[annotHypervisor]
@@ -96,30 +99,32 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	useDMBlock := spec.Annotations[annotUseDMBlock]
 
 	Log.WithFields(logrus.Fields{
-		"unikernelType":   unikernelType,
-		"unikernelCmd":    unikernelCmd,
-		"unikernelBinary": unikernelBinary,
-		"hypervisor":      hypervisor,
-		"initrd":          initrd,
-		"block":           block,
-		"blkMntPoint":     blkMntPoint,
-		"useDMBlock":      useDMBlock,
+		"unikernelType":    unikernelType,
+		"unikernelVersion": unikernelVersion,
+		"unikernelCmd":     unikernelCmd,
+		"unikernelBinary":  unikernelBinary,
+		"hypervisor":       hypervisor,
+		"initrd":           initrd,
+		"block":            block,
+		"blkMntPoint":      blkMntPoint,
+		"useDMBlock":       useDMBlock,
 	}).Info("urunc annotations")
 
 	// TODO: We need to use a better check to see if annotations were empty
-	conf := fmt.Sprintf("%s%s%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd, block, blkMntPoint)
+	conf := fmt.Sprintf("%s%s%s%s%s%s%s%s", unikernelType, unikernelVersion, unikernelCmd, unikernelBinary, hypervisor, initrd, block, blkMntPoint)
 	if conf == "" {
 		return nil, ErrEmptyAnnotations
 	}
 	return &UnikernelConfig{
-		UnikernelBinary: unikernelBinary,
-		UnikernelType:   unikernelType,
-		UnikernelCmd:    unikernelCmd,
-		Hypervisor:      hypervisor,
-		Initrd:          initrd,
-		Block:           block,
-		BlkMntPoint:     blkMntPoint,
-		UseDMBlock:      useDMBlock,
+		UnikernelBinary:  unikernelBinary,
+		UnikernelVersion: unikernelVersion,
+		UnikernelType:    unikernelType,
+		UnikernelCmd:     unikernelCmd,
+		Hypervisor:       hypervisor,
+		Initrd:           initrd,
+		Block:            block,
+		BlkMntPoint:      blkMntPoint,
+		UseDMBlock:       useDMBlock,
 	}, nil
 }
 
@@ -151,14 +156,15 @@ func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
 		return nil, err
 	}
 	Log.WithFields(logrus.Fields{
-		"unikernelType":   conf.UnikernelType,
-		"unikernelCmd":    conf.UnikernelCmd,
-		"unikernelBinary": conf.UnikernelBinary,
-		"hypervisor":      conf.Hypervisor,
-		"initrd":          conf.Initrd,
-		"block":           conf.Block,
-		"blkMntPoint":     conf.BlkMntPoint,
-		"useDMBlock":      conf.UseDMBlock,
+		"unikernelType":    conf.UnikernelType,
+		"unikernelVersion": conf.UnikernelVersion,
+		"unikernelCmd":     conf.UnikernelCmd,
+		"unikernelBinary":  conf.UnikernelBinary,
+		"hypervisor":       conf.Hypervisor,
+		"initrd":           conf.Initrd,
+		"block":            conf.Block,
+		"blkMntPoint":      conf.BlkMntPoint,
+		"useDMBlock":       conf.UseDMBlock,
 	}).Info(uruncJSONFilename + " annotations")
 	return &conf, nil
 }
@@ -182,6 +188,12 @@ func (c *UnikernelConfig) decode() error {
 		return fmt.Errorf("failed to decode UnikernelType: %v", err)
 	}
 	c.UnikernelType = string(decoded)
+
+	decoded, err = base64.StdEncoding.DecodeString(c.UnikernelVersion)
+	if err != nil {
+		return fmt.Errorf("failed to decode UnikernelVersion: %v", err)
+	}
+	c.UnikernelVersion = string(decoded)
 
 	decoded, err = base64.StdEncoding.DecodeString(c.UnikernelBinary)
 	if err != nil {
@@ -224,6 +236,9 @@ func (c *UnikernelConfig) Map() map[string]string {
 	}
 	if c.UnikernelType != "" {
 		myMap[annotType] = c.UnikernelType
+	}
+	if c.UnikernelVersion != "" {
+		myMap[annotVersion] = c.UnikernelVersion
 	}
 	if c.Hypervisor != "" {
 		myMap[annotHypervisor] = c.Hypervisor
