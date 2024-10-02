@@ -15,7 +15,9 @@
 package hypervisors
 
 import (
+	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -42,7 +44,17 @@ func (q *Qemu) Path() string {
 }
 
 func (q *Qemu) Execve(args ExecArgs) error {
-	cmdString := q.Path() + " -cpu host -m 256 -enable-kvm -nographic -vga none"
+	var cmdString string
+	if args.MemSizeMiB != "" {
+		memory, err := strconv.ParseInt(args.MemSizeMiB, 10, 64)
+		if err != nil {
+			return fmt.Errorf("%s failed to parse memory size %w", args.MemSizeMiB, err)
+		}
+		memory = int64(bytesToMB(memory))
+		cmdString = fmt.Sprintf("%s -cpu host -m %d -enable-kvm -nographic -vga none", q.Path(), memory)
+	} else {
+		cmdString = fmt.Sprintf("%s -cpu host -m %s -enable-kvm -nographic -vga none", q.Path(), DefaultMemory)
+	}
 
 	if args.Seccomp {
 		// Enable Seccomp in QEMU

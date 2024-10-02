@@ -33,3 +33,13 @@ func appendNonEmpty(body, prefix, value string) string {
 	}
 	return body
 }
+
+func bytesToMiB(bytes int64) float64 {
+	const bytesInMiB = 1024 * 1024
+	return float64(bytes) / float64(bytesInMiB)
+}
+
+func bytesToMB(bytes int64) float64 {
+	const bytesInMB = 1000 * 1000
+	return float64(bytes) / float64(bytesInMB)
+}

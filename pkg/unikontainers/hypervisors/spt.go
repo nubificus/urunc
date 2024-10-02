@@ -15,7 +15,9 @@
 package hypervisors
 
 import (
+	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -50,7 +52,17 @@ func (s *SPT) Ok() error {
 }
 
 func (s *SPT) Execve(args ExecArgs) error {
-	cmdString := s.binaryPath + " --mem=256"
+	var cmdString string
+	if args.MemSizeMiB != "" {
+		memory, err := strconv.ParseInt(args.MemSizeMiB, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse memory size %w", err)
+		}
+		memory = int64(bytesToMB(memory))
+		cmdString = s.binaryPath + " --mem=" + fmt.Sprintf("%d", memory)
+	} else {
+		cmdString = s.binaryPath + " --mem=" + DefaultMemory
+	}
 	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
 	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
 	cmdString += " " + args.UnikernelPath + " " + args.Command
