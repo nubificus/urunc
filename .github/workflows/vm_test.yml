@@ -1,37 +1,34 @@
 name: custom VM spawner 
 on:
-  pull_request:
-    branches: [ "main" ]
-    types:
-      - synchronize
-      - labeled
-  
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["gcc", "dind", "2204"]'
+      runner-archs:
+        type: string
+        default: '["amd64"]'
+      runner-arch-map:
+        type: string
+        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
+    secrets:
+      GIT_CLONE_PAT:
+        required: false
+
   workflow_dispatch:
   
 env:
   vm_profile: ubuntufat
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-
 jobs:
   prepare:
     name: VM test
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
-    #runs-on: [ self-hosted, gcc, lite, "x86_64" ]
-    runs-on: ${{ format('{0}-{1}', join(fromJSON('["gcc","dind","2204"]'), '-'), 'amd64') }}
-    # outputs:
-
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    strategy:
+      matrix:
+        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
     steps:
-    - name: Cleanup previous jobs
-      run: |
-        echo "Cleaning up previous runs"
-        sudo rm -rf ${{ github.workspace }}/*
-        sudo rm -rf ${{ github.workspace }}/.??*
-        sudo rm -rf ~/.kcli
-
     - name: Checkout
       uses: actions/checkout@v3
 

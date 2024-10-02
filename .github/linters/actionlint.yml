@@ -1,0 +1,6 @@
+self-hosted-runner:
+  labels:
+    - '*-*-amd64'
+    - '*-dind-*-amd64'
+    - '*-*-arm*'
+    - '*-dind-*-arm*'

@@ -12,12 +12,6 @@ jobs:
     if: ${{ github.event.review.state == 'approved' }}
 
     steps:
-      - name: Cleanup previous jobs
-        run: |
-          echo "Cleaning up previous runs"
-          sudo rm -rf ${{ github.workspace }}/*
-          sudo rm -rf ${{ github.workspace }}/.??*
-
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0

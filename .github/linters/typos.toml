@@ -1,0 +1,12 @@
+[default.extend-words]
+SEH = "SEH"
+ser = "ser"
+nd = "nd"
+
+[files]
+extend-exclude = [
+  "subprojects/*",
+  "third-party/*",
+  "test/catch2/*",
+  "test/fff/*"
+]
