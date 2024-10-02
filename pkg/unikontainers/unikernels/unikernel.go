@@ -16,8 +16,6 @@ package unikernels
 
 import "errors"
 
-type UnikernelType string
-
 type Unikernel interface {
 	Init(UnikernelParams) error
 	CommandString() (string, error)
@@ -33,11 +31,12 @@ type UnikernelParams struct {
 	EthDeviceGateway string // The eth device gateway
 	RootFSType       string // The rootfs type of the Unikernel
 	BlockMntPoint    string // The mount point for the block device
+	Version          string // The version of the unikernel
 }
 
 var ErrNotSupportedUnikernel = errors.New("unikernel is not supported")
 
-func New(unikernelType UnikernelType) (Unikernel, error) {
+func New(unikernelType string) (Unikernel, error) {
 	switch unikernelType {
 	case RumprunUnikernel:
 		unikernel := newRumprun()
