@@ -76,7 +76,7 @@ LINT_CNTR_OPTS ?= run --rm -it -v $(CURDIR):/app -w /app
 LINT_CNTR_IMG  ?= golangci/golangci-lint:v1.53.3
 LINT_CNTR_CMD  ?= golangci-lint run -v --timeout=5m
 
-# Install dependecies variables
+# Install dependencies variables
 #
 # If we have already built either static or dynamic version of urunc
 # we do not have to rebuild it, but instead we can use whichever
@@ -127,7 +127,7 @@ $(VENDOR_DIR):
 
 # Add tidy and as order-only prerequisite. In that way, since tidy and
 # vendor do notproduce any file and execute all the time,
-# we avoid the rebuilding of urunc if it has previsouly built and the
+# we avoid the rebuilding of urunc if it has previously built and the
 # source files have not changed.
 $(URUNC_BIN)_static_%: $(URUNC_SRC) | prepare
 	$(GO_FLAGS) GOARCH=$* $(GO) build \

@@ -41,7 +41,7 @@ func (n DynamicNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 		return nil, err
 	}
 	if tapIndex > 0 {
-		return nil, fmt.Errorf("unsupported opreation: can't spawn multiple unikernels in the same network namespace")
+		return nil, fmt.Errorf("unsupported operation: can't spawn multiple unikernels in the same network namespace")
 	}
 	redirectLink, err := netlink.LinkByName(DefaultInterface)
 	if err != nil {

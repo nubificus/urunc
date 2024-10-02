@@ -26,7 +26,7 @@ sudo apt-get upgrade -y
 
 ### Install required apt packages
 
-The following apt packages are required to complete the installation. Depending on your specific needs, some of them may not be neccessary in your use case.
+The following apt packages are required to complete the installation. Depending on your specific needs, some of them may not be necessary in your use case.
 
 ```bash
 sudo apt-get install git wget bc make build-essential -y

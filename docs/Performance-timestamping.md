@@ -93,7 +93,7 @@ cat /tmp/urunc.zlog | grep TS
 
 ## Using the Python utilities
 
-There are 3 Python utilites inside the `script/performance` directory to help gather the timestamps.
+There are 3 Python utilities inside the `script/performance` directory to help gather the timestamps.
 
 ### Measure single container execution
 

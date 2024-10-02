@@ -90,7 +90,7 @@ func applySeccompFilter() error {
 	// For the time being, we choose ActionTrap, but we can change this in the future.
 	filter := seccomp.Filter{
 		// Set the threads no_new_privs bit, disabling any new child or execve
-		// system call to grant priviledges that the parent does not have.
+		// system call to grant privileges that the parent does not have.
 		NoNewPrivs: true,
 		// Sync the filter to all threads created by the Go runtime.
 		Flag: seccomp.FilterFlagTSync,
