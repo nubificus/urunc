@@ -1,0 +1,106 @@
+name: Validate Files and Commit Messages
+
+on:
+  workflow_call:
+    inputs:
+      actions-repo:
+        type: string
+        default: 'nubificus/vaccel'
+      actions-rev:
+        type: string
+        default: 'main'
+      runner:
+        type: string
+        default: '["gcc", "dind", "2204"]'
+      runner-archs:
+        type: string
+        default: '["amd64"]'
+      runner-arch-map:
+        type: string
+        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
+    secrets:
+      GIT_CLONE_PAT:
+        required: false
+
+jobs:
+  linter-commitlint:
+    name: Lint Commit Messages
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    strategy:
+      matrix:
+        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+      - name: Checkout .github directory
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          repository: ${{ inputs.actions-repo }}
+          ref: ${{ inputs.actions-rev }}
+
+      - name: Initialize workspace
+        uses: ./.github/actions/initialize-workspace
+        with:
+          submodules: 'false'
+          remote-actions-repo: ${{ inputs.actions-repo }}
+          token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+
+      - name: Run commitlint
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .github/linters/commitlint.config.mjs
+
+  linter-typos:
+    name: Spell Check Repo
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    strategy:
+      matrix:
+        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+      - name: Checkout .github directory
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          repository: ${{ inputs.actions-repo }}
+          ref: ${{ inputs.actions-rev }}
+
+      - name: Initialize workspace
+        uses: ./.github/actions/initialize-workspace
+        with:
+          submodules: 'false'
+          remote-actions-repo: ${{ inputs.actions-repo }}
+          token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+
+      - name: Spell check
+        uses: crate-ci/typos@master
+        with:
+          config: .github/linters/typos.toml
+
+  linter-license-eye:
+    name: Check License Headers
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    strategy:
+      matrix:
+        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+      - name: Checkout .github directory
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          repository: ${{ inputs.actions-repo }}
+          ref: ${{ inputs.actions-rev }}
+
+      - name: Initialize workspace
+        uses: ./.github/actions/initialize-workspace
+        with:
+          submodules: 'false'
+          remote-actions-repo: ${{ inputs.actions-repo }}
+          token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+
+      - name: Run license-eye
+        uses: apache/skywalking-eyes/header@main
+        with:
+          config: .github/linters/licenserc.yml
+          token: ${{ secrets.GITHUB_TOKEN }}

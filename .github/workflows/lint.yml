@@ -1,26 +1,33 @@
 name: Code linting
 on:
-  pull_request:
-    branches: [ "main" ]
-    types:
-      - synchronize
-      - labeled
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["gcc", "dind", "2204"]'
+      runner-archs:
+        type: string
+        default: '["amd64"]'
+      runner-arch-map:
+        type: string
+        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
+    secrets:
+      GIT_CLONE_PAT:
+        required: false
 
 permissions:
   contents: read
   # allow read access to pull request. Use with `only-new-issues` option.
   pull-requests: read
 
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   golangci:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     name: lint
-    runs-on: gcc-dind-2204-amd64
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    strategy:
+      matrix:
+        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
