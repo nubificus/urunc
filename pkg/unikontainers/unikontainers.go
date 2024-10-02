@@ -165,6 +165,7 @@ func (u *Unikontainer) Exec() error {
 
 	vmmType := u.State.Annotations[annotHypervisor]
 	unikernelType := u.State.Annotations[annotType]
+	unikernelVersion := u.State.Annotations[annotVersion]
 	unikernelPath := u.State.Annotations[annotBinary]
 	initrdPath := u.State.Annotations[annotInitrd]
 	rootfsDir := filepath.Join(u.State.Bundle, rootfsDirName)
@@ -237,7 +238,9 @@ func (u *Unikontainer) Exec() error {
 	} else {
 		unikernelParams.RootFSType = ""
 	}
-	unikernel, err := unikernels.New(unikernels.UnikernelType(unikernelType))
+
+	unikernelParams.Version = unikernelVersion
+	unikernel, err := unikernels.New(unikernelType)
 	if err != nil {
 		return err
 	}
@@ -283,7 +286,9 @@ func (u *Unikontainer) Exec() error {
 	}
 
 	err = unikernel.Init(unikernelParams)
-	if err != nil {
+	if err == unikernels.ErrUndefinedVersion || err == unikernels.ErrVersionParsing {
+		Log.WithError(err).Error("an error occurred while initializing the unikernel")
+	} else if err != nil {
 		return err
 	}
 	// build the unikernel command
@@ -355,7 +360,7 @@ func (u *Unikontainer) Delete() error {
 		return fmt.Errorf("cannot delete running unikernel: %s", u.State.ID)
 	}
 	unikernelType := u.State.Annotations[annotType]
-	unikernel, err := unikernels.New(unikernels.UnikernelType(unikernelType))
+	unikernel, err := unikernels.New(unikernelType)
 	if err != nil {
 		return err
 	}
@@ -370,8 +375,6 @@ func (u *Unikontainer) Delete() error {
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}
-	} else {
-		fmt.Printf("Komple")
 	}
 	return os.RemoveAll(u.BaseDir)
 }

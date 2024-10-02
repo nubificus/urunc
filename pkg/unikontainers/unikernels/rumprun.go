@@ -19,7 +19,7 @@ import (
 	"fmt"
 )
 
-const RumprunUnikernel UnikernelType = "rumprun"
+const RumprunUnikernel string = "rumprun"
 const SubnetMask125 = "128.0.0.0"
 
 type Rumprun struct {
