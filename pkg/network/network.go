@@ -218,7 +218,7 @@ func addRedirectFilter(source netlink.Link, target netlink.Link) error {
 	})
 }
 
-func networkSetup(tapName string, ipAdrress string, redirectLink netlink.Link, addTCRules bool) (netlink.Link, error) {
+func networkSetup(tapName string, ipAddress string, redirectLink netlink.Link, addTCRules bool) (netlink.Link, error) {
 	err := ensureEth0Exists()
 	// if eth0 does not exist in the namespace, the unikernel was spawned using ctr, so we skip the network setup
 	if err != nil {
@@ -259,7 +259,7 @@ func networkSetup(tapName string, ipAdrress string, redirectLink netlink.Link, a
 			return nil, err
 		}
 	}
-	ipn, err := netlink.ParseAddr(ipAdrress)
+	ipn, err := netlink.ParseAddr(ipAddress)
 	if err != nil {
 		return nil, err
 	}

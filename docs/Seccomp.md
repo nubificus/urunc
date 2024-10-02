@@ -42,7 +42,7 @@ calls for 'Solo5-hvt' execution.
 
 Nevertheless, 'Solo5-hvt' with seccomp in 'urunc' has been tested in Ubuntu 20.04
 and Ubuntu 22.04. Using 'urunc' and solo5-hvt on different platforms might result
-in failed execution. For that reason, we strongly recomend running the seccomp
+in failed execution. For that reason, we strongly recommend running the seccomp
 test first, by `make test_nerdctl_Seccomp`. In case the test fails, the seccomp
 profile for 'Solo5-hvt' needs to get updated.
 
