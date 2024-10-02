@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -89,9 +90,21 @@ func (fc *Firecracker) Execve(args ExecArgs) error {
 	}
 
 	// VM config for Firecracker
+	parsedDefaultMemory, _ := strconv.Atoi(DefaultMemory)
+	mem := uint(parsedDefaultMemory)
+	if args.MemSizeMiB != "" {
+		memInt, err := strconv.Atoi(args.MemSizeMiB)
+		if err != nil {
+			return fmt.Errorf("failed to parse memory size %w", err)
+			// vmmLog.WithError(err).Errorf("Failed to parse memory size, using default value %sM", DefaultMemory)
+		}
+		mem = uint(memInt)
+	}
+
+	memory := bytesToMiB(int64(mem))
 	FCMachine := FirecrackerMachine{
-		VcpuCount:       1,   // TODO: Use value from configuration or Environment variable
-		MemSizeMiB:      256, // TODO: Use value from configuration or Environment variable
+		VcpuCount:       1,            // TODO: Use value from configuration or Environment variable
+		MemSizeMiB:      uint(memory), // TODO: Use value from configuration or Environment variable
 		Smt:             false,
 		TrackDirtyPages: false,
 	}

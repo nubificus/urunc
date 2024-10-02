@@ -22,6 +22,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const DefaultMemory string = "256"
+
 // ExecArgs holds the data required by Execve to start the VMM
 // FIXME: add extra fields if required by additional VMM's
 type ExecArgs struct {
@@ -34,6 +36,7 @@ type ExecArgs struct {
 	IPAddress     string   // The IP address of the TAP device
 	GuestMAC      string   // The MAC address of the guest network device
 	Seccomp       bool     // Enable or disable seccomp filters for the VMM
+	MemSizeMiB    string   // The size of the memory provided to the VM
 	Environment   []string // Environment
 }
 
