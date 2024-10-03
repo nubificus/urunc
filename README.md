@@ -1,7 +1,6 @@
 # urunc
 
-![Build workflow](https://github.com/nubificus/urunc/actions/workflows/build.yml/badge.svg)
-![Lint workflow](https://github.com/nubificus/urunc/actions/workflows/lint.yml/badge.svg)
+[![CI workflow](https://github.com/nubificus/urunc/actions/workflows/ci.yml/badge.svg)](https://github.com/nubificus/urunc/actions/workflows/ci.yml)
 
 To bridge the gap between traditional unikernels and containerized environments, enabling seamless integration with cloud-native architectures, we introduce `urunc`. Designed to fully leverage the container semantics and benefit from the OCI tools and methodology, `urunc` aims to become “runc for unikernels”, while offering compatibility with the Container Runtime Interface (CRI). By relying on underlying hypervisors, `urunc` launches unikernels provided by OCI-compatible images, allowing developers and administrators to package, deliver, deploy, and manage their software using familiar cloud-native practices.
 
