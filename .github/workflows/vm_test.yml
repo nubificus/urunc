@@ -73,7 +73,6 @@ jobs:
         SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
         vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
-        kcli -c $vm_client list vm
         kcli -c $vm_client create vm -p ${{ env.vm_profile }} ${{ env.vm_profile }}_${{ github.run_id }}
         echo "get spanwed vm info"
         output="fail"
