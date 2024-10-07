@@ -30,7 +30,7 @@ import (
 const NotImplemented = "Not implemented"
 
 func TestNerdctlHvtRumprunHello(t *testing.T) {
-	params := strings.Fields("nerdctl run --name hello --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest")
+	params := strings.Fields("nerdctl run --name hello --rm --memory 256M --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest")
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	if err != nil {
