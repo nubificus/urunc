@@ -14,7 +14,10 @@
 
 package hypervisors
 
-import "runtime"
+import (
+	"runtime"
+	"strconv"
+)
 
 func cpuArch() string {
 	switch runtime.GOARCH {
@@ -34,12 +37,26 @@ func appendNonEmpty(body, prefix, value string) string {
 	return body
 }
 
-func bytesToMiB(bytes int64) float64 {
+func bytesToMiB(bytes uint64) uint64 {
 	const bytesInMiB = 1024 * 1024
-	return float64(bytes) / float64(bytesInMiB)
+	return bytes / bytesInMiB
 }
 
-func bytesToMB(bytes int64) float64 {
+func bytesToMB(bytes uint64) uint64 {
 	const bytesInMB = 1000 * 1000
-	return float64(bytes) / float64(bytesInMB)
+	return bytes / bytesInMB
+}
+
+func bytesToStringMB(argMem uint64) string {
+	stringMem := strconv.FormatUint(DefaultMemory, 10)
+	if argMem != 0 {
+		userMem := bytesToMB(argMem)
+		// Check for too low memory
+		if userMem == 0 {
+			userMem = DefaultMemory
+		}
+		stringMem = strconv.FormatUint(userMem, 10)
+	}
+
+	return stringMem
 }

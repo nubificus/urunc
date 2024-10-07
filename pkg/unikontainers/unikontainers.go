@@ -174,9 +174,6 @@ func (u *Unikontainer) Exec() error {
 		initrdAbsPath = filepath.Join(rootfsDir, initrdPath)
 	}
 
-	linuxMemory := *u.Spec.Linux.Resources.Memory
-	memoryLimit := *linuxMemory.Limit
-
 	// populate vmm args
 	vmmArgs := hypervisors.ExecArgs{
 		Container:     u.State.ID,
@@ -184,8 +181,15 @@ func (u *Unikontainer) Exec() error {
 		InitrdPath:    initrdAbsPath,
 		BlockDevice:   "",
 		Seccomp:       true, // Enable Seccomp by default
-		MemSizeMiB:    fmt.Sprintf("%d", memoryLimit),
+		MemSizeB:      0,
 		Environment:   os.Environ(),
+	}
+
+	// Check if memory limit was not set
+	if u.Spec.Linux.Resources.Memory != nil {
+		if u.Spec.Linux.Resources.Memory.Limit != nil {
+			vmmArgs.MemSizeB = uint64(*u.Spec.Linux.Resources.Memory.Limit)
+		}
 	}
 
 	// Check if container is set to unconfined -- disable seccomp
