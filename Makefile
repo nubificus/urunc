@@ -189,49 +189,49 @@ e2etest: test_nerdctl test_ctr test_crictl
 ## test_unikontainers Run unit tests for unikontainers package
 test_unikontainers:
 	@echo "Unit testing in unikontainers"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./pkg/unikontainers -v
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./pkg/unikontainers -v
 	@echo " "
 
 ## test_nerdctl Run all end-to-end tests with nerdctl
 .PHONY: test_nerdctl
 test_nerdctl:
 	@echo "Testing nerdctl"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/nerdctl -v
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/nerdctl -v
 	@echo " "
 
 ## test_ctr Run all end-to-end tests with ctr
 .PHONY: test_ctr
 test_ctr:
 	@echo "Testing ctr"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v
 	@echo " "
 
 ## test_crictl Run all end-to-end tests with crictl
 .PHONY: test_crictl
 test_crictl:
 	@echo "Testing crictl"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/crictl -v
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/crictl -v
 	@echo " "
 
 ## test_nerdctl_[pattern] Run all end-to-end tests with nerdctl that match pattern
 .PHONY: test_nerdctl_%
 test_nerdctl_%:
 	@echo "Testing nerdctl"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/nerdctl -v -run "$*"
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/nerdctl -v -run "$*"
 	@echo " "
 
 ## test_ctr_[pattern] Run all end-to-end tests with ctr that match pattern
 .PHONY: test_ctr_%
 test_ctr_%:
 	@echo "Testing ctr"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v -run $*
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/ctr -v -run $*
 	@echo " "
 
 ## test_crictl_[pattern] Run all end-to-end tests with crictl that match pattern
 .PHONY: test_crictl_%
 test_crictl_%:
 	@echo "Testing crictl"
-	-@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/crictl -v -run $*
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/crictl -v -run $*
 	@echo " "
 
 ## help Show this help message
