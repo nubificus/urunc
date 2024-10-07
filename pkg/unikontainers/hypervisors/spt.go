@@ -59,10 +59,11 @@ func (s *SPT) Execve(args ExecArgs) error {
 			return fmt.Errorf("failed to parse memory size %w", err)
 		}
 		memory = int64(bytesToMB(memory))
-		cmdString = s.binaryPath + " --mem=" + fmt.Sprintf("%d", memory)
+		//cmdString = s.binaryPath + " --mem=" + fmt.Sprintf("%d", memory)
 	} else {
-		cmdString = s.binaryPath + " --mem=" + DefaultMemory
+		//cmdString = s.binaryPath + " --mem=" + DefaultMemory
 	}
+	cmdString = s.binaryPath + " --mem=2"
 	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
 	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
 	cmdString += " " + args.UnikernelPath + " " + args.Command
