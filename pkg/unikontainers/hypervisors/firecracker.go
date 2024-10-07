@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 )
@@ -43,10 +42,10 @@ type FirecrackerBootSource struct {
 }
 
 type FirecrackerMachine struct {
-	VcpuCount       uint `json:"vcpu_count"`
-	MemSizeMiB      uint `json:"mem_size_mib"`
-	Smt             bool `json:"smt"`
-	TrackDirtyPages bool `json:"track_dirty_pages"`
+	VcpuCount       uint   `json:"vcpu_count"`
+	MemSizeMiB      uint64 `json:"mem_size_mib"`
+	Smt             bool   `json:"smt"`
+	TrackDirtyPages bool   `json:"track_dirty_pages"`
 }
 
 type FirecrackerDrive struct {
@@ -90,21 +89,17 @@ func (fc *Firecracker) Execve(args ExecArgs) error {
 	}
 
 	// VM config for Firecracker
-	parsedDefaultMemory, _ := strconv.Atoi(DefaultMemory)
-	mem := uint(parsedDefaultMemory)
-	if args.MemSizeMiB != "" {
-		memInt, err := strconv.Atoi(args.MemSizeMiB)
-		if err != nil {
-			return fmt.Errorf("failed to parse memory size %w", err)
-			// vmmLog.WithError(err).Errorf("Failed to parse memory size, using default value %sM", DefaultMemory)
+	fcMem := DefaultMemory
+	if args.MemSizeB != 0 {
+		fcMem = bytesToMiB(args.MemSizeB)
+		// Check if memory is too small
+		if fcMem == 0 {
+			fcMem = DefaultMemory
 		}
-		mem = uint(memInt)
 	}
-
-	memory := bytesToMiB(int64(mem))
 	FCMachine := FirecrackerMachine{
-		VcpuCount:       1,            // TODO: Use value from configuration or Environment variable
-		MemSizeMiB:      uint(memory), // TODO: Use value from configuration or Environment variable
+		VcpuCount:       1, // TODO: Use value from configuration or Environment variable
+		MemSizeMiB:      fcMem,
 		Smt:             false,
 		TrackDirtyPages: false,
 	}
