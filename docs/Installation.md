@@ -217,5 +217,5 @@ sudo cp tenders/spt/solo5-spt /usr/local/bin
 Now, let's run a unikernel image:
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest unikernel
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
 ```

@@ -74,7 +74,7 @@ Now we need to run a unikernel using the new container runtime `uruncts`:
 
 ```bash
 sudo nerdctl run --rm --snapshotter devmapper --runtime io.containerd.uruncts.v2 \
-    harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest
+    harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest
 ```
 
 The timestamp logs are located at `/tmp/urunc.zlog`:

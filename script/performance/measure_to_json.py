@@ -69,7 +69,7 @@ def main():
     saveToJsonFile(outputFile, result)
     emptyFile(filename=LOGFILE)
 
-    # nerdctl run --name redis-test -d --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest
+    # nerdctl run --name redis-test -d --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest
     # nerdctl rm --force redis-test
 
     # data = parseSingleContainerTimestamps(

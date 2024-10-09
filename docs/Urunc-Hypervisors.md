@@ -31,7 +31,7 @@ Next, we need to configure the [devmapper snapshotter](https://github.com/nubifi
 Now we can run a test unikernel:
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest unikernel
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
 ```
 
 ## urunc with qemu
@@ -45,7 +45,7 @@ sudo apt-get install qemu-kvm -y
 Now we can run a test unikernel:
 
 ```bash
-sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
 ```
 
 ## urunc with firecracker
@@ -67,5 +67,5 @@ rm -fr release-${latest}-$(uname -m)
 Now we can run a test unikernel:
 
 ```bash
-sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
 ```
