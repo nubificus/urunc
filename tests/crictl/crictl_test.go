@@ -214,7 +214,7 @@ func TestCrictlSptRumprunRedis(t *testing.T) {
 }
 
 func TestCrictlQemuUnikraftRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-x86_64:latest"
 	procName := "qemu-system"
 	podConfig := crictlSandboxConfig("qemu-unikraft-redis-sandbox")
 	containerConfig := crictlContainerConfig("qemu-unikraft-redis", containerImage)
@@ -303,7 +303,7 @@ func TestCrictlQemuUnikraftRedis(t *testing.T) {
 }
 
 func TestCrictlFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft:latest"
 	procName := "firecracker"
 	podConfig := crictlSandboxConfig("fc-unikraft-nginx-sandbox")
 	containerConfig := crictlContainerConfig("fc-unikraft-nginx", containerImage)
@@ -414,7 +414,7 @@ func TestCrictlFCUnikraftNginx(t *testing.T) {
 }
 
 func TestCrictlHTTPStaticNet(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/httpreply-fc:x86_64"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/httpreply-firecracker-unikraft:latest"
 	procName := "firecracker"
 	podConfig := crictlSandboxConfig("fc-unikraft-knative-sandbox")
 
