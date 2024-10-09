@@ -24,7 +24,7 @@ import (
 )
 
 func TestCtrHvtRumprun(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-hvt-nonet:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun-nonet:latest"
 	containerName := "hvt-rumprun-hello"
 	procName := "solo5-hvt"
 	pullParams := strings.Fields("ctr image pull " + containerImage)
@@ -47,7 +47,7 @@ func TestCtrHvtRumprun(t *testing.T) {
 }
 
 func TestCtrSptRumprun(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-spt-nonet:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/hello-spt-rumprun-nonet:latest"
 	containerName := "spt-rumprun-hello"
 	procName := "solo5-spt"
 	pullParams := strings.Fields("ctr image pull " + containerImage)
@@ -70,7 +70,7 @@ func TestCtrSptRumprun(t *testing.T) {
 }
 
 func TestCtrQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest"
 	containerName := "qemu-unikraft-nginx"
 	procName := "qemu-system"
 	pullParams := strings.Fields("ctr image pull " + containerImage)
@@ -118,7 +118,7 @@ func TestCtrQemuUnikraftNginx(t *testing.T) {
 }
 
 func TestCtrFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
 	containerName := "fc-unikraft-nginx"
 	procName := "firecracker"
 	pullParams := strings.Fields("ctr image pull " + containerImage)
