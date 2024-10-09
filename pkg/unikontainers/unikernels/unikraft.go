@@ -17,15 +17,19 @@ package unikernels
 import (
 	"fmt"
 	"strings"
+
+	version "github.com/hashicorp/go-version"
 )
 
-const UnikraftUnikernel UnikernelType = "unikraft"
+const UnikraftUnikernel string = "unikraft"
+const UnikraftCompatVersion string = "0.16.1"
 
 type Unikraft struct {
 	AppName string
 	Command string
 	Net     UnikraftNet
 	VFS     UnikraftVFS
+	Version string
 }
 
 type UnikraftNet struct {
@@ -67,9 +71,7 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 	}
 	u.AppName = appName
 
-	u.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
-	u.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
-	u.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
+	u.configureNet(data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
 
 	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
 	// and sharedfs or any other Unikraft related ways to pass data to guest.
@@ -81,6 +83,37 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 	}
 
 	return nil
+}
+
+func (u *Unikraft) configureNet(ethDeviceIP, ethDeviceGateway, ethDeviceMask string) {
+	setCompatNetConfig := func() {
+		u.Net.Address = "netdev.ipv4_addr=" + ethDeviceIP
+		u.Net.Gateway = "netdev.ipv4_gw_addr=" + ethDeviceGateway
+		u.Net.Mask = "netdev.ipv4_subnet_mask=" + ethDeviceMask
+	}
+
+	setCurrentNetConfig := func() {
+		u.Net.Address = "netdev.ip=" + ethDeviceIP + "/24:" + ethDeviceGateway + ":8.8.8.8"
+	}
+
+	if u.Version == "" {
+		setCurrentNetConfig()
+		return
+	}
+
+	unikernelVersion, err := version.NewVersion(u.Version)
+	if err != nil {
+		setCurrentNetConfig()
+		return
+	}
+
+	targetVersion, _ := version.NewVersion(UnikraftCompatVersion)
+
+	if unikernelVersion.GreaterThanOrEqual(targetVersion) {
+		setCurrentNetConfig()
+	} else {
+		setCompatNetConfig()
+	}
 }
 
 func newUnikraft() *Unikraft {
