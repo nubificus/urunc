@@ -1,13 +1,11 @@
-# Lightweight sandboxing
+# Hypervisor Support
 
 `urunc` supports the execution of pre-packaged applications in pre-defined
 sandboxes. These sandboxes can be software-based, like
-[gvisor](https://gvisor.dev) or
-[seccomp](https://en.wikipedia.org/wiki/Seccomp)-based sandboxes. In addition
-to software-based sandboxing, `urunc` can spawn applications in hardware-based
-enclaves, such as traditional or lightweight hypervisors, eg.
-[QEMU](https://qemu.org), [AWS
-Firecracker](https://github.com/firecracker-microvm/firecracker)).
+[seccomp](https://en.wikipedia.org/wiki/Seccomp)-based sandboxes (`solo5-spt`)
+or hardware-assisted enclaves, such as traditional or lightweight hypervisors,
+eg.  [QEMU](https://qemu.org), [AWS
+Firecracker](https://github.com/firecracker-microvm/firecracker) etc.).
 
 In this document, we will go through the installation process of the various
 sandboxes currently supported by `urunc`.
