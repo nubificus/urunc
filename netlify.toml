@@ -1,0 +1,5 @@
+[build]
+  # Uncomment the line below to ignore any configuration changes in `docs/`
+  #ignore = "git diff --quiet origin/main -- ':!*.toml' ./docs/"
+  ignore = "git diff --quiet origin/main ./docs/"
+  command = "pip3 install mkdocs mkdocs-material mkdocs-section-index mkdocs-literate-nav && python3 -m mkdocs build"
