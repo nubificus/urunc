@@ -113,7 +113,6 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		"useDMBlock":      useDMBlock,
 	}).Info("urunc annotations")
 
-	// time.Sleep(360 * time.Second)
 	// TODO: We need to use a better check to see if annotations were empty
 	conf := fmt.Sprintf("%s%s%s%s%s%s%s", unikernelType, unikernelCmd, unikernelBinary, hypervisor, initrd, block, blkMntPoint)
 	if conf == "" {

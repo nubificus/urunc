@@ -277,6 +277,11 @@ func reexecUnikontainer(context *cli.Context) error {
 	}
 	metrics.Capture(containerID, "TS15")
 
+	unikontainer.State.Pid = os.Getpid()
+	err = unikontainer.Create(unikontainer.State.Pid)
+	if err != nil {
+		return err
+	}
 	// execute Prestart hooks
 	err = unikontainer.ExecuteHooks("Prestart")
 	if err != nil {
