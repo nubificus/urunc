@@ -128,7 +128,7 @@ def emptyFile(filename: str) -> None:
 
 
 def spawnContainer() -> str:
-    command = "nerdctl run --name redis-test -d --snapshotter devmapper --runtime io.containerd.uruncts.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+    command = "nerdctl run --name redis-test -d --snapshotter devmapper --runtime io.containerd.uruncts.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
     cmdParts = command.split(" ")
     cmd = run(cmdParts,
               stdout=PIPE,

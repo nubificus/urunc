@@ -15,17 +15,25 @@
 package unikernels
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+
+	version "github.com/hashicorp/go-version"
 )
 
-const UnikraftUnikernel UnikernelType = "unikraft"
+const UnikraftUnikernel string = "unikraft"
+const UnikraftCompatVersion string = "0.16.1"
+
+var ErrUndefinedVersion = errors.New("version is undefined, using default version")
+var ErrVersionParsing = errors.New("failed to parse provided version, using default version")
 
 type Unikraft struct {
 	AppName string
 	Command string
 	Net     UnikraftNet
 	VFS     UnikraftVFS
+	Version string
 }
 
 type UnikraftNet struct {
@@ -66,10 +74,7 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 		u.Command = strings.TrimLeft(data.CmdLine, appName)
 	}
 	u.AppName = appName
-
-	u.Net.Address = "netdev.ipv4_addr=" + data.EthDeviceIP
-	u.Net.Gateway = "netdev.ipv4_gw_addr=" + data.EthDeviceGateway
-	u.Net.Mask = "netdev.ipv4_subnet_mask=" + data.EthDeviceMask
+	u.Version = data.Version
 
 	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
 	// and sharedfs or any other Unikraft related ways to pass data to guest.
@@ -79,7 +84,41 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 	default:
 		u.VFS.RootFS = ""
 	}
+	return u.configureNet(data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
+}
 
+func (u *Unikraft) configureNet(ethDeviceIP, ethDeviceGateway, ethDeviceMask string) error {
+	setCompatNetConfig := func() {
+		u.Net.Address = "netdev.ipv4_addr=" + ethDeviceIP
+		u.Net.Gateway = "netdev.ipv4_gw_addr=" + ethDeviceGateway
+		u.Net.Mask = "netdev.ipv4_subnet_mask=" + ethDeviceMask
+	}
+
+	setCurrentNetConfig := func() {
+		u.Net.Address = "netdev.ip=" + ethDeviceIP + "/24:" + ethDeviceGateway + ":8.8.8.8"
+	}
+
+	if u.Version == "" {
+		setCurrentNetConfig()
+		return ErrUndefinedVersion
+	}
+
+	unikernelVersion, err := version.NewVersion(u.Version)
+	if err != nil {
+		setCurrentNetConfig()
+		return ErrVersionParsing
+	}
+
+	targetVersion, err := version.NewVersion(UnikraftCompatVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse default version: %w", err)
+	}
+
+	if unikernelVersion.GreaterThanOrEqual(targetVersion) {
+		setCurrentNetConfig()
+	} else {
+		setCompatNetConfig()
+	}
 	return nil
 }
 

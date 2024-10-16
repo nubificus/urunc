@@ -30,7 +30,7 @@ import (
 const NotImplemented = "Not implemented"
 
 func TestNerdctlHvtRumprunHello(t *testing.T) {
-	params := strings.Fields("nerdctl run --name hello --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rump:latest")
+	params := strings.Fields("nerdctl run --name hello --rm --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest")
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -42,7 +42,7 @@ func TestNerdctlHvtRumprunHello(t *testing.T) {
 }
 
 func TestNerdctlHvtRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
 	containerName := "hvt-rumprun-redis-test"
 	err := nerdctlTest(containerName, containerImage, true)
 	if err != nil {
@@ -51,7 +51,7 @@ func TestNerdctlHvtRumprunRedis(t *testing.T) {
 }
 
 func TestNerdctlHvtRumprunRedisBlock(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump-block:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest"
 	containerName := "hvt-rumprun-redis-block-test"
 	err := nerdctlTest(containerName, containerImage, true)
 	if err != nil {
@@ -60,7 +60,7 @@ func TestNerdctlHvtRumprunRedisBlock(t *testing.T) {
 }
 
 func TestNerdctlHvtSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
 	containerName := "hvt-rumprun-redis-test"
 	err := nerdctlSeccompTest(containerName, containerImage, true, true)
 	if err != nil {
@@ -69,7 +69,7 @@ func TestNerdctlHvtSeccompOn(t *testing.T) {
 }
 
 func TestNerdctlHvtSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rump:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest"
 	containerName := "hvt-rumprun-redis-test"
 	err := nerdctlSeccompTest(containerName, containerImage, true, false)
 	if err != nil {
@@ -78,7 +78,7 @@ func TestNerdctlHvtSeccompOff(t *testing.T) {
 }
 
 func TestNerdctlSptRumprunRedis(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rump:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest"
 	containerName := "spt-rumprun-redis-test"
 	err := nerdctlTest(containerName, containerImage, true)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestNerdctlQemuUnikraftRedis(t *testing.T) {
 }
 
 func TestNerdctlQemuUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest"
 	containerName := "qemu-unik-nginx-test"
 	err := nerdctlTest(containerName, containerImage, false)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestNerdctlQemuSeccompOff(t *testing.T) {
 }
 
 func TestNerdctlFCUnikraftNginx(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
 	containerName := "fc-unik-nginx-test"
 	err := nerdctlTest(containerName, containerImage, false)
 	if err != nil {
@@ -132,7 +132,7 @@ func TestNerdctlFCUnikraftNginx(t *testing.T) {
 }
 
 func TestNerdctlFCSeccompOn(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
 	containerName := "fc-unik-nginx-test"
 	err := nerdctlSeccompTest(containerName, containerImage, true, true)
 	if err != nil {
@@ -141,7 +141,7 @@ func TestNerdctlFCSeccompOn(t *testing.T) {
 }
 
 func TestNerdctlFCSeccompOff(t *testing.T) {
-	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-fc-unik:latest"
+	containerImage := "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest"
 	containerName := "fc-unik-nginx-test"
 	err := nerdctlSeccompTest(containerName, containerImage, true, false)
 	if err != nil {
