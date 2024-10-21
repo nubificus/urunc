@@ -73,8 +73,15 @@ func GetUnikernelConfig(bundleDir string, spec *specs.Spec) (*UnikernelConfig, e
 		}
 		return conf, nil
 	}
+	rootFSDir := spec.Root.Path
 
-	conf, err = getConfigFromJSON(bundleDir)
+	var jsonFilePath string
+	if filepath.IsAbs(rootFSDir) {
+		jsonFilePath = filepath.Join(rootFSDir, uruncJSONFilename)
+	} else {
+		jsonFilePath = filepath.Join(bundleDir, rootFSDir, uruncJSONFilename)
+	}
+	conf, err = getConfigFromJSON(jsonFilePath)
 	if err == nil {
 		err1 := conf.decode()
 		if err1 != nil {
@@ -129,8 +136,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 }
 
 // getConfigFromJSON retrieves the Unikernel config parameters from the urunc.json file inside the rootfs.
-func getConfigFromJSON(bundleDir string) (*UnikernelConfig, error) {
-	jsonFilePath := filepath.Join(bundleDir, rootfsDirName, uruncJSONFilename)
+func getConfigFromJSON(jsonFilePath string) (*UnikernelConfig, error) {
 	file, err := os.Open(jsonFilePath)
 	if err != nil {
 		return nil, err

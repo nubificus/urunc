@@ -116,7 +116,7 @@ func TestGetConfigFromJSON(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Call the function
-		config, err := getConfigFromJSON(tempDir)
+		config, err := getConfigFromJSON(configPath)
 		assert.NoError(t, err, "Expected no error in getting config from JSON")
 		assert.Equal(t, expectedConfig, config, "Expected config to match")
 	})
@@ -125,9 +125,10 @@ func TestGetConfigFromJSON(t *testing.T) {
 		t.Parallel()
 		// Create a temporary directory
 		tempDir := t.TempDir()
+		configPath := filepath.Join(tempDir, uruncJSONFilename)
 
 		// Call the function with a missing urunc.json file
-		_, err := getConfigFromJSON(tempDir)
+		_, err := getConfigFromJSON(configPath)
 		assert.Error(t, err, "Expected an error for missing "+
 			uruncJSONFilename+" file")
 		assert.Contains(t, err.Error(), "no such file or directory", "Expected specific error message")
@@ -147,7 +148,7 @@ func TestGetConfigFromJSON(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Call the function
-		_, err = getConfigFromJSON(tempDir)
+		_, err = getConfigFromJSON(configDirPath)
 		assert.Error(t, err, "Expected an error for "+uruncJSONFilename+" being a directory")
 		assert.Contains(t, err.Error(), uruncJSONFilename+" is a directory", "Expected specific error message")
 	})
@@ -167,7 +168,7 @@ func TestGetConfigFromJSON(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Call the function
-		_, err = getConfigFromJSON(tempDir)
+		_, err = getConfigFromJSON(configPath)
 		assert.Error(t, err, "Expected an error for invalid "+uruncJSONFilename+" file")
 		assert.Contains(t, err.Error(), "invalid character", "Expected specific error message")
 	})
