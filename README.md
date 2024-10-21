@@ -41,6 +41,68 @@ You can download the binaries from the [latest release](https://github.com/nubif
 
 ## Quick start
 
+### Using Docker
+
+Docker is probably the easiest way to get started with `urunc` locally.
+
+Install Docker:
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+rm get-docker.sh
+sudo groupadd docker
+sudo usermod -aG docker $USER
+```
+
+Install `urunc`:
+
+```bash
+sudo apt-get install -y git
+git clone https://github.com/nubificus/urunc.git
+docker run --rm -ti -v $PWD/urunc:/urunc -w /urunc golang:latest bash -c "git config --global --add safe.directory /urunc && make"
+sudo install -D -m0755 $PWD/urunc/dist/urunc_static_$(dpkg --print-architecture) /usr/local/bin/urunc
+sudo install -D -m0755 $PWD/urunc/dist/containerd-shim-urunc-v2_$(dpkg --print-architecture) /usr/local/bin/containerd-shim-urunc-v2
+```
+
+Install QEMU:
+
+```bash
+sudo apt install -y qemu-kvm
+```
+
+Now we are ready to run a Unikernel using Docker with `urunc`:
+
+```bash
+docker run --rm -d --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest unikernel
+```
+
+We can see the QEMU process:
+
+```bash
+root@dck02:~$ ps -ef | grep qemu
+root       11302   11287  7 19:17 ?        00:00:02 /usr/bin/qemu-system-x86_64 -m 256M -cpu host -enable-kvm -nographic -vga none --sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny -kernel /var/lib/docker/overlay2/4e1943bb06c1a4d4bd72f990628c3ab5696859339288d5a87315179a29a04e98/merged/unikernel/app-nginx_kvm-x86_64 -net nic,model=virtio -net tap,script=no,ifname=tap0_urunc -initrd /var/lib/docker/overlay2/4e1943bb06c1a4d4bd72f990628c3ab5696859339288d5a87315179a29a04e98/merged/unikernel/initrd -append nginx netdev.ipv4_addr=172.17.0.2 netdev.ipv4_gw_addr=172.17.0.1 netdev.ipv4_subnet_mask=255.255.0.0 vfs.rootfs=initrd --  -c /nginx/conf/nginx.conf
+```
+
+We are also able to extract the IP and ping the nginx unikernel:
+
+```bash
+root@dck02:~$ IP_ADDR=$(ps -ef | grep qemu | grep 'ipv4_addr' | awk -F"netdev.ipv4_addr=" '{print $2}' | awk '{print $1}')
+root@dck02:~$ curl $IP_ADDR 
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hello, world!</title>
+</head>
+<body>
+  <h1>Hello, world!</h1>
+  <p>Powered by <a href="http://unikraft.org">Unikraft</a>.</p>
+</body>
+</html>
+```
+
+### Using containerd & nerdctl
+
 To run a simple `urunc` example locally, you need to address a few dependencies:
 
 - [containerd](https://github.com/containerd/containerd) version 1.7 or higher (for installation instructions, see [here](docs/Installation.md#install-containerd), [here](docs/Installation.md#install-containerd-service) and [here](docs/Installation.md#configure-containerd))
