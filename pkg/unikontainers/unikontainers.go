@@ -168,7 +168,11 @@ func (u *Unikontainer) Exec() error {
 	unikernelVersion := u.State.Annotations[annotVersion]
 	unikernelPath := u.State.Annotations[annotBinary]
 	initrdPath := u.State.Annotations[annotInitrd]
-	rootfsDir := filepath.Join(u.State.Bundle, rootfsDirName)
+
+	rootfsDir := u.Spec.Root.Path
+	if !filepath.IsAbs(rootfsDir) {
+		rootfsDir = filepath.Join(u.State.Bundle, rootfsDir)
+	}
 	unikernelAbsPath := filepath.Join(rootfsDir, unikernelPath)
 	initrdAbsPath := ""
 	if initrdPath != "" {
@@ -205,7 +209,9 @@ func (u *Unikontainer) Exec() error {
 	}
 
 	// handle network
-	netManager, err := network.NewNetworkManager(u.getNetworkType())
+	networkType := u.getNetworkType()
+	Log.WithField("network type", networkType).Error("network type")
+	netManager, err := network.NewNetworkManager(networkType)
 	if err != nil {
 		return err
 	}
@@ -427,18 +433,23 @@ func (u *Unikontainer) saveContainerState() error {
 	return os.WriteFile(stateName, data, 0o644) //nolint: gosec
 }
 
-// ExecuteHooks executes concurrently any hooks found in spec based on name:
 func (u *Unikontainer) ExecuteHooks(name string) error {
+	return u.executeHooksConcurrently(name)
+	// return u.executeHooksSequentially(name)
+}
+
+// ExecuteHooks executes concurrently any hooks found in spec based on name:
+func (u *Unikontainer) executeHooksConcurrently(name string) error {
 	// NOTICE: It is possible that the concurrent execution of the hooks may cause
 	// some unknown problems down the line. Be sure to prioritize checking with sequential
 	// hook execution when debugging.
 
 	// More info for individual hooks can be found here:
 	// https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks
+	Log.WithField("hooks", name).Error("")
 	if u.Spec.Hooks == nil {
 		return nil
 	}
-
 	hooks := map[string][]specs.Hook{
 		"Prestart":        u.Spec.Hooks.Prestart,
 		"CreateRuntime":   u.Spec.Hooks.CreateRuntime,
@@ -494,7 +505,7 @@ func (u *Unikontainer) executeHook(hook specs.Hook, state []byte, wg *sync.WaitG
 		"path": hook.Path,
 		"args": hook.Args,
 		"env":  hook.Env,
-	}).Info("executing hook")
+	}).Error("executing hook")
 
 	if err := cmd.Run(); err != nil {
 		Log.WithFields(logrus.Fields{
@@ -509,13 +520,14 @@ func (u *Unikontainer) executeHook(hook specs.Hook, state []byte, wg *sync.WaitG
 }
 
 // ExecuteHooks executes sequentially any hooks found in spec based on name:
-func (u *Unikontainer) ExecuteHooksSequentially(name string) error {
+func (u *Unikontainer) executeHooksSequentially(name string) error { //nolint: unused
 	// NOTICE: This function is left on purpose to aid future debugging efforts
 	// in case concurrent hook execution causes unexpected errors.
 
 	// More info for individual hooks can be found here:
 	// https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks
-	Log.Info("Executing ", name, " hooks")
+	Log.WithField("hooks", name).Error("")
+
 	if u.Spec.Hooks == nil {
 		return nil
 	}
@@ -528,6 +540,7 @@ func (u *Unikontainer) ExecuteHooksSequentially(name string) error {
 		"Poststart":       u.Spec.Hooks.Poststart,
 		"Poststop":        u.Spec.Hooks.Poststop,
 	}[name]
+	Log.WithField("hooks", name).WithField("amount", len(hooks)).Error("")
 
 	if len(hooks) == 0 {
 		Log.WithFields(logrus.Fields{
