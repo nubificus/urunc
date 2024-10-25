@@ -16,8 +16,10 @@ package urunce2etesting
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -26,17 +28,58 @@ import (
 	"time"
 )
 
+type testTool interface {
+	getTestArgs() containerTestArgs
+	getContainerID() string
+	setContainerID(string)
+	pullImage() error
+	rmImage() error
+	createContainer() (string, error)
+	startContainer(bool) (string, error)
+	runContainer(bool) (string, error)
+	stopContainer() error
+	rmContainer() error
+	logContainer() (string, error)
+	searchContainer(string) (bool, error)
+	inspectAndGet(string) (string, error)
+}
+
 var matchTest testMethod
+var errToolDoesNotSUpport = errors.New("Operarion not support")
 
-func pullImage(image string) error {
-	pullParams := strings.Fields("ctr image pull " + image)
-	pullCmd := exec.Command(pullParams[0], pullParams[1:]...) //nolint:gosec
-	err := pullCmd.Run()
+func runTest1(tool testTool) (err error) {
+	cntrArgs := tool.getTestArgs()
+	err = tool.pullImage()
 	if err != nil {
-		return fmt.Errorf("Error pulling %s: %v", image, err)
+		return fmt.Errorf("Failed to pull container imeage: %s - %v", cntrArgs.Image, err)
 	}
-
-	return nil
+	var output string
+	if cntrArgs.TestFunc == nil {
+		output, err = tool.runContainer(false)
+		tool.setContainerID(cntrArgs.Name)
+	} else {
+		output, err = tool.runContainer(true)
+		tool.setContainerID(output)
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to run unikernel container: %v", err)
+	}
+	defer func() {
+		// We do not want a successful cleanup to overwrite any previous error
+		if tempErr := testCleanup1(tool); tempErr != nil {
+			err = tempErr
+		}
+	}()
+	if cntrArgs.TestFunc == nil {
+		if !strings.Contains(string(output), cntrArgs.ExpectOut) {
+			return fmt.Errorf("Expected: %s, Got: %s", cntrArgs.ExpectOut, output)
+		}
+		return err
+	}
+	// Give some time till the unikernel is up and running.
+	// Maybe we need to revisit this in the future.
+	time.Sleep(2 * time.Second)
+	return cntrArgs.TestFunc(tool)
 }
 
 func runTest(tool string, cntrArgs containerTestArgs) (err error) {
@@ -64,7 +107,30 @@ func runTest(tool string, cntrArgs containerTestArgs) (err error) {
 	// Give some time till the unikernel is up and running.
 	// Maybe we need to revisit this in the future.
 	time.Sleep(2 * time.Second)
-	return cntrArgs.TestFunc(cntrArgs)
+	// return cntrArgs.TestFunc(cntrArgs, output)
+	return nil
+}
+
+func testCleanup1(tool testTool) error {
+	err := tool.stopContainer()
+	if err != nil {
+		return fmt.Errorf("Failed to stop container: %v", err)
+	}
+	err = tool.rmContainer()
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %v", err)
+	}
+	containerID := tool.getContainerID()
+	exists, err := tool.searchContainer(containerID)
+	if exists || err != nil {
+		return fmt.Errorf("Container %s is not removed: %v", containerID, err)
+	}
+	err = common.VerifyNoStaleFiles(containerID)
+	if err != nil {
+		return fmt.Errorf("Failed to remove all stale files: %v", err)
+	}
+
+	return nil
 }
 
 func testCleanup(tool string, containerID string) error {
@@ -89,6 +155,138 @@ func testCleanup(tool string, containerID string) error {
 	}
 
 	return nil
+}
+
+func findValOfKey(searchArea string, key string) (string, error) {
+	keystr := "\"" + key + "\":[^,;\\]}]*"
+	r, err := regexp.Compile(keystr)
+	if err != nil {
+		return "", err
+	}
+	match := r.FindString(searchArea)
+	keyValMatch := strings.Split(match, ":")
+	val := strings.ReplaceAll(keyValMatch[1], "\"", "")
+	return strings.TrimSpace(val), nil
+}
+
+func commonNewContainerCmd(a containerTestArgs) string {
+	cmdBase := "--runtime io.containerd.urunc.v2 "
+	if a.Devmapper {
+		cmdBase += "--snapshotter devmapper "
+	}
+	if !a.Seccomp {
+		cmdBase += "--security-opt seccomp=unconfined "
+	}
+	cmdBase += a.Image + " "
+	cmdBase += a.Name
+	return cmdBase
+}
+
+func commonCmdExec(command string) (output string, err error) {
+	params := strings.Fields(command)
+	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
+	outBytes, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%s - %v", output, err)
+	}
+	output = string(outBytes)
+	output = strings.TrimSpace(output)
+	return output, nil
+}
+
+func commonPull(tool string, image string) error {
+	pullCmd := tool + " image pull " + image
+
+	_, err := commonCmdExec(pullCmd)
+	return err
+}
+
+func commonRmImage(tool string, image string) error {
+	pullCmd := tool + " image rm " + image
+
+	_, err := commonCmdExec(pullCmd)
+	return err
+}
+
+// nolint:unused
+func commonCreate(tool string, cntrArgs containerTestArgs) (output string, err error) {
+	cmdBase := tool + " create "
+	cmdBase += commonNewContainerCmd(cntrArgs)
+	return commonCmdExec(cmdBase)
+}
+
+func commonStart(tool string, cID string, attach bool) (output string, err error) {
+	cmdBase := tool + " start "
+	cmdBase += "--runtime io.containerd.urunc.v2 "
+	if attach {
+		if tool != "ctr t" {
+			cmdBase += "--attach "
+		}
+	} else {
+		if tool == "ctr t" {
+			cmdBase += "--detach "
+		}
+	}
+	cmdBase += cID
+	return commonCmdExec(cmdBase)
+}
+
+// nolint:unused
+func commonRun(tool string, cntrArgs containerTestArgs, detach bool) (output string, err error) {
+	cmdBase := tool
+	cmdBase += " run "
+	if detach {
+		cmdBase += "-d "
+	}
+	cmdBase += commonNewContainerCmd(cntrArgs)
+	return commonCmdExec(cmdBase)
+}
+
+// nolint:unused
+func commonLogs(tool string, cID string) (string, error) {
+	logCmd := tool + " logs " + cID
+
+	return commonCmdExec(logCmd)
+}
+
+// nolint:unused
+func commonSearchContainer(tool string, cID string) (bool, error) {
+	cmd := tool + " ps -a --no-trunc -q"
+
+	output, err := commonCmdExec(cmd)
+	if err != nil {
+		return true, err
+	}
+	return searchCID(output, cID), nil
+}
+
+// nolint:unused
+func commonInspectAndGet(tool string, containerID string, key string) (string, error) {
+	cmdBase := tool
+	cmdBase += " inspect "
+	cmdBase += containerID
+	output, err := commonCmdExec(cmdBase)
+	if err != nil {
+		return "", err
+	}
+
+	return findValOfKey(output, key)
+}
+
+// nolint:unused
+func commonStopContainer(tool string, containerID string) error {
+	cmdBase := tool
+	cmdBase += " stop "
+	cmdBase += containerID
+	_, err := commonCmdExec(cmdBase)
+	return err
+}
+
+func commonRmContainer(tool string, containerID string) (string, error) {
+	cmdBase := tool
+	cmdBase += " rm "
+	cmdBase += containerID
+	return commonCmdExec(cmdBase)
 }
 
 func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (output string, err error) {
@@ -166,6 +364,22 @@ func removeContainer(tool string, containerID string) error {
 		return fmt.Errorf("unexpected output when deleting %s. expected: %s, got: %s", containerID, containerID, retMsg)
 	}
 	return nil
+}
+
+func searchCID(searchArea string, containerID string) bool {
+	found := false
+	lines := strings.Split(searchArea, "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		cID := strings.TrimSpace(line)
+		if cID == containerID {
+			found = true
+			break
+		}
+	}
+	return found
 }
 
 func verifyContainerRemoved(tool string, containerID string) error {

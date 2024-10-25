@@ -22,7 +22,7 @@ import (
 	common "github.com/nubificus/urunc/tests"
 )
 
-type testMethod func(containerTestArgs) error
+type testMethod func(tool testTool) error
 
 type containerTestArgs struct {
 	Name      string
@@ -157,7 +157,7 @@ func TestNerdctl(t *testing.T) {
 func TestCtr(t *testing.T) {
 	tests := []containerTestArgs{
 		{
-			Image:     "harbor.nbfc.io/nubificus/urunc/hello-hvt-nonet:latest",
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun-nonet:latest",
 			Name:      "Hvt-rumprun-hello",
 			Devmapper: true,
 			Seccomp:   true,
@@ -166,7 +166,7 @@ func TestCtr(t *testing.T) {
 			TestFunc:  matchTest,
 		},
 		{
-			Image:     "harbor.nbfc.io/nubificus/urunc/hello-spt-nonet:latest",
+			Image:     "harbor.nbfc.io/nubificus/urunc/hello-spt-rumprun-nonet:latest",
 			Name:      "Spt-rumprun-hello",
 			Devmapper: true,
 			Seccomp:   true,
@@ -195,11 +195,8 @@ func TestCtr(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := pullImage(tc.Image)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-			err = runTest("ctr", tc)
+			ctrTool := newCtrTool(tc)
+			err := runTest1(ctrTool)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -207,7 +204,8 @@ func TestCtr(t *testing.T) {
 	}
 }
 
-func seccompTest(args containerTestArgs) error {
+func seccompTest(tool testTool) error {
+	args := tool.getTestArgs()
 	unikernelPID, err := findUnikernelKey(args.Name, "State", "Pid")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
@@ -231,7 +229,8 @@ func seccompTest(args containerTestArgs) error {
 	return nil
 }
 
-func pingTest(args containerTestArgs) error {
+func pingTest(tool testTool) error {
+	args := tool.getTestArgs()
 	extractedIPAddr, err := findUnikernelKey(args.Name, "NetworkSettings", "IPAddress")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)

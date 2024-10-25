@@ -75,12 +75,27 @@ func VerifyNoStaleFiles(containerID string) error {
 		return fmt.Errorf("root directory %s still exists", dirPath)
 	}
 
+	// Check /run/containerd/runc/k8s.io/containerID directory does not exist
+	dirPath = "/run/containerd/runc/k8s.io/" + containerID
+	_, err = os.Stat(dirPath)
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("root directory %s still exists", dirPath)
+	}
+
 	// Check /run/containerd/io.containerd.runtime.v2.task/default/containerID directory does not exist
 	dirPath = "run/containerd/io.containerd.runtime.v2.task/default/" + containerID
 	_, err = os.Stat(dirPath)
 	if !os.IsNotExist(err) {
 		return fmt.Errorf("bundle directory %s still exists", dirPath)
 	}
+
+	// Check /run/containerd/io.containerd.runtime.v2.task/k8s.io/containerID directory does not exist
+	dirPath = "run/containerd/io.containerd.runtime.v2.task/k8s.io/" + containerID
+	_, err = os.Stat(dirPath)
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("bundle directory %s still exists", dirPath)
+	}
+
 	return nil
 }
 
