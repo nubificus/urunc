@@ -82,6 +82,7 @@ func runTest1(tool testTool) (err error) {
 	return cntrArgs.TestFunc(tool)
 }
 
+// nolint:unused
 func runTest(tool string, cntrArgs containerTestArgs) (err error) {
 	var output string
 	if cntrArgs.TestFunc == nil {
@@ -133,6 +134,7 @@ func testCleanup1(tool testTool) error {
 	return nil
 }
 
+// nolint:unused
 func testCleanup(tool string, containerID string) error {
 	if tool != "ctr" && tool != "nerdctl" {
 		return fmt.Errorf("Unknown tool %s", tool)
@@ -177,8 +179,9 @@ func commonNewContainerCmd(a containerTestArgs) string {
 	if !a.Seccomp {
 		cmdBase += "--security-opt seccomp=unconfined "
 	}
-	cmdBase += a.Image + " "
-	cmdBase += a.Name
+	cmdBase += "--name "
+	cmdBase += a.Name + " "
+	cmdBase += a.Image
 	return cmdBase
 }
 
@@ -273,13 +276,11 @@ func commonInspectAndGet(tool string, containerID string, key string) (string, e
 	return findValOfKey(output, key)
 }
 
-// nolint:unused
-func commonStopContainer(tool string, containerID string) error {
+func commonStopContainer(tool string, containerID string) (string, error) {
 	cmdBase := tool
 	cmdBase += " stop "
 	cmdBase += containerID
-	_, err := commonCmdExec(cmdBase)
-	return err
+	return commonCmdExec(cmdBase)
 }
 
 func commonRmContainer(tool string, containerID string) (string, error) {
@@ -289,6 +290,7 @@ func commonRmContainer(tool string, containerID string) (string, error) {
 	return commonCmdExec(cmdBase)
 }
 
+// nolint:unused
 func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (output string, err error) {
 	cmdBase := "run "
 	if detach {
@@ -325,6 +327,7 @@ func startContainer(tool string, cntrArgs containerTestArgs, detach bool) (outpu
 	return output, nil
 }
 
+// nolint:unused
 func stopContainer(tool string, containerID string) error {
 	var params []string
 	switch tool {
@@ -347,6 +350,7 @@ func stopContainer(tool string, containerID string) error {
 	return nil
 }
 
+// nolint:unused
 func removeContainer(tool string, containerID string) error {
 	var rmcmd string
 	if tool == "ctr" {
@@ -382,6 +386,7 @@ func searchCID(searchArea string, containerID string) bool {
 	return found
 }
 
+// nolint:unused
 func verifyContainerRemoved(tool string, containerID string) error {
 	var params []string
 	switch tool {
@@ -416,6 +421,7 @@ func verifyContainerRemoved(tool string, containerID string) error {
 	return nil
 }
 
+// nolint:unused
 func findUnikernelKey(containerID string, field string, key string) (string, error) {
 	params := strings.Fields(fmt.Sprintf("nerdctl inspect %s", containerID))
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
