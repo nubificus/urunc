@@ -144,7 +144,8 @@ func TestNerdctl(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := runTest("nerdctl", tc)
+			nerdctlTool := newNerdctlTool(tc)
+			err := runTest1(nerdctlTool)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -204,9 +205,9 @@ func TestCtr(t *testing.T) {
 
 func seccompTest(tool testTool) error {
 	args := tool.getTestArgs()
-	unikernelPID, err := findUnikernelKey(args.Name, "State", "Pid")
+	unikernelPID, err := tool.inspectAndGet("Pid")
 	if err != nil {
-		return fmt.Errorf("Failed to extract container IP: %v", err)
+		return fmt.Errorf("Failed to extract unikernel PID: %v", err)
 	}
 	procPath := "/proc/" + unikernelPID + "/status"
 	seccompLine, err := common.FindLineInFile(procPath, "Seccomp")
@@ -228,8 +229,7 @@ func seccompTest(tool testTool) error {
 }
 
 func pingTest(tool testTool) error {
-	args := tool.getTestArgs()
-	extractedIPAddr, err := findUnikernelKey(args.Name, "NetworkSettings", "IPAddress")
+	extractedIPAddr, err := tool.inspectAndGet("IPAddress")
 	if err != nil {
 		return fmt.Errorf("Failed to extract container IP: %v", err)
 	}
