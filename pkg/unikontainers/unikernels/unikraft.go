@@ -73,40 +73,49 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 		u.AppName = u.Command[:firstSpace]
 		u.Command = strings.TrimLeft(u.Command, u.AppName)
 	} else {
-		u.AppName = "unikraft"
+		u.AppName = u.Command
 	}
 	u.Version = data.Version
 
-	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
-	// and sharedfs or any other Unikraft related ways to pass data to guest.
-	switch data.RootFSType {
-	case "initrd":
-		u.VFS.RootFS = "vfs.rootfs=" + "initrd"
-	default:
-		u.VFS.RootFS = ""
-	}
-	return u.configureNet(data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
+	return u.configureUnikraftArgs(data.RootFSType, data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
 }
 
-func (u *Unikraft) configureNet(ethDeviceIP, ethDeviceGateway, ethDeviceMask string) error {
-	setCompatNetConfig := func() {
+func (u *Unikraft) configureUnikraftArgs(rootFsType, ethDeviceIP, ethDeviceGateway, ethDeviceMask string) error {
+	setCompatArgs := func() {
 		u.Net.Address = "netdev.ipv4_addr=" + ethDeviceIP
 		u.Net.Gateway = "netdev.ipv4_gw_addr=" + ethDeviceGateway
 		u.Net.Mask = "netdev.ipv4_subnet_mask=" + ethDeviceMask
+		// TODO: We need to add support for actual block devices (e.g. virtio-blk)
+		// and sharedfs or any other Unikraft related ways to pass data to guest.
+		if rootFsType == "initrd" {
+			u.VFS.RootFS = "vfs.rootfs=" + "initrd"
+		} else {
+			u.VFS.RootFS = ""
+		}
 	}
 
-	setCurrentNetConfig := func() {
+	setCurrentArgs := func() {
 		u.Net.Address = "netdev.ip=" + ethDeviceIP + "/24:" + ethDeviceGateway + ":8.8.8.8"
+		// TODO: We need to add support for actual block devices (e.g. virtio-blk)
+		// and sharedfs or any other Unikraft related ways to pass data to guest.
+		if rootFsType == "initrd" {
+			// TODO: This needs better handling. We need to revisit this
+			// when we better understand all the available options for
+			// passing info inside unikraft unikernels.
+			u.VFS.RootFS = "vfs.fstab=[ \"initrd0:/:extract:::\" ]"
+		} else {
+			u.VFS.RootFS = ""
+		}
 	}
 
 	if u.Version == "" {
-		setCurrentNetConfig()
+		setCurrentArgs()
 		return ErrUndefinedVersion
 	}
 
 	unikernelVersion, err := version.NewVersion(u.Version)
 	if err != nil {
-		setCurrentNetConfig()
+		setCurrentArgs()
 		return ErrVersionParsing
 	}
 
@@ -116,9 +125,9 @@ func (u *Unikraft) configureNet(ethDeviceIP, ethDeviceGateway, ethDeviceMask str
 	}
 
 	if unikernelVersion.GreaterThanOrEqual(targetVersion) {
-		setCurrentNetConfig()
+		setCurrentArgs()
 	} else {
-		setCompatNetConfig()
+		setCompatArgs()
 	}
 	return nil
 }
