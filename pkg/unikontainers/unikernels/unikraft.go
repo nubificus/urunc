@@ -67,13 +67,14 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 	// if there are no spaces in the command line, then
 	// we assume that there was one word (appname) in the command line
 	// Otherwise, we use the first word as the name of the app
-	appName := u.Command
-	firstSpace := strings.Index(data.CmdLine, " ")
+	u.Command = strings.TrimSpace(data.CmdLine)
+	firstSpace := strings.Index(u.Command, " ")
 	if firstSpace > 0 {
-		appName = data.CmdLine[:firstSpace]
-		u.Command = strings.TrimLeft(data.CmdLine, appName)
+		u.AppName = u.Command[:firstSpace]
+		u.Command = strings.TrimLeft(u.Command, u.AppName)
+	} else {
+		u.AppName = "unikraft"
 	}
-	u.AppName = appName
 	u.Version = data.Version
 
 	// TODO: We need to add support for actual block devices (e.g. virtio-blk)
