@@ -18,7 +18,7 @@ import (
 	"fmt"
 )
 
-var nerdctlName = "nerdctl"
+const nerdctlName = "nerdctl"
 
 type nerdctlInfo struct {
 	testArgs    containerTestArgs
@@ -32,16 +32,29 @@ func newNerdctlTool(args containerTestArgs) *nerdctlInfo {
 	}
 }
 
+func (i *nerdctlInfo) Name() string {
+	return nerdctlName
+}
+
 func (i *nerdctlInfo) getTestArgs() containerTestArgs {
 	return i.testArgs
 }
 
-func (i *nerdctlInfo) setContainerID(cID string) {
-	i.containerID = cID
+func (i *nerdctlInfo) getPodID() string {
+	// Not supported by nerdctl
+	return ""
 }
 
 func (i *nerdctlInfo) getContainerID() string {
 	return i.containerID
+}
+
+func (i *nerdctlInfo) setPodID(string) {
+	// Not supported by nerdctl
+}
+
+func (i *nerdctlInfo) setContainerID(cID string) {
+	i.containerID = cID
 }
 
 func (i *nerdctlInfo) pullImage() error {
@@ -52,8 +65,19 @@ func (i *nerdctlInfo) rmImage() error {
 	return commonRmImage(nerdctlName, i.testArgs.Image)
 }
 
+func (i *nerdctlInfo) createPod() (string, error) {
+	// Not supported by nerdctl
+	return "", errToolDoesNotSupport
+}
+
 func (i *nerdctlInfo) createContainer() (string, error) {
 	return commonCreate(nerdctlName, i.testArgs)
+}
+
+// nolint:unused
+func (i *nerdctlInfo) startPod() (string, error) {
+	// Not supported by nerdctl
+	return "", errToolDoesNotSupport
 }
 
 func (i *nerdctlInfo) startContainer(detach bool) (string, error) {
@@ -70,8 +94,12 @@ func (i *nerdctlInfo) stopContainer() error {
 	if err != nil {
 		return fmt.Errorf("Failed to stop %s: %v", i.containerID, err)
 	}
-
 	return nil
+}
+
+func (i *nerdctlInfo) stopPod() error {
+	// Not supported by nerdctl
+	return errToolDoesNotSupport
 }
 
 func (i *nerdctlInfo) rmContainer() error {
@@ -80,8 +108,12 @@ func (i *nerdctlInfo) rmContainer() error {
 	if err != nil {
 		return fmt.Errorf("Failed to stop %s: %v", i.containerID, err)
 	}
-
 	return nil
+}
+
+func (i *nerdctlInfo) rmPod() error {
+	// Not supported by nerdctl
+	return errToolDoesNotSupport
 }
 
 func (i *nerdctlInfo) logContainer() (string, error) {
@@ -92,6 +124,16 @@ func (i *nerdctlInfo) searchContainer(cID string) (bool, error) {
 	return commonSearchContainer(nerdctlName, cID)
 }
 
-func (i *nerdctlInfo) inspectAndGet(key string) (string, error) {
-	return commonInspectAndGet(nerdctlName, i.containerID, key)
+func (i *nerdctlInfo) searchPod(string) (bool, error) {
+	// Not supported by nerdctl
+	return true, errToolDoesNotSupport
+}
+
+func (i *nerdctlInfo) inspectCAndGet(key string) (string, error) {
+	return commonInspectCAndGet(nerdctlName, i.containerID, key)
+}
+
+func (i *nerdctlInfo) inspectPAndGet(string) (string, error) {
+	// Not supported by nerdctl
+	return "", errToolDoesNotSupport
 }
