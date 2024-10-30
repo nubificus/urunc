@@ -15,11 +15,7 @@
 package urunce2etesting
 
 import (
-	"fmt"
-	"strings"
 	"testing"
-
-	common "github.com/nubificus/urunc/tests"
 )
 
 type testMethod func(tool testTool) error
@@ -145,10 +141,7 @@ func TestNerdctl(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			nerdctlTool := newNerdctlTool(tc)
-			err := runTest1(nerdctlTool)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
+			runTest(nerdctlTool, t)
 		})
 	}
 }
@@ -195,48 +188,7 @@ func TestCtr(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			ctrTool := newCtrTool(tc)
-			err := runTest1(ctrTool)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
+			runTest(ctrTool, t)
 		})
 	}
-}
-
-func seccompTest(tool testTool) error {
-	args := tool.getTestArgs()
-	unikernelPID, err := tool.inspectAndGet("Pid")
-	if err != nil {
-		return fmt.Errorf("Failed to extract unikernel PID: %v", err)
-	}
-	procPath := "/proc/" + unikernelPID + "/status"
-	seccompLine, err := common.FindLineInFile(procPath, "Seccomp")
-	if err != nil {
-		return err
-	}
-	wordsInLine := strings.Split(seccompLine, ":")
-	if strings.TrimSpace(wordsInLine[1]) == "2" {
-		if args.Seccomp == false {
-			return fmt.Errorf("Seccomp should not be enabled")
-		}
-	} else {
-		if args.Seccomp == true {
-			return fmt.Errorf("Seccomp should be enabled")
-		}
-	}
-
-	return nil
-}
-
-func pingTest(tool testTool) error {
-	extractedIPAddr, err := tool.inspectAndGet("IPAddress")
-	if err != nil {
-		return fmt.Errorf("Failed to extract container IP: %v", err)
-	}
-	err = common.PingUnikernel(extractedIPAddr)
-	if err != nil {
-		return fmt.Errorf("ping failed: %v", err)
-	}
-
-	return nil
 }

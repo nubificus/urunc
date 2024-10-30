@@ -66,12 +66,9 @@ func (i *nerdctlInfo) runContainer(detach bool) (string, error) {
 
 func (i *nerdctlInfo) stopContainer() error {
 	output, err := commonStopContainer(nerdctlName, i.containerID)
+	err = checkExpectedOut(i.containerID, output, err)
 	if err != nil {
-		return fmt.Errorf("Stopping %s failed: %s - %v", i.containerID, output, err)
-	}
-
-	if i.containerID != output {
-		return fmt.Errorf("unexpected output when stopping %s. %s", i.containerID, output)
+		return fmt.Errorf("Failed to stop %s: %v", i.containerID, err)
 	}
 
 	return nil
@@ -79,12 +76,9 @@ func (i *nerdctlInfo) stopContainer() error {
 
 func (i *nerdctlInfo) rmContainer() error {
 	output, err := commonRmContainer(nerdctlName, i.containerID)
+	err = checkExpectedOut(i.containerID, output, err)
 	if err != nil {
-		return fmt.Errorf("Stopping %s failed: %s - %v", i.containerID, output, err)
-	}
-
-	if i.containerID != output {
-		return fmt.Errorf("unexpected output when removing %s. %s", i.containerID, output)
+		return fmt.Errorf("Failed to stop %s: %v", i.containerID, err)
 	}
 
 	return nil
