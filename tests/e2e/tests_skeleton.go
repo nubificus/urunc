@@ -16,6 +16,7 @@ package urunce2etesting
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -25,8 +26,24 @@ import (
 )
 
 func runTest(tool testTool, t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Could not get CWD: %v", err)
+	}
+	testDir := t.TempDir()
+	err = os.Chdir(testDir)
+	if err != nil {
+		t.Fatalf("Could not change directory to %s: %v", testDir, err)
+	}
+	t.Cleanup(func() {
+		err = os.Chdir(cwd)
+		if err != nil {
+			t.Errorf("Could not switch back to %s: %v", cwd, err)
+		}
+
+	})
 	cntrArgs := tool.getTestArgs()
-	err := tool.pullImage()
+	err = tool.pullImage()
 	if err != nil {
 		t.Fatalf("Failed to pull container image: %s - %v", cntrArgs.Image, err)
 	}
