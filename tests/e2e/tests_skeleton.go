@@ -38,6 +38,10 @@ func runTest(tool testTool, t *testing.T) {
 
 	})
 	if cntrArgs.TestFunc == nil {
+		if tool.Name() == "crictl" {
+			// TODO: Add support for matchTest in crictl
+			t.Fatalf("Crictl does not support matchTest")
+		}
 		output, err := tool.runContainer(false)
 		if err != nil {
 			t.Fatalf("Failed to run unikernel container: %s -- %v", output, err)
@@ -52,26 +56,39 @@ func runTest(tool testTool, t *testing.T) {
 		}
 		return
 	}
-	output, err := tool.createContainer()
-	if err != nil {
-		t.Fatalf("Failed to create unikernel container: %v", err)
+	podID, err := tool.createPod()
+	if err != nil && err != errToolDoesNotSupport {
+		t.Fatalf("Failed to create Pod: %s - %v", podID, err)
 	}
-	tool.setContainerID(output)
+	tool.setPodID(podID)
 	t.Cleanup(func() {
+		err = tool.stopPod()
+		if err != nil && err != errToolDoesNotSupport {
+			t.Errorf("Failed to stop pod: %s - %v", podID, err)
+		}
+
+		err = tool.rmPod()
+		if err != nil && err != errToolDoesNotSupport {
+			t.Errorf("Failed to remove pod: %s - %v", podID, err)
+		}
+	})
+	cID, err := tool.createContainer()
+	if err != nil {
+		t.Fatalf("Failed to create container: %s - %v", cID, err)
+	}
+	tool.setContainerID(cID)
+	t.Cleanup(func() {
+		err = tool.rmContainer()
+		if err != nil {
+			t.Errorf("Failed to remove container: %s - %v", cntrArgs.Image, err)
+		}
 		err = testVerifyRm(tool)
 		if err != nil {
 			t.Errorf("Failed to verify container removal: %s - %v", cntrArgs.Image, err)
 		}
 
 	})
-	t.Cleanup(func() {
-		err = tool.rmContainer()
-		if err != nil {
-			t.Errorf("Failed to remove container: %s - %v", cntrArgs.Image, err)
-		}
-
-	})
-	output, err = tool.startContainer(true)
+	output, err := tool.startContainer(true)
 	if err != nil {
 		t.Fatalf("Failed to start unikernel container: %s - %v", output, err)
 	}

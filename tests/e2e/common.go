@@ -23,19 +23,27 @@ import (
 )
 
 type testTool interface {
+	Name() string
 	getTestArgs() containerTestArgs
+	getPodID() string
 	getContainerID() string
+	setPodID(string)
 	setContainerID(string)
 	pullImage() error
 	rmImage() error
+	createPod() (string, error)
 	createContainer() (string, error)
 	startContainer(bool) (string, error)
 	runContainer(bool) (string, error)
 	stopContainer() error
+	stopPod() error
 	rmContainer() error
+	rmPod() error
 	logContainer() (string, error)
 	searchContainer(string) (bool, error)
-	inspectAndGet(string) (string, error)
+	searchPod(string) (bool, error)
+	inspectCAndGet(string) (string, error)
+	inspectPAndGet(string) (string, error)
 }
 
 var errToolDoesNotSupport = errors.New("Operarion not support")
@@ -153,7 +161,7 @@ func commonSearchContainer(tool string, cID string) (bool, error) {
 	return searchCID(output, cID), nil
 }
 
-func commonInspectAndGet(tool string, containerID string, key string) (string, error) {
+func commonInspectCAndGet(tool string, containerID string, key string) (string, error) {
 	cmdBase := tool
 	cmdBase += " inspect "
 	cmdBase += containerID
