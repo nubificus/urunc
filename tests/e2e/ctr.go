@@ -100,22 +100,27 @@ func (i *ctrInfo) stopContainer() error {
 	cmdBase += " t kill "
 	cmdBase += i.containerID
 	output, err := commonCmdExec(cmdBase)
-	if output != "" || err != nil {
-		return fmt.Errorf("Stopping %s failed: %s - %v", i.containerID, output, err)
+	err = checkExpectedOut("", output, err)
+	if err != nil {
+		return fmt.Errorf("Failed to stop %s: %v", i.containerID, err)
 	}
 	return nil
 }
 
 func (i *ctrInfo) rmContainer() error {
 	output, err := commonRmContainer(ctrName+" c", i.containerID)
-	if output != "" || err != nil {
-		return fmt.Errorf("Stopping %s failed: %s - %v", i.containerID, output, err)
+	err = checkExpectedOut("", output, err)
+	if err != nil {
+		return fmt.Errorf("Failed to remove %s: %v", i.containerID, err)
 	}
 	return nil
 }
 
 func (i *ctrInfo) logContainer() (string, error) {
 	// Not supported by ctr
+	// TODO: We need to fix this
+	// One idea would be to use a go routine for the running container
+	// and channels for redirecting the output and getting the logs
 	return "", errToolDoesNotSupport
 }
 
