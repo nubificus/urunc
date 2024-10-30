@@ -18,7 +18,7 @@ import (
 	"fmt"
 )
 
-var ctrName = "ctr"
+const ctrName = "ctr"
 
 type ctrInfo struct {
 	testArgs    containerTestArgs
@@ -47,16 +47,29 @@ func ctrNewContainerCmd(a containerTestArgs) string {
 	return cmdBase
 }
 
+func (i *ctrInfo) Name() string {
+	return ctrName
+}
+
 func (i *ctrInfo) getTestArgs() containerTestArgs {
 	return i.testArgs
 }
 
-func (i *ctrInfo) setContainerID(cID string) {
-	i.containerID = cID
+func (i *ctrInfo) getPodID() string {
+	// Not supported by ctr
+	return ""
 }
 
 func (i *ctrInfo) getContainerID() string {
 	return i.containerID
+}
+
+func (i *ctrInfo) setPodID(string) {
+	// Not supported by ctr
+}
+
+func (i *ctrInfo) setContainerID(cID string) {
+	i.containerID = cID
 }
 
 func (i *ctrInfo) pullImage() error {
@@ -67,11 +80,22 @@ func (i *ctrInfo) rmImage() error {
 	return commonRmImage(ctrName, i.testArgs.Image)
 }
 
+func (i *ctrInfo) createPod() (string, error) {
+	// Not supported by ctr
+	return "", errToolDoesNotSUpport
+}
+
 func (i *ctrInfo) createContainer() (string, error) {
 	cmdBase := ctrName
 	cmdBase += " c create "
 	cmdBase += ctrNewContainerCmd(i.testArgs)
 	return commonCmdExec(cmdBase)
+}
+
+// nolint:unused
+func (i *ctrInfo) startPod() (string, error) {
+	// Not supported by ctr
+	return "", errToolDoesNotSUpport
 }
 
 func (i *ctrInfo) startContainer(detach bool) (string, error) {
@@ -107,6 +131,11 @@ func (i *ctrInfo) stopContainer() error {
 	return nil
 }
 
+func (i *ctrInfo) stopPod() error {
+	// Not supported by ctr
+	return errToolDoesNotSUpport
+}
+
 func (i *ctrInfo) rmContainer() error {
 	output, err := commonRmContainer(ctrName+" c", i.containerID)
 	err = checkExpectedOut("", output, err)
@@ -114,6 +143,11 @@ func (i *ctrInfo) rmContainer() error {
 		return fmt.Errorf("Failed to remove %s: %v", i.containerID, err)
 	}
 	return nil
+}
+
+func (i *ctrInfo) rmPod() error {
+	// Not supported by ctr
+	return errToolDoesNotSUpport
 }
 
 func (i *ctrInfo) logContainer() (string, error) {
@@ -134,7 +168,12 @@ func (i *ctrInfo) searchContainer(cID string) (bool, error) {
 	return searchCID(output, cID), nil
 }
 
-func (i *ctrInfo) inspectAndGet(key string) (string, error) {
+func (i *ctrInfo) searchPod(string) (bool, error) {
+	// Not supported by ctr
+	return true, errToolDoesNotSUpport
+}
+
+func (i *ctrInfo) inspectCAndGet(key string) (string, error) {
 	cmdBase := ctrName
 	cmdBase += " c info "
 	cmdBase += i.containerID
@@ -144,4 +183,9 @@ func (i *ctrInfo) inspectAndGet(key string) (string, error) {
 	}
 
 	return findValOfKey(output, key)
+}
+
+func (i *ctrInfo) inspectPAndGet(string) (string, error) {
+	// Not supported by ctr
+	return "", errToolDoesNotSUpport
 }

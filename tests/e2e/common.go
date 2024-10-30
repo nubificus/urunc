@@ -134,7 +134,7 @@ func commonSearchContainer(tool string, cID string) (bool, error) {
 	return searchCID(output, cID), nil
 }
 
-func commonInspectAndGet(tool string, containerID string, key string) (string, error) {
+func commonInspectCAndGet(tool string, containerID string, key string) (string, error) {
 	cmdBase := tool
 	cmdBase += " inspect "
 	cmdBase += containerID
