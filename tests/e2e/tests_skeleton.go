@@ -19,9 +19,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	common "github.com/nubificus/urunc/tests"
-
 	"time"
 )
 
@@ -131,7 +128,7 @@ func testVerifyRm(tool testTool) error {
 	if exists || err != nil {
 		return fmt.Errorf("Container %s is not removed: %v", containerID, err)
 	}
-	err = common.VerifyNoStaleFiles(containerID)
+	err = verifyNoStaleFiles(containerID)
 	if err != nil {
 		return fmt.Errorf("Failed to remove all stale files: %v", err)
 	}

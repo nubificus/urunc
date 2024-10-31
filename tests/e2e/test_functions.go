@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/asaskevich/govalidator"
-	common "github.com/nubificus/urunc/tests"
 	"github.com/vishvananda/netns"
 )
 
@@ -36,7 +35,7 @@ func seccompTest(tool testTool) error {
 		return fmt.Errorf("Failed to extract unikernel PID: %v", err)
 	}
 	procPath := "/proc/" + unikernelPID + "/status"
-	seccompLine, err := common.FindLineInFile(procPath, "Seccomp")
+	seccompLine, err := findLineInFile(procPath, "Seccomp")
 	if err != nil {
 		return err
 	}
@@ -64,7 +63,7 @@ func pingTest(tool testTool) error {
 			return fmt.Errorf("Failed to extract container IP: %v", err)
 		}
 	}
-	err = common.PingUnikernel(extractedIPAddr)
+	err = pingUnikernel(extractedIPAddr)
 	if err != nil {
 		return fmt.Errorf("ping failed: %v", err)
 	}

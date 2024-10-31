@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tests
+package urunce2etesting
 
 import (
 	"bufio"
@@ -22,32 +22,9 @@ import (
 	"time"
 
 	"github.com/go-ping/ping"
-	"github.com/shirou/gopsutil/v3/process"
 )
 
-func FindProc(executable string) (*process.Process, error) {
-	var proc *process.Process
-	processes, err := process.Processes()
-	if err != nil {
-		return nil, err
-	}
-	var cmdLine string
-	found := false
-	for _, p := range processes {
-		cmdLine, _ = p.Cmdline()
-		if strings.Contains(cmdLine, executable) {
-			found = true
-			proc = p
-			break
-		}
-	}
-	if found {
-		return proc, nil
-	}
-	return nil, fmt.Errorf("process %s not found", executable)
-}
-
-func PingUnikernel(ipAddress string) error {
+func pingUnikernel(ipAddress string) error {
 	pinger, err := ping.NewPinger(ipAddress)
 	if err != nil {
 		return fmt.Errorf("failed to create Pinger: %v", err)
@@ -67,7 +44,7 @@ func PingUnikernel(ipAddress string) error {
 	return nil
 }
 
-func VerifyNoStaleFiles(containerID string) error {
+func verifyNoStaleFiles(containerID string) error {
 	// Check /run/containerd/runc/default/containerID directory does not exist
 	dirPath := "/run/containerd/runc/default/" + containerID
 	_, err := os.Stat(dirPath)
@@ -99,7 +76,7 @@ func VerifyNoStaleFiles(containerID string) error {
 	return nil
 }
 
-func FindLineInFile(filePath string, pattern string) (string, error) {
+func findLineInFile(filePath string, pattern string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed to open %s: %v", filePath, err)
