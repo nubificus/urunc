@@ -171,6 +171,7 @@ func (u *Unikontainer) Exec() error {
 	// populate vmm args
 	vmmArgs := hypervisors.ExecArgs{
 		Container:     u.State.ID,
+		Rootfs:        rootfsDir,
 		UnikernelPath: unikernelAbsPath,
 		InitrdPath:    initrdAbsPath,
 		BlockDevice:   "",

@@ -80,6 +80,9 @@ func (q *Qemu) Execve(args ExecArgs) error {
 	}
 	if args.InitrdPath != "" {
 		cmdString += " -initrd " + args.InitrdPath
+	} else {
+		cmdString += " -fsdev local,id=p9id,path=" + args.Rootfs + ",security_model=none"
+		cmdString += " -device virtio-9p-pci,fsdev=p9id,mount_tag=fs0,disable-modern=on,disable-legacy=off"
 	}
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)

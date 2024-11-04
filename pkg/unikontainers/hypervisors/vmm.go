@@ -28,6 +28,7 @@ const DefaultMemory uint64 = 256 // The default memory for every hypervisor: 256
 // FIXME: add extra fields if required by additional VMM's
 type ExecArgs struct {
 	Container     string   // The container ID
+	Rootfs        string   // The container rootfs
 	UnikernelPath string   // The path of the unikernel inside rootfs
 	TapDevice     string   // The TAP device name
 	BlockDevice   string   // The block device path
