@@ -1,105 +1,186 @@
 This document acts as a quickstart guide to showcase `urunc` features. Please
 refer to the [installation guide](/installation) for more detailed installation
-steps, or the [architecture](/design/architecture) document for more details on the
-architecture.
+instructions, or the [design](/design/#architecture) document for more
+details regarding `urunc`'s architecture.
 
-We assume a vanilla ubuntu 22.04 environment, although `urunc` is able to be
-deployed on a number of distros.
+We can quickly set `urunc` either with [docker](https://docs.docker.com/engine/install/ubuntu/) or [containerd](https://github.com/containerd/containerd) and [nerdctl](https://github.com/containerd/nerdctl/).
+We assume a vanilla ubuntu 22.04 environment, although `urunc` is able to run
+on a number of GNU/Linux distributions.
+
+## Using Docker
+
+The easiest and fastest way to try out `urunc` would be with `docker`
+Before doing so, please make sure that the host system satisfies the
+following dependencies:
+
+- [Docker](https://docs.docker.com/engine/install/ubuntu/)
+- [Qemu](https://www.qemu.org/)
+- `urunc` and `containerd-shim-urunc-v2` binaries.
+
+### Install Docker
+
+At first we need [docker](https://docs.docker.com/engine/install/ubuntu/).
+
+```bash
+$ curl -fsSL https://get.docker.com -o get-docker.sh
+$ sudo sh get-docker.sh
+$ rm get-docker.sh
+$ sudo groupadd docker # The group might already exist
+$ sudo usermod -aG docker $USER
+```
+
+> Note: Please logout and log back in from the shell, in order to be able to use
+> docker without sudo
+
+### Install `urunc` from source
+
+Then we need `urunc`:
+
+```bash
+$ sudo apt install -y git make
+$ git clone https://github.com/nubificus/urunc.git
+$ docker run --rm -ti -v $PWD/urunc:/urunc -w /urunc golang:1.23 bash -c "git config --global --add safe.directory /urunc && make"
+$ sudo make -C urunc install
+```
+
+### A docker example
+
+We will try out a Unikraft unikernel over [Qemu](https://www.qemu.org/).
+
+#### Install Qemu
+
+Let's make sure that [Qemu](https://www.qemu.org/download/) is installed
+:
+```bash
+$ sudo apt install -y qemu-system
+```
+
+#### Run the unikernel
+
+Now we are ready to run Nginx as a Unikraft unikernel using [docker](https://docs.docker.com/engine/install/ubuntu/) and `urunc`:
+
+```bash
+$ docker run --rm -d --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest unikernel
+67bec5ab9a748e35faf7c2079002177b9bdc806220e59b6b413836db1d6e4018
+```
+
+We can inspect the container and get its IP address:
+
+```bash
+$ docker inspect 67bec5ab9a748e35faf7c2079002177b9bdc806220e59b6b413836db1d6e4018 | grep IPAddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.2",
+                    "IPAddress": "172.17.0.2",
+```
+
+At last we can curl the Nginx server running inside Unikraft with:
+
+```bash
+$ curl 172.17.0.2
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hello, world!</title>
+</head>
+<body>
+  <h1>Hello, world!</h1>
+  <p>Powered by <a href="http://unikraft.org">Unikraft</a>.</p>
+</body>
+</html>
+```
+## Using containerd and nerdctl
+
+The second way to quickly start with `urunc` would be by setting up a high-level
+container runtime (e.g. [containerd](https://github.com/containerd/containerd)) and using [nerdctl](https://github.com/containerd/nerdctl/).
 
 ### Install a high-level container runtime
 
-First step is to install a high-level container runtime, such as containerd and
-setup basic functionality (`runc`, the `CNI` plugins and a snapshotter). Also,
-a nifty tool like `nerdctl` is useful to get a realistic experience.
+First step is to install [containerd](https://github.com/containerd/containerd) and
+setup basic functionality (the `CNI` plugins and a snapshotter).
 
-If these tools are already installed, skip to the next step.
+If a tool is already installed, skip to the next step.
 
-#### Install runc
+#### Install and configure containerd
+
+We will install [containerd](https://github.com/containerd/containerd) from the
+package manager:
 
 ```bash
-RUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/opencontainers/runc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/opencontainers/runc/releases/download/v$RUNC_VERSION/runc.$(dpkg --print-architecture)
-sudo install -m 755 runc.$(dpkg --print-architecture) /usr/local/sbin/runc
-rm -f ./runc.$(dpkg --print-architecture)
+$ sudo apt install containerd
 ```
 
-#### Install containerd
+In this way we will also install `runc`, but not the necessary CNI plugins.
+However, before proceeding to CNI plugins, we will generate the default
+configuration for [containerd](https://github.com/containerd/containerd).
 
 ```bash
-CONTAINERD_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/containerd/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/containerd/containerd/releases/download/v$CONTAINERD_VERSION/containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo tar Cxzvf /usr/local containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo rm -f containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
-```
-#### Install containerd service
-
-```bash
-CONTAINERD_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/containerd/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://raw.githubusercontent.com/containerd/containerd/v$CONTAINERD_VERSION/containerd.service
-sudo rm -f /lib/systemd/system/containerd.service
-sudo mv containerd.service /lib/systemd/system/containerd.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now containerd
-```
-
-#### Configure containerd
-
-```bash
-sudo mkdir -p /etc/containerd/
-sudo mv /etc/containerd/config.toml /etc/containerd/config.toml.bak
-sudo containerd config default | sudo tee /etc/containerd/config.toml
-sudo systemctl restart containerd
+$ sudo mkdir -p /etc/containerd/
+$ sudo mv /etc/containerd/config.toml /etc/containerd/config.toml.bak # There might be no configuration
+$ sudo containerd config default | sudo tee /etc/containerd/config.toml
+$ sudo systemctl restart containerd
 ```
 
 #### Install CNI plugins
 
 ```bash
-CNI_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containernetworking/plugins/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/containernetworking/plugins/releases/download/v$CNI_VERSION/cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
-sudo mkdir -p /opt/cni/bin
-sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
-sudo rm -f cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
-```
-
-#### Install nerdctl
-
-```bash
-NERDCTL_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/nerdctl/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/containerd/nerdctl/releases/download/v$NERDCTL_VERSION/nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo tar Cxzvf /usr/local/bin nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo rm -f nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ CNI_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containernetworking/plugins/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/containernetworking/plugins/releases/download/v$CNI_VERSION/cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
+$ sudo mkdir -p /opt/cni/bin
+$ sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
+$ rm -f cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
 ```
 
 #### Setup thinpool devmapper
 
+In order to make use of directly passing the container's snapshot as block
+device in the unikernel, we will need to setup the devmapper snapshotter. We can
+do that by first creating a thinpool, using the respective
+[scripts in `urunc`'s repo](https://github.com/nubificus/urunc/tree/main/script)
+
 ```bash
-sudo mkdir -p /usr/local/bin/scripts
-git clone https://github.com/nubificus/urunc.git
-
-sudo cp urunc/script/dm_create.sh /usr/local/bin/scripts/dm_create.sh
-sudo chmod 755 /usr/local/bin/scripts/dm_create.sh
-
-sudo cp urunc/script/dm_reload.sh /usr/local/bin/scripts/dm_reload.sh
-sudo chmod 755 /usr/local/bin/scripts/dm_reload.sh
-
-sudo mkdir -p /usr/local/lib/systemd/system/
-
-sudo cp urunc/script/dm_reload.service /usr/local/lib/systemd/system/dm_reload.service
-sudo chmod 644 /usr/local/lib/systemd/system/dm_reload.service
-sudo chown root:root /usr/local/lib/systemd/system/dm_reload.service
-sudo systemctl daemon-reload
-sudo systemctl enable dm_reload.service
-
-sudo /usr/local/bin/scripts/dm_create.sh
+$ wget -q https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/script/dm_create.sh
+$ wget -q https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/script/dm_reload.sh
+$ sudo mkdir -p /usr/local/bin/scripts
+$ sudo mv dm_create.sh /usr/local/bin/scripts/dm_create.sh
+$ sudo mv dm_reload.sh /usr/local/bin/scripts/dm_reload.sh
+$ sudo chmod 755 /usr/local/bin/scripts/dm_create.sh
+$ sudo chmod 755 /usr/local/bin/scripts/dm_reload.sh
+$ sudo /usr/local/bin/scripts/dm_create.sh
 ```
 
-#### Configure containerd for devmapper
+> Note: The above instructions will create the thinpool, but in case of reboot,
+> you will need to reload it running the `dm_reload.sh` script. Otherwise
+> check the [installation guide for creating a service](/installation/#create-a-service-for-thinpool-reloading). 
+
+At last, we need to modify
+[containerd](https://github.com/containerd/containerd/tree/main) configuration
+for the new demapper snapshotter:
+
+- In containerd v2.x:
 
 ```bash
-sudo sed -i '/\[plugins\."io\.containerd\.snapshotter\.v1\.devmapper"\]/,/^$/d' /etc/containerd/config.toml
-sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
+$ sudo sed -i "/\[plugins\.'io\.containerd\.snapshotter\.v1\.devmapper'\]/,/^$/d" /etc/containerd/config.toml
+$ sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
 
-# Customizations for urunc
+# Customizations for devmapper
+
+[plugins.'io.containerd.snapshotter.v1.devmapper']
+  pool_name = "containerd-pool"
+  root_path = "/var/lib/containerd/io.containerd.snapshotter.v1.devmapper"
+  base_image_size = "10GB"
+  discard_blocks = true
+  fs_type = "ext2"
+EOT
+$ sudo systemctl restart containerd
+```
+
+- In containerd v1.x:
+
+```bash
+$ sudo sed -i '/\[plugins\."io\.containerd\.snapshotter\.v1\.devmapper"\]/,/^$/d' /etc/containerd/config.toml
+$ sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
+
+# Customizations for devmapper
 
 [plugins."io.containerd.snapshotter.v1.devmapper"]
   pool_name = "containerd-pool"
@@ -108,173 +189,93 @@ sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
   discard_blocks = true
   fs_type = "ext2"
 EOT
-sudo systemctl restart containerd
+$ sudo systemctl restart containerd
 ```
 
-### Build a simple unikernel
-
-As an example, we will be using `rumprun/solo5` running on top of `solo5-hvt`.
-To facilitate the building of the unikernel we provide a container image with
-the toolchain. On an `amd64` machine with docker installed, clone
-https://github.com/cloudkernels/rumprun-packages and, assuming you're at $HOME,
-share this folder with the container:
-
-```
-git clone https://github.com/cloudkernels/rumprun-packages -b feat_update_docker
-cd rumprun-packages
-docker run --rm -it -v /home/ubuntu:/home/ubuntu -w $PWD harbor.nbfc.io/nubificus/rumprun-toolchain-release:generic
-```
-
-In the container:
-
-```
-mv config.mk.dist config.mk
-cd nginx
-make
-```
-
-After a short while, this will produce the binary file `bin/nginx`. We now need
-to "bake" it as a `solo5-hvt` unikernel:
-
-```console
-rumprun-bake solo5-hvt ./bin/nginx.hvt ./bin/nginx
-```
-
-We can now exit the container with the rumprun toolchain and continue building
-the container image.
-
-### Package the unikernel binary into a container image
-
-To package the binary we just built into a container image, we use `bima`. For
-more information on how to use this tool, refer to the relevant
-[instructions](/image-building).
-
-Go to the nginx directory and create a Containerfile:
-
-```console
-cd nginx
-cat << EOF > Containerfile
-FROM scratch
-# the FROM instruction will not be parsed
-FROM scratch
-
-COPY nginx.hvt /unikernel/nginx.hvt
-COPY data/ /
-
-LABEL "com.urunc.unikernel.binary"=/unikernel/nginx.hvt
-LABEL "com.urunc.unikernel.cmdline"="nginx -c /data/conf/nginx.conf"
-LABEL "com.urunc.unikernel.unikernelType"="rumprun"
-LABEL "com.urunc.unikernel.hypervisor"="hvt"
-LABEL "com.urunc.unikernel.version"="0.6.6"
-EOF
-```
-
-Build the container image:
+Let's verify that the new snapshotter is properly configured:
 
 ```bash
-wget https://s3.nbfc.io/nbfc-assets/github/bima/dist/main/x86_64/bima_x86_64
-mv bima_x86_64 bima && chmod +x bima
-./bima build -t nubificus/nginx-hvt-test:latest --tar .
-docker load < nginx-hvt-test\:latest
+$ sudo ctr plugin ls | grep devmapper
+io.containerd.snapshotter.v1           devmapper                linux/amd64    ok
 ```
 
-if we inspect available images, we can see the newly created image:
+### Install nerdctl
 
-```console
-# docker image ls
-REPOSITORY                                           TAG       IMAGE ID       CREATED         SIZE
-nubificus/nginx-hvt-test                             latest    bf746aa8f8ad   N/A             40.6MB
-```
-
-One option is to push the image to dockerhub. Another option is to import it in
-the snapshotter we will use for `urunc`.
-
-```console
-# ctr image import --snapshotter devmapper --base-name nubificus/nginx-hvt-test:latest nginx-hvt-test\:latest 
-unpacking docker.io/nubificus/nginx-hvt-test:latest (sha256:7e410ba0559a91d1120b5d8495bc04356ef606111d54c6c9893d7d337a15c1d3)...done
-```
-
-Now, we're ready to install `urunc` and run our fist unikernel!
-
-### Install `urunc`
+After installing [containerd](https://github.com/containerd/containerd) a nifty tool like [nerdctl](https://github.com/containerd/nerdctl/) is useful to get a realistic experience.
 
 ```bash
-declare -A ARCH_MAP
-ARCH_MAP["x86_64"]="amd64"
-ARCH_MAP["aarch64"]="aarch64"
-SYSTEM_ARCH=$(uname -m)
-ARCHITECTURE=${ARCH_MAP[$SYSTEM_ARCH]}
-LATEST_RELEASE_URL="https://api.github.com/repos/nubificus/urunc/releases/latest"
-RELEASE_JSON=$(curl -s $LATEST_RELEASE_URL)
-LATEST_TAG=$(echo $RELEASE_JSON | jq -r '.tag_name')
-ASSETS_URL=$(echo $RELEASE_JSON | jq -r '.assets[].browser_download_url')
-BINARY_URLS=$(echo "$ASSETS_URL" | grep "$ARCHITECTURE")
-for BINARY_URL in $BINARY_URLS; do
-  echo "Downloading $BINARY_URL..."
-  curl -LO "$BINARY_URL"
-  chmod +x `basename $BINARY_URL`
-  FILENAME=$(basename $BINARY_URL | sed s/_$ARCHITECTURE//)
-  sudo mv `basename $BINARY_URL` /usr/local/bin/$FILENAME
-done
+$ NERDCTL_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/nerdctl/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/containerd/nerdctl/releases/download/v$NERDCTL_VERSION/nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ sudo tar Cxzvf /usr/local/bin nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ rm -f nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
 ```
 
-### Add urunc runtime to containerd
+### Install `urunc` from its latest release
+
+At last, but not least, we will install `urunc` from its latest release. At first, we
+will install the `urunc` binary:
 
 ```bash
-sudo tee -a /etc/containerd/config.toml > /dev/null <<EOT
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.urunc]
-    runtime_type = "io.containerd.urunc.v2"
-    container_annotations = ["com.urunc.unikernel.*"]
-    pod_annotations = ["com.urunc.unikernel.*"]
-    snapshotter = "devmapper"
-EOT
-sudo systemctl restart containerd
+$ URUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/nubificus/urunc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/urunc_$(dpkg --print-architecture)
+$ chmod +x urunc_$(dpkg --print-architecture)
+$ sudo mv urunc_$(dpkg --print-architecture) /usr/local/bin/urunc
 ```
 
-Now, we are ready to run our unikernel images!
+Secondly, we will install the `containerd-shim-urunc-v2` binary:.
 
-### Run the unikernel
+```bash
+$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/containerd-shim-urunc-v2_$(dpkg --print-architecture)
+$ chmod +x containerd-shim-urunc-v2_$(dpkg --print-architecture)
+$ sudo mv containerd-shim-urunc-v2_$(dpkg --print-architecture) /usr/local/bin/containerd-shim-urunc-v2
+```
+
+### A nerdctl-containerd example
+
+We will try out a Rumprun unikernel running over Solo5-hvt with [nerdctl](https://github.com/containerd/nerdctl).
 
 #### Install solo5
 
 Lets install `solo5-hvt`:
 
 ```bash
-apt install make gcc pkg-config libseccomp-dev
-git clone -b v0.6.6 https://github.com/Solo5/solo5.git
-cd solo5
-./configure.sh  && make -j$(nproc)
-sudo cp tenders/hvt/solo5-hvt /usr/local/bin
+$ sudo apt install make gcc pkg-config libseccomp-dev
+$ git clone -b v0.6.6 https://github.com/Solo5/solo5.git
+$ cd solo5
+$ ./configure.sh  && make -j$(nproc)
+$ sudo cp tenders/hvt/solo5-hvt /usr/local/bin
 ```
 
 #### Run the Unikernel!
 
-Now, let's run the unikernel image we built:
+Now, let's run a Redis unikernel on top of Rumprun and solo5-hvt:
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 nubificus/nginx-hvt-test:latest
+$ sudo nerdctl run -d --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
 ```
 
 We can inspect the running container to check it's IP address:
 
 ```console
-# nerdctl ps 
-CONTAINER ID    IMAGE                                        COMMAND        CREATED          STATUS    PORTS    NAMES
-10801c856b73    docker.io/nubificus/nginx-hvt-test:latest    "unikernel"    4 minutes ago    Up                 nginx-hvt-test-10801
-# nerdctl inspect 10801c856b73 | grep eth0 -A 5 |grep IPAddr | awk -F\: '{print $2}'
- "10.4.0.9",
+$ sudo nerdctl ps 
+CONTAINER ID    IMAGE                                                      COMMAND        CREATED           STATUS    PORTS    NAMES
+8a415b278a9e    harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest    "unikernel"    18 seconds ago    Up                 redis-hvt-rumprun-8a415
+$ sudo nerdctl inspect 8a415b278a9e | grep IPAddress
+            "IPAddress": "10.4.0.2",
+                    "IPAddress": "10.4.0.2",
+                    "IPAddress": "172.16.1.2",
 ```
 
-and we can interact with the nginx unikernel:
+and we can interact with the redis unikernel:
 
 ```bash
-# curl 10.4.0.9
-<html>
-<body style="font-size: 14pt;">
-    <img src="logo150.png"/>
-    Served to you by <a href="http://nginx.org/">nginx</a>, running on a
-    <a href="http://rumpkernel.org">rump kernel</a>...
-</body>
-</html>
+$ telnet 10.4.0.2 6379
+Trying 10.4.0.2...
+Connected to 10.4.0.2.
+Escape character is '^]'.
+ping
++PONG
+quit
++OK
+Connection closed by foreign host.
 ```
-
