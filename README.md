@@ -1,94 +1,96 @@
 # urunc
 
-![Build workflow](https://github.com/nubificus/urunc/actions/workflows/build.yml/badge.svg)
-![Lint workflow](https://github.com/nubificus/urunc/actions/workflows/lint.yml/badge.svg)
+Welcome to `urunc`, the "runc for unikernels".
 
-To bridge the gap between traditional unikernels and containerized environments, enabling seamless integration with cloud-native architectures, we introduce `urunc`. Designed to fully leverage the container semantics and benefit from the OCI tools and methodology, `urunc` aims to become “runc for unikernels”, while offering compatibility with the Container Runtime Interface (CRI). By relying on underlying hypervisors, `urunc` launches unikernels provided by OCI-compatible images, allowing developers and administrators to package, deliver, deploy, and manage their software using familiar cloud-native practices.
+## Table of Contents
 
-## How urunc works
+1. [Introduction](#introduction)
+2. [Quick start](#quick-start)
+3. [Installation guide](#installation-guide)
+4. [Documentation](#documentation)
+5. [Supported platforms](#supported-platforms)
+6. [Publications and talks](#publications-and-talks)
+7. [Contributing](#Contributing)
+8. [License](#Introduction)
+9. [Contact](#Introduction)
 
-To delve into the inner workings of urunc, the process of starting a new unikernel "container" via containerd involves the following steps:
+## Introduction
 
-- Containerd unpacks the image onto a devmapper block device and invokes urunc.
-- urunc parses the image's rootfs and annotations, initiating the required setup procedures. These include creating essential pipes for stdio and verifying the availability of the specified vmm.
-- Subsequently, urunc spawns a new process within a distinct network namespace and awaits the completion of the setup phase.
-- Once the setup is finished, urunc executes the vmm process, replacing the container's init process with the vmm process. The parameters for the vmm process are derived from the unikernel binary and options provided within the "unikernel" image.
-- Finally, urunc returns the process ID (PID) of the vmm process to containerd, effectively enabling it to handle the container's lifecycle management.
+The main goal of `urunc` is to bridge the gap between traditional unikernels
+and containerized environments, enabling seamless integration with cloud-native
+architectures. Designed to fully leverage the container semantics and benefits
+from the OCI tools and methodology, `urunc` aims to become “runc for
+unikernels”, while offering compatibility with the Container Runtime Interface
+(CRI). Unikernels are packaged inside OCI-compatible images and `urunc` launces
+the unikernel on top of the underlying Virtual Machine or seccomp monitors.
+Thus, developers and administrators can package, deliver, deploy and manage
+unikernels using familiar cloud-native practices.
 
-## Installing from source
+For the above purpose `urunc` acts as any other OCI runtime. The main
+difference of `urunc` with other container runtimes is that instead of spawning
+a simple process, it uses a Virtual Machine Monitor (VMM) or a Sandbox Monitor
+to run the unikernel. It is important to note that `urunc` does not require any
+particular software running alongside the user's application, inside or outside
+the unikernel. As a result, `urunc` manages the user's application running
+inside the unikernel through the respective VM process.
 
-At the moment, urunc is available on x86_64 and arm64 architectures.
-
-### Build requirements
-
-To build and install urunc binaries, you need:
-
-- make
-- [Go](https://go.dev/doc/install) version 1.18 or greater
-
-### Building
-
-A urunc installation requires two binary files: `containerd-shim-urunc-v2` and `urunc`. To build and install those:
-
-```sh
-make
-sudo make install
-```
-
-## Installing from prebuilt binaries
-
-You can download the binaries from the [latest release](https://github.com/nubificus/urunc/releases/latest) and install in your PATH.
+![demo](docs/img/urunc-nerdctl-example.gif)
 
 ## Quick start
 
-### Using Docker
+The easiest and fastest way to try out `urunc` would be with `docker`
+Before doing so, please make sure that the host system satisfies the
+following dependencies:
 
-Docker is probably the easiest way to get started with `urunc` locally.
+- [docker](https://docs.docker.com/engine/install/ubuntu/)
+- [Qemu](https://www.qemu.org/)
+- `urunc` and `containerd-shim-urunc-v2` binaries.
 
 Install Docker:
 
 ```bash
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-rm get-docker.sh
-sudo groupadd docker
-sudo usermod -aG docker $USER
+$ curl -fsSL https://get.docker.com -o get-docker.sh
+$ sudo sh get-docker.sh
+$ rm get-docker.sh
+$ sudo groupadd docker
+$ sudo usermod -aG docker $USER
 ```
 
 Install `urunc`:
 
 ```bash
-sudo apt-get install -y git
-git clone https://github.com/nubificus/urunc.git
-docker run --rm -ti -v $PWD/urunc:/urunc -w /urunc golang:latest bash -c "git config --global --add safe.directory /urunc && make"
-sudo install -D -m0755 $PWD/urunc/dist/urunc_static_$(dpkg --print-architecture) /usr/local/bin/urunc
-sudo install -D -m0755 $PWD/urunc/dist/containerd-shim-urunc-v2_$(dpkg --print-architecture) /usr/local/bin/containerd-shim-urunc-v2
+$ sudo apt-get install -y git
+$ git clone https://github.com/nubificus/urunc.git
+$ docker run --rm -ti -v $PWD/urunc:/urunc -w /urunc golang:latest bash -c "git config --global --add safe.directory /urunc && make"
+$ sudo make -C urunc install
 ```
 
 Install QEMU:
 
 ```bash
-sudo apt install -y qemu-kvm
+$ sudo apt install -y qemu-kvm
 ```
 
-Now we are ready to run a Unikernel using Docker with `urunc`:
+Now we are ready to run nginx as a Unikraft unikernel using Docker and `urunc`:
 
 ```bash
-docker run --rm -d --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest unikernel
+$ docker run --rm -d --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft:latest unikernel
+67bec5ab9a748e35faf7c2079002177b9bdc806220e59b6b413836db1d6e4018
 ```
 
-We can see the QEMU process:
+We can inspect the container and get its IP address:
 
 ```bash
-root@dck02:~$ ps -ef | grep qemu
-root       11302   11287  7 19:17 ?        00:00:02 /usr/bin/qemu-system-x86_64 -m 256M -cpu host -enable-kvm -nographic -vga none --sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny -kernel /var/lib/docker/overlay2/4e1943bb06c1a4d4bd72f990628c3ab5696859339288d5a87315179a29a04e98/merged/unikernel/app-nginx_kvm-x86_64 -net nic,model=virtio -net tap,script=no,ifname=tap0_urunc -initrd /var/lib/docker/overlay2/4e1943bb06c1a4d4bd72f990628c3ab5696859339288d5a87315179a29a04e98/merged/unikernel/initrd -append nginx netdev.ipv4_addr=172.17.0.2 netdev.ipv4_gw_addr=172.17.0.1 netdev.ipv4_subnet_mask=255.255.0.0 vfs.rootfs=initrd --  -c /nginx/conf/nginx.conf
+$ docker inspect 67bec5ab9a748e35faf7c2079002177b9bdc806220e59b6b413836db1d6e4018 | grep IPAddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.2",
+                    "IPAddress": "172.17.0.2",
 ```
 
-We are also able to extract the IP and ping the nginx unikernel:
+At last we can curl the Nginx server running inside Unikraft with:
 
 ```bash
-root@dck02:~$ IP_ADDR=$(ps -ef | grep qemu | grep 'ipv4_addr' | awk -F"netdev.ipv4_addr=" '{print $2}' | awk '{print $1}')
-root@dck02:~$ curl $IP_ADDR 
+$ curl 172.17.0.2
 <!DOCTYPE html>
 <html>
 <head>
@@ -100,58 +102,78 @@ root@dck02:~$ curl $IP_ADDR
 </body>
 </html>
 ```
+## Installation guide
 
-### Using containerd & nerdctl
+For a detailed installation guide please check [Documentation](#Documentation)
+and particularly the [installation guide
+page](https://nubificus.github.io/urunc/installation/).
 
-To run a simple `urunc` example locally, you need to address a few dependencies:
+## Documentation
 
-- [containerd](https://github.com/containerd/containerd) version 1.7 or higher (for installation instructions, see [here](docs/Installation.md#install-containerd), [here](docs/Installation.md#install-containerd-service) and [here](docs/Installation.md#configure-containerd))
-- [devmapper snapshotter](https://docs.docker.com/storage/storagedriver/device-mapper-driver/) (for setup and configuration instructions, see [here](docs/Installation.md#setup-thinpool-devmapper), [here](docs/Installation.md#configure-containerd-for-devmapper) and [here](docs/Installation.md#initialize-devmapper))
-- [runc](https://github.com/opencontainers/runc/) (installation instructions can be found [here](docs/Installation.md#install-runc))
-- [nerdctl](https://github.com/containerd/nerdctl/) (installation instructions can be found [here](docs/Installation.md#install-nerdctl))
-- `solo5-hvt` as the backend (installation instructions can be found [here](docs/Installation.md#install-solo5-hvt))
-- `urunc` and `containerd-shim-urunc-v2` binaries
-- `containerd` needs to be configured to [use devmapper](docs/Installation.md#configure-containerd-for-devmapper) and [register urunc as a runtime](docs/Installation.md#add-urunc-runtime-to-containerd)
+We keep an up to date documentation for `urunc` at 
+http://nubificus.github.io/urunc. We use [mkdocs](https://www.mkdocs.org/) to
+render `urunc`'s documentation. Hence, you can also have a local preview of
+documentation by running either `make docs` or `make docs_docker`.
 
-If you already have these requirements, you can run a test container using `nerdctl`:
+In the first case, `make docs` will execute `mkdocs serve`. Take a note of the
+url, where the docs will be served in the output of the command
+(i.e. http://127.0.0.1:8000). It is important to note, that `mkdocs` must be
+installed. For more information, please check the [mkdocs installation
+guide](https://www.mkdocs.org/user-guide/installation/).
 
-```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
-```
+In the second case, a container with all dependencies will start serving
+the documentation at http://127.0.0.1:8000.
 
-![demo](docs/img/urunc-nerdctl-example.gif)
+## Supported platforms
 
-## Setup guide
+At the moment, `urunc` is available on GNU/Linux for x86\_64 and arm64 architectures.
+In addition, the following table provides an overview of the currently
+supported VM/Sandbox monitors and unikernels:
 
-The setup process may differ depending on your system and requirements. A full setup process for Ubuntu 22.04 can be found at [docs/Installation.md](docs/Installation.md).
+| Unikernel  | VM/Sandbox Monitor   | Arch         | Storage    |
+|----------- |--------------------- |------------- |----------- |
+| Rumprun    | Solo5-hvt, Solo5-spt | x86,aarch64  | Devmapper  |
+| Unikraft   | QEMU, Firecracker    | x86          | Initrd     |
 
-Additional instructions on how to setup the various supported hypervisors can be found at [docs/Urunc-Hypervisors.md](docs/Urunc-Hypervisors.md).
-
-## Supported hypervisors and unikernels
-
-The following table provides an overview of the currently supported hypervisors and unikernels:
-
-| Unikernel  | VMMs               | Arch         | Storage    |
-|----------- |------------------- |------------- |----------- |
-| Rumprun    | Solo5-hvt          | x86,aarch64  | Devmapper  |
-| Unikraft   | QEMU, Firecracker  | x86          | Initrd     |
+We plan to add support for more unikernel frameworks and other platforms too.
+Feel free to [contact](#Contact) us for a specific unikernel framework or similar
+technologies that you would like to see in `urunc`.
 
 ## Running on k8s
 
-To use `urunc` with an existing Kubernetes cluster, you can follow the [instructions in the docs](docs/How-to-urunc-on-k8s.md).
+To use `urunc` with an existing Kubernetes cluster, please follow the
+[instructions in the
+docs](https://nubificus.github.io/urunc/tutorials/How-to-urunc-on-k8s/).
 
-## Linting
+## Publications and talks
 
-To locally lint the source code using Docker, run:
+A part of our work in `urunc` has been published in EuroSys'24 SESAME workshop,
+under the title [Sandboxing Functions for Efficient and Secure Multi-tenant
+Serverless Deployments](https://dl.acm.org/doi/10.1145/3642977.3652096). Feel
+free to ask us if you can not have access to the paper.
 
-```bash
-git clone https://github.com/nubificus/urunc.git
-cd urunc
-docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint:v1.53.3 golangci-lint run -v --timeout=5m
-# OR
-sudo nerdctl run --rm -v $(pwd):/app -w /app golangci/golangci-lint:v1.53.3 golangci-lint run -v --timeout=5m
-```
+Furthermore, `urunc` has appeared in various open source summits and events,
+such as:
+
+- [Open Source Summit
+  2023](https://osseu2023.sched.com/event/1OGgY/urunc-a-unikernel-container-runtime-georgios-ntoutsos-anastassios-nanos-nubificus-ltd)
+- [FOSDEM 2024](https://archive.fosdem.org/2024/schedule/event/fosdem-2024-3402-from-containers-to-unikernels-navigating-integration-challenges-in-cloud-native-environments/)
+- [KubeCon 2024](https://kccnceu2024.sched.com/event/1YeRd/unikernels-in-k8s-performance-and-isolation-for-serverless-computing-with-knative-anastassios-nanos-ioannis-plakas-nubis-pc)
+
+## Contributing
+
+We will be very happy to receive any feedback and any kind of contributions for
+`urunc`. For more details please take a look in [`urunc`'s contributing
+document](https://nubificus.github.io/urunc/developer-guide/contribute/).
 
 ## License
 
 [Apache License 2.0](LICENSE)
+
+## Contact
+
+Feel free to contact any of the authors directly using their emails in the
+commit messages or using one of the below email addresses:
+
+- urunc@nubificus.co.uk
+- urunc@nubis-pc.eu
