@@ -17,7 +17,7 @@ nav:
   - Home: index.md
   - Quickstart: quickstart.md
   - Installation: installation.md
-  - Hypervisor Support: hypervisor-support.md
+  - VMM/Sandbox Support: hypervisor-support.md
   - Unikernel Support: unikernel-support.md
   - Container image building: image-building.md
   - Design:
