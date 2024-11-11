@@ -1,102 +1,106 @@
 This document guides you through the installation of `urunc` and all required
-components in a vanilla Ubuntu 22.04 machine.
+components for executing all supported unikernels and VM/Sandbox monitors.
+
+We assume a vanilla ubuntu 22.04 environment, although `urunc` is able to run
+on a number of distros.
 
 We will be installing and setting up:
 
-- [Go 1.20.6](https://go.dev/doc/install)
+- git, wget, bc, make, build-essential
 - [runc](https://github.com/opencontainers/runc)
 - [containerd](https://github.com/containerd/containerd/)
 - [CNI plugins](https://github.com/containernetworking/plugins)
 - [nerdctl](https://github.com/containerd/nerdctl)
 - [devmapper](https://docs.docker.com/storage/storagedriver/device-mapper-driver/)
-- [bima](https://github.com/nubificus/bima)
+- [Go 1.20.6](https://go.dev/doc/install)
 - [urunc](https://github.com/nubificus/urunc)
+- [solo5-{hvt|spt}](https://github.com/Solo5/solo5)
+- [qemu](https://www.qemu.org/)
+- [firecracker](https://github.com/firecracker-microvm/firecracker)
 
-## Install urunc
+Let's go.
 
-### Install required dependencies (through package management)
+> Note: Be aware that some instructions might override existing tools and services.
 
-The following apt packages are required to complete the installation. Depending
+## Install required dependencies
+
+The following packages are required to complete the installation. Depending
 on your specific needs, some of them may not be necessary in your use case.
 
 ```bash
-sudo apt-get install git wget bc make build-essential -y
+$ sudo apt install git wget build-essential libseccomp-dev pkg-config
 ```
 
-### Install Go
+## Install container-related dependencies
 
-To install Go 1.20.6:
+### Install runc or any other generic container runtime
 
-```bash
-wget -q https://go.dev/dl/go1.20.6.linux-$(dpkg --print-architecture).tar.gz
-sudo mkdir go1.20.6
-sudo tar -C /usr/local/go1.20.6 -xzf go1.20.6.linux-$(dpkg --print-architecture).tar.gz
-sudo tee -a /etc/profile > /dev/null << 'EOT'
-export PATH=$PATH:/usr/local/go1.20.6/go/bin
-EOT
-rm -f go1.20.6.linux-$(dpkg --print-architecture).tar.gz
-```
-
-### Install runc
-
-`urunc` requires `runc` to handle any unsupported container images (for
+`urunc` requires a typical container runtime (e.g. runc, crun) to handle any
+unsupported container images (for
 example, in k8s pods the pause container is delegated to `runc` and urunc
-handles only the unikernel container). You can [build runc from
+handles only the unikernel container). In this guide we will use `runc`.
+You can [build runc from
 source](https://github.com/opencontainers/runc/tree/main#building) or download
 the latest binary following the commands:
 
 ```bash
-RUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/opencontainers/runc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/opencontainers/runc/releases/download/v$RUNC_VERSION/runc.$(dpkg --print-architecture)
-sudo install -m 755 runc.$(dpkg --print-architecture) /usr/local/sbin/runc
-rm -f ./runc.$(dpkg --print-architecture)
+$ RUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/opencontainers/runc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/opencontainers/runc/releases/download/v$RUNC_VERSION/runc.$(dpkg --print-architecture)
+$ sudo install -m 755 runc.$(dpkg --print-architecture) /usr/local/sbin/runc
+$ rm -f ./runc.$(dpkg --print-architecture)
 ```
 
 ### Install containerd
 
-To install the latest release of `containerd`:
-
-```bash
-CONTAINERD_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/containerd/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/containerd/containerd/releases/download/v$CONTAINERD_VERSION/containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo tar Cxzvf /usr/local containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo rm -f containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
-```
-
-### Install containerd service
-
-```bash
-CONTAINERD_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/containerd/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://raw.githubusercontent.com/containerd/containerd/v$CONTAINERD_VERSION/containerd.service
-sudo rm -f /lib/systemd/system/containerd.service
-sudo mv containerd.service /lib/systemd/system/containerd.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now containerd
-```
-
-### Configure containerd
-
-```bash
-sudo mkdir -p /etc/containerd/
-sudo mv /etc/containerd/config.toml /etc/containerd/config.toml.bak
-sudo containerd config default | sudo tee /etc/containerd/config.toml
-sudo systemctl restart containerd
-```
-
-For more information, you can read containerd's [Getting
+We will use [containerd](https://github.com/containerd/containerd) as a
+high-level runtime and its latest version. For alternative
+installation methods or other information, please check containerd's [Getting
 Started](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)
-guide. 
+guide.
 
-### Install CNI plugins
+```bash
+$ CONTAINERD_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/containerd/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/containerd/containerd/releases/download/v$CONTAINERD_VERSION/containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ sudo tar Cxzvf /usr/local containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ rm -f containerd-$CONTAINERD_VERSION-linux-$(dpkg --print-architecture).tar.gz
+```
+
+#### Install containerd service
+
+To start [containerd](https://github.com/containerd/containerd) with
+[systemd](https://systemd.io/), we will need to setup the respective service.
+
+```bash
+$ CONTAINERD_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/containerd/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://raw.githubusercontent.com/containerd/containerd/v$CONTAINERD_VERSION/containerd.service
+$ sudo rm -f /lib/systemd/system/containerd.service
+$ sudo mv containerd.service /lib/systemd/system/containerd.service
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable --now containerd
+```
+
+#### Configure containerd
+
+We will generate the default containerd's configuration to build on top of it
+later.
+
+```bash
+$ sudo mkdir -p /etc/containerd/
+$ sudo mv /etc/containerd/config.toml /etc/containerd/config.toml.bak # There might be no existing configuration.
+$ sudo containerd config default | sudo tee /etc/containerd/config.toml
+$ sudo systemctl restart containerd
+```
+
+#### Install CNI plugins
 
 To install the latest release of CNI plugins:
 
 ```bash
-CNI_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containernetworking/plugins/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/containernetworking/plugins/releases/download/v$CNI_VERSION/cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
-sudo mkdir -p /opt/cni/bin
-sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
-sudo rm -f cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
+$ CNI_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containernetworking/plugins/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/containernetworking/plugins/releases/download/v$CNI_VERSION/cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
+$ sudo mkdir -p /opt/cni/bin
+$ sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
+$ rm -f cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
 ```
 
 ### Install nerdctl
@@ -104,40 +108,83 @@ sudo rm -f cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
 To install the latest release of `nerdctl`:
 
 ```bash
-NERDCTL_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/nerdctl/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-wget -q https://github.com/containerd/nerdctl/releases/download/v$NERDCTL_VERSION/nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo tar Cxzvf /usr/local/bin nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
-sudo rm -f nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ NERDCTL_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/containerd/nerdctl/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/containerd/nerdctl/releases/download/v$NERDCTL_VERSION/nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ sudo tar Cxzvf /usr/local/bin nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
+$ rm -f nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
 ```
 
 ### Setup thinpool devmapper
 
+In order to make use of directly passing the container's snapshot as block
+device in the unikernel, we will need to setup the devmapper snapshotter. We can
+do that by first creating a thinpool, using the respective [scripts in urunc's
+repo](https://github.com/nubificus/urunc/tree/main/script).
+
 ```bash
-sudo mkdir -p /usr/local/bin/scripts
-git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/nubificus/urunc.git
+$ sudo mkdir -p /usr/local/bin/scripts
+$ sudo mkdir -p /usr/local/lib/systemd/system/
 
-sudo cp urunc/script/dm_create.sh /usr/local/bin/scripts/dm_create.sh
-sudo chmod 755 /usr/local/bin/scripts/dm_create.sh
-
-sudo cp urunc/script/dm_reload.sh /usr/local/bin/scripts/dm_reload.sh
-sudo chmod 755 /usr/local/bin/scripts/dm_reload.sh
-
-sudo mkdir -p /usr/local/lib/systemd/system/
-
-sudo cp urunc/script/dm_reload.service /usr/local/lib/systemd/system/dm_reload.service
-sudo chmod 644 /usr/local/lib/systemd/system/dm_reload.service
-sudo chown root:root /usr/local/lib/systemd/system/dm_reload.service
-sudo systemctl daemon-reload
-sudo systemctl enable dm_reload.service
+$ sudo cp urunc/script/dm_create.sh /usr/local/bin/scripts/dm_create.sh
+$ sudo cp urunc/script/dm_reload.sh /usr/local/bin/scripts/dm_reload.sh
+$ sudo chmod 755 /usr/local/bin/scripts/dm_create.sh
+$ sudo chmod 755 /usr/local/bin/scripts/dm_reload.sh
 ```
 
-### Configure containerd for devmapper
+The above scripts create and reload respectively a thinpool that will be used
+for the devmapper snapshotter. Therefore, to create the thinpool, we can run:
 
 ```bash
-sudo sed -i '/\[plugins\."io\.containerd\.snapshotter\.v1\.devmapper"\]/,/^$/d' /etc/containerd/config.toml
-sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
+$ sudo /usr/local/bin/scripts/dm_create.sh
+```
 
-# Customizations for urunc
+However, when the system reboots, we will need to reload the thinpool with:
+
+```bash
+$ sudo /usr/local/bin/scripts/dm_reload.sh
+```
+
+#### Create a service for thinpool reloading
+
+Alternatively, we can automatically reload the existing thinpool when a system reboots,by setting
+up a new service in [systemd](https://systemd.io/).
+
+```bash
+$ sudo cp urunc/script/dm_reload.service /usr/local/lib/systemd/system/dm_reload.service
+$ sudo chmod 644 /usr/local/lib/systemd/system/dm_reload.service
+$ sudo chown root:root /usr/local/lib/systemd/system/dm_reload.service
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable dm_reload.service
+```
+
+#### Configure containerd for devmapper
+
+- In containerd v2.x:
+
+```bash
+$ sudo sed -i "/\[plugins\.'io\.containerd\.snapshotter\.v1\.devmapper'\]/,/^$/d" /etc/containerd/config.toml
+$ sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
+
+# Customizations for devmapper
+
+[plugins.'io.containerd.snapshotter.v1.devmapper']
+  pool_name = "containerd-pool"
+  root_path = "/var/lib/containerd/io.containerd.snapshotter.v1.devmapper"
+  base_image_size = "10GB"
+  discard_blocks = true
+  fs_type = "ext2"
+EOT
+$ sudo systemctl restart containerd
+```
+
+- In containerd v1.x:
+
+```bash
+$ sudo sed -i '/\[plugins\."io\.containerd\.snapshotter\.v1\.devmapper"\]/,/^$/d' /etc/containerd/config.toml
+$ sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
+
+# Customizations for devmapper
 
 [plugins."io.containerd.snapshotter.v1.devmapper"]
   pool_name = "containerd-pool"
@@ -146,86 +193,158 @@ sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOT'
   discard_blocks = true
   fs_type = "ext2"
 EOT
-sudo systemctl restart containerd
+$ sudo systemctl restart containerd
 ```
 
-## Initialize devmapper
+Before proceeding, make sure that the new snapshotter is properly configured:
 
 ```bash
-sudo /usr/local/bin/scripts/dm_create.sh
+$ sudo ctr plugin ls | grep devmapper
+io.containerd.snapshotter.v1              devmapper                linux/amd64    ok
 ```
+
+## Install urunc
 
 ### Option 1: Build from source
 
-#### Build and install urunc 
+#### Install Go
+
+In order to build `urunc` from source, we need to install Go. We will use Go 1.20.6, but feel free to use a newer version.
 
 ```bash
-git clone git@github.com:nubificus/urunc.git
-cd urunc
-make && sudo make install
-cd ..
+$ wget -q https://go.dev/dl/go1.20.6.linux-$(dpkg --print-architecture).tar.gz
+$ sudo mkdir /usr/local/go1.20.6
+$ sudo tar -C /usr/local/go1.20.6 -xzf go1.20.6.linux-$(dpkg --print-architecture).tar.gz
+$ sudo tee -a /etc/profile > /dev/null << 'EOT'
+export PATH=$PATH:/usr/local/go1.20.6/go/bin
+EOT
+$ rm -f go1.20.6.linux-$(dpkg --print-architecture).tar.gz
 ```
 
-### Option 2: Install from binaries
+> Note: You might need to logout and log back in to the shell, in order to use
+> Go.
+
+#### Build and install urunc
+
+After installing Go, we can clone and build `urunc`:
 
 ```bash
-declare -A ARCH_MAP
-ARCH_MAP["x86_64"]="amd64"
-ARCH_MAP["aarch64"]="aarch64"
-SYSTEM_ARCH=$(uname -m)
-ARCHITECTURE=${ARCH_MAP[$SYSTEM_ARCH]}
-LATEST_RELEASE_URL="https://api.github.com/repos/nubificus/urunc/releases/latest"
-RELEASE_JSON=$(curl -s $LATEST_RELEASE_URL)
-LATEST_TAG=$(echo $RELEASE_JSON | jq -r '.tag_name')
-ASSETS_URL=$(echo $RELEASE_JSON | jq -r '.assets[].browser_download_url')
-BINARY_URLS=$(echo "$ASSETS_URL" | grep "$ARCHITECTURE")
-for BINARY_URL in $BINARY_URLS; do
-  echo "Downloading $BINARY_URL..."
-  curl -LO "$BINARY_URL"
-  chmod +x `basename $BINARY_URL`
-  sudo mv `basename $BINARY_URL` /usr/local/bin
-done
+$ git clone git@github.com:nubificus/urunc.git
+$ cd urunc
+$ make && sudo make install
+$ cd ..
+```
+
+### Option 2: Install latest release
+
+We can also install `urunc` from its latest
+[release](https://github.com/nubificus/urunc/releases):
+
+```bash
+$ URUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/nubificus/urunc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/urunc_$(dpkg --print-architecture)
+$ chmod +x urunc_$(dpkg --print-architecture)
+$ sudo mv urunc_$(dpkg --print-architecture) /usr/local/bin/urunc
+```
+
+And for `containerd-shim-urunc-v2`:
+
+```bash
+$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/containerd-shim-urunc-v2_$(dpkg --print-architecture)
+$ chmod +x containerd-shim-urunc-v2_$(dpkg --print-architecture)
+$ sudo mv containerd-shim-urunc-v2_$(dpkg --print-architecture) /usr/local/bin/containerd-shim-urunc-v2
 ```
 
 ### Add urunc runtime to containerd
 
+We also need to add `urunc` as a runtime in containerd's configuration:
+
+- In containerd 2.x:
+
 ```bash
-sudo tee -a /etc/containerd/config.toml > /dev/null <<EOT
+$ sudo tee -a /etc/containerd/config.toml > /dev/null <<EOT
+[plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.urunc]
+    runtime_type = "io.containerd.urunc.v2"
+    container_annotations = ["com.urunc.unikernel.*"]
+    pod_annotations = ["com.urunc.unikernel.*"]
+    snapshotter = "devmapper"
+EOT
+$ sudo systemctl restart containerd
+```
+
+- In containerd 1.x:
+
+```bash
+$ sudo tee -a /etc/containerd/config.toml > /dev/null <<EOT
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.urunc]
     runtime_type = "io.containerd.urunc.v2"
     container_annotations = ["com.urunc.unikernel.*"]
     pod_annotations = ["com.urunc.unikernel.*"]
     snapshotter = "devmapper"
 EOT
-sudo systemctl restart containerd
+$ sudo systemctl restart containerd
 ```
 
-Now, we are ready to run our unikernel images!
+## Install Qemu, Firecracker and Solo5
 
-## Run an example unikernel
+### Install Solo5
 
-### Install solo5
-
-First, let's install the apt packages required to build solo5:
+We can clone, build and install both `Solo5-hvt` and `Solo5-spt` from their [common repository](https://github.com/Solo5/solo5)
 
 ```bash
-sudo apt-get install libseccomp-dev pkg-config gcc -y
+$ git clone -b v0.6.9 https://github.com/Solo5/solo5.git
+$ cd solo5
+$ ./configure.sh  && make -j$(nproc)
+$ sudo cp tenders/hvt/solo5-hvt /usr/local/bin
+$ sudo cp tenders/spt/solo5-spt /usr/local/bin
 ```
 
-Next, we can clone, build and install `solo5`.
+### Install Qemu
+
+Qemu installation can easily take place using the package manager.
 
 ```bash
-git clone -b v0.6.9 https://github.com/Solo5/solo5.git
-cd solo5
-./configure.sh  && make -j$(nproc)
-sudo cp tenders/hvt/solo5-hvt /usr/local/bin
-sudo cp tenders/spt/solo5-spt /usr/local/bin
+$ sudo apt install qemu-system
 ```
 
-### Run a redis rumprun unikernel over solo5
+### Install Firecracker
 
-Now, let's run a unikernel image:
+To install firecracker, we will use the github release page of Firecracker.
+We choose to install version 1.7.0, since Unikraft has some
+[issues](https://github.com/unikraft/unikraft/issues/1410) with newer versions.
 
 ```bash
-sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest unikernel
+$ ARCH="$(uname -m)"
+$ VERSION="v1.7.0"
+$ release_url="https://github.com/firecracker-microvm/firecracker/releases"
+$ curl -L ${release_url}/download/${VERSION}/firecracker-${VERSION}-${ARCH}.tgz | tar -xz
+$ # Rename the binary to "firecracker"
+$ sudo mv release-${VERSION}-${ARCH}/firecracker-${VERSION}-${ARCH} /usr/local/bin/firecracker
+$ rm -fr release-${VERSION}-${ARCH}
+```
+
+## Run example unikernels
+
+Now, let's run some unikernels for every VM/Sandbox monitor, to make sure
+everything was installed correctly.
+
+#### Run a Redis Rumprun unikernel over Solo5-hvt
+
+```bash
+$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest unikernel
+```
+#### Run a Redis rumprun unikernel over Solo5-spt with devmapper
+
+```bash
+$ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
+```
+#### Run a Nginx Unikraft unikernel over Qemu
+
+```bash
+$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
+```
+#### Run a Nginx Unikraft unikernel over Firecracker
+
+```bash
+$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
 ```
