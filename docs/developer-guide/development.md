@@ -1,32 +1,49 @@
-title: Setup a Build environment
+title: Setup a Dev environment
 ------
 
-Most of the steps are covered in the [installation](/installation) document. Please refer to it for:
+Most of the steps are covered in the [installation](/installation) document.
+Please refer to it for:
 
 - installing a recent version of Go (> 1.20)
-
 - installing `containerd` and `runc`
-
 - setting up the devmapper snapshotter
-
 - installing `nerdctl` and the `CNI` plugins
-
 - installing the relevant hypervisors
 
-The next step is to clone the repo:
+In addition to the above, we strongly suggest to install
+[crictl](https://github.com/kubernetes-sigs/cri-tools/tree/master) which `urunc`
+uses for its end-to-end tests. The following commands will install `crictl`
 
 ```bash
-git clone https://github.com/nubificus/urunc.git
+$ VERSION="v1.30.0" # check latest version in /releases page
+$ wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+$ sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+$ rm -f crictl-$VERSION-linux-amd64.tar.gz
 ```
 
-and start experimenting with the code. A first step could be running the tests:
+Since default endpoints for `crictl` are now deprecated, we need to set them up:
+
+```
+$ sudo tee -a /etc/crictl.yaml > /dev/null <<'EOT'
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 20
+EOT
+```
+
+The next step is to clone and build `urunc`:
 
 ```bash
-make test
+$ git clone https://github.com/nubificus/urunc.git
+$ cd urunc
+$ make && sudo make install
 ```
 
-## Contribution Guidelines
+At last, please  validate that the dev environment has been set correctly
+by running the:
+- unit tests: `make unittest` and
+- end-to-end tests: `sudo make e2etest`
 
-Follow the
-[contributing](/developer-guide/contribute) guidelines before submitting any pull requests.
-
+> Note: When running `make` commands for `urunc` that will use go (i.e. build,
+> unitest, e2etest) you might need to specify the path to the go binary
+with `sudo GO=$(which go) make`.
