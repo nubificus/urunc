@@ -41,7 +41,9 @@ $ make && sudo make install
 
 At last, please  validate that the dev environment has been set correctly
 by running the:
+
 - unit tests: `make unittest` and
+
 - end-to-end tests: `sudo make e2etest`
 
 > Note: When running `make` commands for `urunc` that will use go (i.e. build,
