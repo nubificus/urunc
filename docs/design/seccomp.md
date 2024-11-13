@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Seccomp"
+description: "Seccomp in urunc"
+---
+
 # Seccomp in Urunc
 
 ## Overview
