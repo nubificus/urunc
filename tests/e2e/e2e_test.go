@@ -18,20 +18,6 @@ import (
 	"testing"
 )
 
-type testMethod func(tool testTool) error
-
-type containerTestArgs struct {
-	Name           string
-	Image          string
-	Devmapper      bool
-	Seccomp        bool
-	StaticNet      bool
-	SideContainers []string
-	Skippable      bool
-	TestFunc       testMethod
-	ExpectOut      string
-}
-
 func TestNerdctl(t *testing.T) {
 	tests := []containerTestArgs{
 		{
