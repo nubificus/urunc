@@ -76,8 +76,9 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 		netcli := ukernel.MonitorNetCli(qemuString)
 		if netcli == "" {
 			netcli += " -net nic,model=virtio"
-			netcli += " -net tap,script=no,ifname=" + args.TapDevice
+			netcli += " -net tap,script=no,downscript=no,ifname="
 		}
+		netcli += args.TapDevice
 		cmdString += netcli
 	}
 	if args.BlockDevice != "" {
@@ -91,7 +92,7 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	if args.InitrdPath != "" {
 		cmdString += " -initrd " + args.InitrdPath
 	}
-	cmdString = appendNonEmpty(cmdString, " ", ukernel.MonitorCli(qemuString))
+	cmdString += ukernel.MonitorCli(qemuString)
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)
 	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")

@@ -52,6 +52,9 @@ func New(unikernelType string) (Unikernel, error) {
 	case MirageUnikernel:
 		unikernel := newMirage()
 		return unikernel, nil
+	case MewzUnikernel:
+		unikernel := newMewz()
+		return unikernel, nil
 	default:
 		return nil, ErrNotSupportedUnikernel
 	}
