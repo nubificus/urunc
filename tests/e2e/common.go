@@ -57,6 +57,9 @@ func commonNewContainerCmd(a containerTestArgs) string {
 	if !a.Seccomp {
 		cmdBase += "--security-opt seccomp=unconfined "
 	}
+	if a.Memory != "" {
+		cmdBase += fmt.Sprintf("-m %s ", a.Memory)
+	}
 	if a.UID != 0 && a.GID != 0 {
 		cmdBase += fmt.Sprintf("-u %d:%d ", a.UID, a.GID)
 	}
