@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	criruntimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
@@ -93,7 +94,15 @@ func crictlNewContainerConfig(path string, a containerTestArgs) (string, error) 
 		Command: []string{"/test"},
 		Linux: &criruntimeapi.LinuxContainerConfig{
 			SecurityContext: &criruntimeapi.LinuxContainerSecurityContext{},
+			Resources:       &criruntimeapi.LinuxContainerResources{},
 		},
+	}
+	if a.Memory != "" {
+		mem, err := strconv.ParseInt(a.Memory, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		containerConfig.Linux.Resources.MemoryLimitInBytes = mem
 	}
 	if a.UID != 0 && a.GID != 0 {
 		containerConfig.Linux.SecurityContext.RunAsUser = &criruntimeapi.Int64Value{Value: int64(a.UID)}

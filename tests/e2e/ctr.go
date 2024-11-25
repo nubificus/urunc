@@ -42,6 +42,9 @@ func ctrNewContainerCmd(a containerTestArgs) string {
 	if a.Seccomp {
 		cmdBase += "--seccomp "
 	}
+	if a.Memory != "" {
+		cmdBase += fmt.Sprintf("--memory-limit %s ", a.Memory)
+	}
 	// ctr does not seem to support additional groups.
 	// Therefore only set the UID/GID
 	if a.UID != 0 && a.GID != 0 {
