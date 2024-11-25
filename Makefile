@@ -184,7 +184,7 @@ unittest: test_unikontainers
 
 ## e2etest Run all end-to-end tests
 .PHONY: e2etest
-e2etest: test_nerdctl test_ctr test_crictl
+e2etest: test_nerdctl test_ctr test_crictl test_docker
 
 ## test_unikontainers Run unit tests for unikontainers package
 test_unikontainers:
@@ -213,6 +213,13 @@ test_crictl:
 	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -run TestCrictl -v
 	@echo " "
 
+## test_docker Run all end-to-end tests with docker
+.PHONY: test_docker
+test_docker:
+	@echo "Testing docker"
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -run TestDocker -v
+	@echo " "
+
 ## test_nerdctl_[pattern] Run all end-to-end tests with nerdctl that match pattern
 .PHONY: test_nerdctl_%
 test_nerdctl_%:
@@ -232,6 +239,13 @@ test_ctr_%:
 test_crictl_%:
 	@echo "Testing crictl"
 	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -v -run "TestCrictl/$*"
+	@echo " "
+
+## test_docker_[pattern] Run all end-to-end tests with docker that match pattern
+.PHONY: test_docker_%
+test_docker_%:
+	@echo "Testing docker"
+	@GOFLAGS=$(TEST_FLAGS) $(GO) test $(TEST_OPTS) ./tests/e2e -v -run "TestDocker/$*"
 	@echo " "
 
 ## help Show this help message
