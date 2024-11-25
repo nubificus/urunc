@@ -277,3 +277,84 @@ func TestCrictl(t *testing.T) {
 		})
 	}
 }
+
+func TestDocker(t *testing.T) {
+	tests := []containerTestArgs{
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:           "Qemu-unikraft-ping-redis",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest",
+			Name:           "Qemu-unikraft-ping-nginx",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:           "Qemu-unikraft-with-seccomp",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       seccompTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/redis-qemu-unikraft-initrd:latest",
+			Name:           "Qemu-unikraft-without-seccomp",
+			Devmapper:      false,
+			Seccomp:        false,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       seccompTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:           "Firecracker-unikraft-ping-nginx",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       pingTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:           "Firecracker-unikraft-with-seccomp",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       seccompTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:           "Firecracker-unikraft-without-seccomp",
+			Devmapper:      false,
+			Seccomp:        false,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       seccompTest,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			dockerTool := newDockerTool(tc)
+			runTest(dockerTool, t)
+		})
+	}
+}
