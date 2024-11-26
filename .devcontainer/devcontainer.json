@@ -1,0 +1,22 @@
+{
+    "name": "Go",
+    "image": "mcr.microsoft.com/devcontainers/go:1.22-bookworm",
+    "features": {
+        "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+            "upgradePackages": true
+        },
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/jungaretti/features/make:1.0.1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {},
+            "extensions": [
+                "ms-vscode.makefile-tools",
+                "golang.go",
+                "DavidAnson.vscode-markdownlint"
+            ]
+        }
+    },
+    "postCreateCommand": "go version"
+}
