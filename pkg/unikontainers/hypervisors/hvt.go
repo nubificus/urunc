@@ -139,7 +139,7 @@ func (h *HVT) Ok() error {
 func (h *HVT) Execve(args ExecArgs) error {
 	hvtMem := bytesToStringMB(args.MemSizeB)
 	cmdString := h.binaryPath + " --mem=" + hvtMem
-	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
+	cmdString = appendNonEmpty(cmdString, " --net:service=", args.TapDevice)
 	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
 	cmdString += " " + args.UnikernelPath + " " + args.Command
 	cmdArgs := strings.Split(cmdString, " ")
