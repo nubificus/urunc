@@ -15,8 +15,10 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
+	"os/exec"
 
 	"github.com/nubificus/urunc/internal/constants"
 	"github.com/vishvananda/netlink"
@@ -27,6 +29,48 @@ var StaticIPAddr = fmt.Sprintf("%s/24", constants.StaticNetworkTapIP)
 type StaticNetwork struct {
 }
 
+func setNATRule(iface string) error {
+	var args []string
+	var stdout, stderr bytes.Buffer
+
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		return err
+	}
+
+	args = append(args, "iptables")
+	args = append(args, "-t")
+	args = append(args, "nat")
+	args = append(args, "-A")
+	args = append(args, "POSTROUTING")
+	args = append(args, "-o")
+	args = append(args, iface)
+	args = append(args, "-j")
+	args = append(args, "MASQUERADE")
+	args = append(args, "--wait")
+	args = append(args, "1")
+
+	cmd := exec.Cmd {
+		Path:   path,
+		Args:   args,
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}
+	err = cmd.Run()
+	if err != nil {
+		switch err.(type) {
+		case *exec.ExitError:
+			return fmt.Errorf("iptables command %s failed: %s", cmd.String(), stderr.String())
+		default:
+			return err
+		}
+	}
+
+	return nil
+}
+// iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE --wait 1
+// iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
 func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 	newTapName := strings.ReplaceAll(DefaultTap, "X", "0")
 	addTCRules := false
@@ -36,6 +80,10 @@ func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 		return nil, err
 	}
 	newTapDevice, err := networkSetup(newTapName, StaticIPAddr, redirectLink, addTCRules)
+	if err != nil {
+		return nil, err
+	}
+	err = setNATRule(DefaultInterface)
 	if err != nil {
 		return nil, err
 	}
