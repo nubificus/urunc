@@ -15,7 +15,10 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/nubificus/urunc/internal/constants"
@@ -27,6 +30,65 @@ var StaticIPAddr = fmt.Sprintf("%s/24", constants.StaticNetworkTapIP)
 type StaticNetwork struct {
 }
 
+// Apply the following rule:
+// iptables -t nat -A POSTROUTING -o <IF> -s <IP> -j MASQUERADE --wait 1
+// and write 1 to /proc/sys/net/ipv4/ip_forward to enable IP forwarding.
+func setNATRule(iface string, sourceIP string) error {
+	var args []string
+	var stdout, stderr bytes.Buffer
+
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile("/proc/sys/net/ipv4/ip_forward", os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open /proc/sys/net/ipv4/ip_forward: %w", err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString("1")
+	if err != nil {
+		return fmt.Errorf("failed to enable IP forwarding: %w", err)
+	}
+	netlog.Debugf("Enabled IP forwarding")
+
+	args = append(args, path)
+	args = append(args, "-t")
+	args = append(args, "nat")
+	args = append(args, "-A")
+	args = append(args, "POSTROUTING")
+	args = append(args, "-s")
+	args = append(args, sourceIP)
+	args = append(args, "-o")
+	args = append(args, iface)
+	args = append(args, "-j")
+	args = append(args, "MASQUERADE")
+	args = append(args, "--wait")
+	args = append(args, "1")
+
+	cmd := exec.Cmd{
+		Path:   path,
+		Args:   args,
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}
+	err = cmd.Run()
+	if err != nil {
+		switch err.(type) {
+		case *exec.ExitError:
+			return fmt.Errorf("iptables command %s failed: %s", cmd.String(), stderr.String())
+		default:
+			return err
+		}
+	}
+
+	netlog.Infof("Applied iptables rule for NAT")
+
+	return nil
+}
+
 func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 	newTapName := strings.ReplaceAll(DefaultTap, "X", "0")
 	addTCRules := false
@@ -36,6 +98,10 @@ func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 		return nil, err
 	}
 	newTapDevice, err := networkSetup(newTapName, StaticIPAddr, redirectLink, addTCRules)
+	if err != nil {
+		return nil, err
+	}
+	err = setNATRule(DefaultInterface, StaticIPAddr)
 	if err != nil {
 		return nil, err
 	}
