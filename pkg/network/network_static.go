@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"os/exec"
+	"os"
 
 	"github.com/nubificus/urunc/internal/constants"
 	"github.com/vishvananda/netlink"
@@ -38,7 +39,18 @@ func setNATRule(iface string) error {
 		return err
 	}
 
-	args = append(args, "iptables")
+	file, err := os.OpenFile("/proc/sys/net/ipv4/ip_forward", os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open /proc/sys/net/ipv4/ip_forward: %w", err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString("1")
+	if err != nil {
+		return fmt.Errorf("failed to enable IP forwarding: %w", err)
+	}
+
+	args = append(args, path)
 	args = append(args, "-t")
 	args = append(args, "nat")
 	args = append(args, "-A")
