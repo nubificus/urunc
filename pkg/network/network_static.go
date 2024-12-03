@@ -30,7 +30,7 @@ var StaticIPAddr = fmt.Sprintf("%s/24", constants.StaticNetworkTapIP)
 type StaticNetwork struct {
 }
 
-func setNATRule(iface string) error {
+func setNATRule(iface string, sourceIP string) error {
 	var args []string
 	var stdout, stderr bytes.Buffer
 
@@ -55,6 +55,8 @@ func setNATRule(iface string) error {
 	args = append(args, "nat")
 	args = append(args, "-A")
 	args = append(args, "POSTROUTING")
+	args = append(args, "-s")
+	args = append(args, sourceIP)
 	args = append(args, "-o")
 	args = append(args, iface)
 	args = append(args, "-j")
@@ -95,7 +97,7 @@ func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = setNATRule(DefaultInterface)
+	err = setNATRule(DefaultInterface, StaticIPAddr)
 	if err != nil {
 		return nil, err
 	}
