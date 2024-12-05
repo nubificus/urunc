@@ -113,13 +113,15 @@ page](https://nubificus.github.io/urunc/installation/).
 We keep an up to date documentation for `urunc` at 
 http://nubificus.github.io/urunc. We use [mkdocs](https://www.mkdocs.org/) to
 render `urunc`'s documentation. Hence, you can also have a local preview of
-documentation by running either `make docs` or `make docs_docker`.
+documentation by running either `make docs` or `make docs_container`.
 
 In the first case, `make docs` will execute `mkdocs serve`. Take a note of the
 url, where the docs will be served in the output of the command
-(i.e. http://127.0.0.1:8000). It is important to note, that `mkdocs` must be
-installed. For more information, please check the [mkdocs installation
-guide](https://www.mkdocs.org/user-guide/installation/).
+(i.e. http://127.0.0.1:8000). It is important to note, that `material-mkdocs`
+must be installed. For more information, please check the [installation
+guide](https://squidfunk.github.io/mkdocs-material/getting-started/).
+Moreover, the pip packages `mkdocs-literate-nav` and `mkdocs-section-index`
+should also be installed.
 
 In the second case, a container with all dependencies will start serving
 the documentation at http://127.0.0.1:8000.

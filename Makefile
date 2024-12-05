@@ -68,13 +68,18 @@ URUNC_SRC      += $(wildcard $(CURDIR)/pkg/unikontainers/unikernels/*.go)
 URUNC_SRC      += $(wildcard $(CURDIR)/pkg/network/*.go)
 SHIM_SRC       := $(wildcard $(CURDIR)/cmd/containerd-shim-urunc-v2/*.go)
 
+#? CNTR_TOOL Tool to run the linter container (default: docker)
+CNTR_TOOL ?= docker
+CNTR_OPTS ?= run --rm -it
+
 # Linking variables
-#? LINT_CNTR_TOOL Tool to run the linter container (default: nerdctl)
-LINT_CNTR_TOOL ?= nerdctl
-LINT_CNTR_OPTS ?= run --rm -it -v $(CURDIR):/app -w /app
-#? LINT_IMG The linter image to use (default: golangci/golangci-lint:v1.53.3)
+LINT_CNTR_OPTS ?= $(CNTR_OPTS) -v $(CURDIR):/app -w /app
+#? LINT_CNTR_IMG The linter image to use (default: golangci/golangci-lint:v1.53.3)
 LINT_CNTR_IMG  ?= golangci/golangci-lint:v1.53.3
 LINT_CNTR_CMD  ?= golangci-lint run -v --timeout=5m
+
+#? DOCS_CNTR_IMG The mkdocs image to use (default: harbor.nbfc.io/nubificus/urunc/mkdocs:test)
+DOCS_CNTR_IMG  ?= harbor.nbfc.io/nubificus/urunc/mkdocs:latest
 
 # Install dependencies variables
 #
@@ -171,7 +176,18 @@ clean:
 ## lint Run the lint test using a golang container
 .PHONY: lint
 lint:
-	$(LINT_CNTR_TOOL) $(LINT_CNTR_OPTS) $(LINT_CNTR_IMG) $(LINT_CNTR_CMD)
+	$(CNTR_TOOL) $(LINT_CNTR_OPTS) $(LINT_CNTR_IMG) $(LINT_CNTR_CMD)
+
+# Dcos targets
+## docs Build and serve urunc's docs locally
+.PHONY: docs
+docs:
+	mkdocs serve
+
+## docs_container Build and serve urunc's docs locally using a container
+.PHONY: docs_container
+docs_container:
+	$(CNTR_TOOL) $(CNTR_OPTS) -p 8000:8000 -v $${PWD}:/docs $(DOCS_CNTR_IMG)
 
 # Testing targets
 ## test Run all tests
