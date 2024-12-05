@@ -114,7 +114,7 @@ As soon as a new PR is created the following workflow will take place:
 We use github workflows to invoke some tests when a new PR opens for `urunc`.
 In particular, we perform the following workflows tests:
 
-- Linting of the commit message. Please check the [git commit message style](CONTRIBUTING.md#Git-commit-messages) below for more info.
+- Linting of the commit message. Please check the [git commit message style](#git-commit-messages) below for more info.
 - Spell check, since `urunc` repository contains its documentation too.
 - License check
 - Code linting for Go.

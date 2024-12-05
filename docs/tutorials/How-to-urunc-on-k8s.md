@@ -1,6 +1,6 @@
 # How to use urunc with k8s
 
-This guide assumes you have a working Kubernetes cluster and have [installed urunc](Installation.md) on one or more nodes.
+This guide assumes you have a working Kubernetes cluster and have [installed urunc](../installation.md) on one or more nodes.
 
 ## Add urunc as a RuntimeClass
 

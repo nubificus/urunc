@@ -39,7 +39,7 @@ allows the direct use of the host's devices with passthrough.
 
 We can easily install [Qemu](https://www.qemu.org/) through almost all package
 managers. For more details check [Qemu's download
-page](https://www.qemu.org/download/#linux). For instance, in the case of
+page](https://www.qemu.org/download#linux). For instance, in the case of
 Ubuntu, we can simply run the following command:
 ```bash
 $ sudo apt-get install qemu-system
@@ -60,7 +60,7 @@ only Initramfs is supported for the time being.
 
 Supported unikernel frameworks with `urunc`:
 
-- [Unikraft](/unikernel-support/#unikraft)
+- [Unikraft](../unikernel-support#unikraft)
 
 An example unikernel:
 
@@ -126,7 +126,7 @@ Initramfs is supported for the time being.
 
 Supported unikernel frameworks with `urunc`:
 
-- [Unikraft](/unikernel-support/#unikraft)
+- [Unikraft](../unikernel-support#unikraft)
 
 An example unikernel:
 
@@ -191,7 +191,7 @@ type (e.g. ext2/3/4). This is the case for Rumprun unikernel.
 
 Supported unikernel frameworks with `urunc`:
 
-- [Rumprun](/unikernel-support/#rumprun)
+- [Rumprun](../unikernel-support#rumprun)
 
 An example unikernel with a block image inside the conntainer's rootfs:
 
@@ -261,7 +261,7 @@ section](#solo5-hvt-and-urunc).
 
 Supported unikernel frameworks with `urunc`:
 
-- [Rumprun](/unikernel-support/#rumprun)
+- [Rumprun](../unikernel-support#rumprun)
 
 An example unikernel which utilizes devmapper for block storage:
 

@@ -55,8 +55,8 @@ Sandbox monitors, along with the unikernels that can run on top of them.
 
 | Unikernel                               | VM/Sandbox Monitor   | Arch         | Storage    |
 |---------------------------------------- |--------------------- |------------- |----------- |
-| [Rumprun](/unikernel-support/#rumprun)  | [Solo5-hvt](/hypervisor-support/#solo5-hvt), [Solo5-spt](/hypervisor-support/#solo5-spt) | x86, aarch64  | Block  |
-| [Unikraft](/unikernel-support/#unikraft)| [Qemu](/hypervisor-support/#qemu), [Firecracker](/hypervisor-support/#aws-firecracker) | x86          | Initrd     |
+| [Rumprun](../unikernel-support#rumprun)  | [Solo5-hvt](../hypervisor-support#solo5-hvt), [Solo5-spt](../hypervisor-support#solo5-spt) | x86, aarch64  | Block  |
+| [Unikraft](../unikernel-support#unikraft)| [Qemu](../hypervisor-support#qemu), [Firecracker](../hypervisor-support#aws-firecracker) | x86          | Initrd     |
 
 ## Quick links
 
