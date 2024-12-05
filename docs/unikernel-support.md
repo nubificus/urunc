@@ -111,7 +111,7 @@ through Solo5's I/O interface. In particular, `urunc` takes advantage of
 filesystem support and allows the mounting of the containerd's snapshot
 directly in the unikernel. This is only possible using devmapper as a
 snapshotter in containerd. For more information on setting up devmapper, please
-take a look on our [installation guide](/installation/#setup-thinpool-devmapper).
+take a look on our [installation guide](../installation#setup-thinpool-devmapper).
 
 Except for devmapper, `urunc` also supports the option of adding a block image
 inside the container image and attaching it to

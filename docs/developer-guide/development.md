@@ -1,7 +1,7 @@
 title: Setup a Dev environment
 ------
 
-Most of the steps are covered in the [installation](/installation) document.
+Most of the steps are covered in the [installation](../../installation) document.
 Please refer to it for:
 
 - installing a recent version of Go (> 1.20)
