@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubelet-urunc-cleanup
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: kubelet-urunc-cleanup
+  template:
+    metadata:
+      labels:
+        name: kubelet-urunc-cleanup
+    spec:
+      serviceAccountName: urunc-deploy-sa
+      hostPID: true
+      nodeSelector:
+        urunc.io/urunc-runtime: cleanup
+      containers:
+        - name: kube-urunc-cleanup
+          image: harbor.nbfc.io/nubificus/urunc/urunc-deploy:generic
+          imagePullPolicy: Always
+          command: ["bash", "-c", "/urunc-artifacts/scripts/install.sh reset"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate

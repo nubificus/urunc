@@ -25,7 +25,6 @@ dist/
 
 # temporary files and dirs used while building images
 temp/
-Dockerfile
 
 # dir for test bundles
 bundles/
