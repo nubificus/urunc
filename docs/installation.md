@@ -12,7 +12,7 @@ We will be installing and setting up:
 - [CNI plugins](https://github.com/containernetworking/plugins)
 - [nerdctl](https://github.com/containerd/nerdctl)
 - [devmapper](https://docs.docker.com/storage/storagedriver/device-mapper-driver/)
-- [Go 1.20.6](https://go.dev/doc/install)
+- [Go 1.23.4](https://go.dev/doc/install)
 - [urunc](https://github.com/nubificus/urunc)
 - [solo5-{hvt|spt}](https://github.com/Solo5/solo5)
 - [qemu](https://www.qemu.org/)
@@ -125,7 +125,6 @@ repo](https://github.com/nubificus/urunc/tree/main/script).
 $ git clone https://github.com/nubificus/urunc.git
 $ sudo mkdir -p /usr/local/bin/scripts
 $ sudo mkdir -p /usr/local/lib/systemd/system/
-
 $ sudo cp urunc/script/dm_create.sh /usr/local/bin/scripts/dm_create.sh
 $ sudo cp urunc/script/dm_reload.sh /usr/local/bin/scripts/dm_reload.sh
 $ sudo chmod 755 /usr/local/bin/scripts/dm_create.sh
@@ -209,16 +208,18 @@ io.containerd.snapshotter.v1              devmapper                linux/amd64  
 
 #### Install Go
 
-In order to build `urunc` from source, we need to install Go. We will use Go 1.20.6, but feel free to use a newer version.
+In order to build `urunc` from source, we need to install Go.
+Any version earlier than Go 1.20.6 will be sufficient.
 
 ```bash
-$ wget -q https://go.dev/dl/go1.20.6.linux-$(dpkg --print-architecture).tar.gz
-$ sudo mkdir /usr/local/go1.20.6
-$ sudo tar -C /usr/local/go1.20.6 -xzf go1.20.6.linux-$(dpkg --print-architecture).tar.gz
-$ sudo tee -a /etc/profile > /dev/null << 'EOT'
-export PATH=$PATH:/usr/local/go1.20.6/go/bin
+$ GO_VERSION=1.23.4
+$ wget -q https://go.dev/dl/go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz
+$ sudo mkdir /usr/local/go${GO_VERSION}
+$ sudo tar -C /usr/local/go${GO_VERSION} -xzf go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz
+$ sudo tee -a /etc/profile > /dev/null << EOT
+export PATH=\$PATH:/usr/local/go$GO_VERSION/go/bin
 EOT
-$ rm -f go1.20.6.linux-$(dpkg --print-architecture).tar.gz
+$ rm -f go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz
 ```
 
 > Note: You might need to logout and log back in to the shell, in order to use
