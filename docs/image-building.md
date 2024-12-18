@@ -64,7 +64,7 @@ Except of the above, `urunc` accepts the following optional annotations:
   rootfs, which will get attached to the unikernel.
 - `com.urunc.unikernel.blkMntPoint`: The mount point of the block image to
   attach in the unikernel.
-- `com.urunc.unikernel.version`: The version of the unikernel framework (e.g.
+- `com.urunc.unikernel.unikernelVersion`: The version of the unikernel framework (e.g.
   0.17.0).
 
 Due to the fact that [Docker](https://www.docker.com/) and some high-level
