@@ -15,6 +15,7 @@
 package urunce2etesting
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -63,12 +64,16 @@ func commonNewContainerCmd(a containerTestArgs) string {
 }
 
 func commonCmdExec(command string) (output string, err error) {
+	var stderrBuf bytes.Buffer
+
 	params := strings.Fields(command)
 	cmd := exec.Command(params[0], params[1:]...) //nolint:gosec
-	outBytes, err := cmd.CombinedOutput()
+	cmd.Stderr = &stderrBuf
+	outBytes, err := cmd.Output()
 	output = string(outBytes)
 	output = strings.TrimSpace(output)
 	if err != nil {
+		output += strings.TrimSpace(stderrBuf.String())
 		return output, err
 	}
 	return output, nil
