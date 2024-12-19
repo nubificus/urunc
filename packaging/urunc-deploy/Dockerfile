@@ -22,22 +22,16 @@ RUN \
     tar xzf firecracker.tgz && \
     mv release-${VERSION}-${ARCH}/firecracker-${VERSION}-${ARCH} firecracker
 
-# $ # Rename the binary to "firecracker"
-# $ sudo mv release-${VERSION}-${ARCH}/firecracker-${VERSION}-${ARCH} /usr/local/bin/firecracker
-# $ rm -fr release-${VERSION}-${ARCH}
-
 # Get Qemu binary
 FROM quay.io/kata-containers/kata-deploy:latest AS qemu-builder
 
 # Final image with artifacts and urunc-deploy.sh script
 FROM alpine:3.18
 
-COPY --from=solo5-builder /solo5/tenders/spt/solo5-spt /urunc-artifacts/solo5-spt
-COPY --from=solo5-builder /solo5/tenders/hvt/solo5-hvt /urunc-artifacts/solo5-hvt
-
-COPY --from=firecracker-builder /firecracker /urunc-artifacts/firecracker
-
-COPY --from=qemu-builder /opt/kata-artifacts/opt/kata/bin/qemu-system-x86_64 /urunc-artifacts/qemu-system-x86_64
+COPY --from=solo5-builder /solo5/tenders/spt/solo5-spt /urunc-artifacts/hypervisors/solo5-spt
+COPY --from=solo5-builder /solo5/tenders/hvt/solo5-hvt /urunc-artifacts/hypervisors/solo5-hvt
+COPY --from=firecracker-builder /firecracker /urunc-artifacts/hypervisors/firecracker
+COPY --from=qemu-builder /opt/kata-artifacts/opt/kata/bin/qemu-system-x86_64 /urunc-artifacts/hypervisors/qemu-system-x86_64
 
 RUN apk --no-cache add bash curl
 WORKDIR /urunc-artifacts
