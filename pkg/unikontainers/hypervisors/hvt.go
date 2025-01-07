@@ -32,7 +32,7 @@ type HVT struct {
 	binary     string
 }
 
-// applySeccompFIlter applies some secomp filters for the Hvt process.
+// applySeccompFilter applies some secomp filters for the Hvt process.
 // By default all systemcalls will cause a SIGSYS, except the ones that we whitelist
 func applySeccompFilter() error {
 	syscalls := []string{

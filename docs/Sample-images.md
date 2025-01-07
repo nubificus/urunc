@@ -9,6 +9,7 @@ We plan to create and maintain multi-platform images soon, as well as enrich thi
 - harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun-nonet:latest
 - harbor.nbfc.io/nubificus/urunc/hello-spt-rumprun-nonet:latest
 - harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest
+- harbor.nbfc.io/nubificus/urunc/nginx-hvt-rumprun:latest
 - harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest
 - harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest
 - harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun:latest
