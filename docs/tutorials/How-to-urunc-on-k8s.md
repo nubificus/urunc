@@ -46,10 +46,9 @@ spec:
       labels:
         run: nginx-urunc
     spec:
-      nodeName: nuc4
       runtimeClassName: urunc
       containers:
-      - image: nubificus/nginx-hvt:x86_64
+      - image: harbor.nbfc.io/nubificus/urunc/nginx-hvt-rumprun:latest
         imagePullPolicy: Always
         name: nginx-urunc
         command: ["sleep"]
