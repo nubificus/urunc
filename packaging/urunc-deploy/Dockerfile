@@ -44,13 +44,16 @@ RUN \
     curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
 	chmod +x /usr/bin/kubectl && \
     curl -L -o /urunc-artifacts/urunc https://github.com/nubificus/urunc/releases/download/v0.4.0/urunc_${ARCH} && \
-    curl -L -o /urunc-artifacts/containerd-shim-v2-urunc \
+    curl -L -o /urunc-artifacts/containerd-shim-urunc-v2 \
         https://github.com/nubificus/urunc/releases/download/v0.4.0/containerd-shim-urunc-v2_${ARCH} && \
+    chmod +x /urunc-artifacts/urunc && \
+    chmod +x /urunc-artifacts/containerd-shim-v2-urunc && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
     chmod +x /usr/bin/jq && \
     apk --no-cache add py3-pip && \
     pip install --no-cache-dir yq==3.2.3
 
 COPY scripts /urunc-artifacts/scripts
+COPY runtimeclasses /urunc-artifacts/runtimeclasses
 RUN chmod +x /urunc-artifacts/scripts/install.sh
 
