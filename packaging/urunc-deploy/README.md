@@ -50,7 +50,7 @@ kubectl apply -f examples/nginx-urunc.yaml
 ```
 
 ```bash
-docker build --push -t gntouts/urunc-deploy:0.0.16 .
+docker build --push -t gntouts/urunc-deploy:0.1.1 .
 ```
 
 ## k8s - crio quickstart

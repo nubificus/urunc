@@ -47,7 +47,7 @@ RUN \
     curl -L -o /urunc-artifacts/containerd-shim-urunc-v2 \
         https://github.com/nubificus/urunc/releases/download/v0.4.0/containerd-shim-urunc-v2_${ARCH} && \
     chmod +x /urunc-artifacts/urunc && \
-    chmod +x /urunc-artifacts/containerd-shim-v2-urunc && \
+    chmod +x /urunc-artifacts/containerd-shim-urunc-v2 && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
     chmod +x /usr/bin/jq && \
     apk --no-cache add py3-pip && \
