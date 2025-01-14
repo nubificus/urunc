@@ -23,8 +23,8 @@ spec:
           #   preStop:
           #     exec:
           #       command: ["bash", "-c", "/opt/kata-artifacts/scripts/kata-deploy.sh cleanup"]
-          command: ["bash", "-c", "/urunc-artifacts/scripts/install.sh install"]
-          # command: ["sleep", "infinity"]
+          # command: ["bash", "-c", "/urunc-artifacts/scripts/install.sh install"]
+          command: ["sleep", "infinity"]
           # NOTE: Please don't change the order of the environment variables below.
           env:
             - name: NODE_NAME
