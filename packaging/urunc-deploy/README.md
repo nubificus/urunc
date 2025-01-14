@@ -107,4 +107,15 @@ sudo kubeadm init --pod-network-cidr=$NETWORK_CIDR
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+wget -q https://raw.githubusercontent.com/projectcalico/calico/v3.26.0/manifests/tigera-operator.yaml
+wget -q https://raw.githubusercontent.com/projectcalico/calico/v3.26.0/manifests/custom-resources.yaml
+sed -i 's/cidr: 192.168.0.0\/16/cidr: 10.80.0.0\/16/' custom-resources.yaml
+kubectl create -f tigera-operator.yaml
+kubectl create -f custom-resources.yaml
+
+rm -f tigera-operator.yaml
+rm -f custom-resources.yaml
+
+kubectl taint nodes --all node-role.kubernetes.io/control-plane-
 ```
