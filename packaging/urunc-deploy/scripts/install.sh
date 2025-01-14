@@ -5,7 +5,7 @@ set -o pipefail
 set -o nounset
 
 crio_drop_in_conf_dir="/etc/crio/crio.conf.d/"
-crio_drop_in_conf_file="${crio_drop_in_conf_dir}/99-kata-deploy"
+crio_drop_in_conf_file="${crio_drop_in_conf_dir}/99-urunc-deploy"
 crio_drop_in_conf_file_debug="${crio_drop_in_conf_dir}/100-debug"
 
 containerd_conf_file="/etc/containerd/config.toml"
@@ -54,6 +54,7 @@ function uninstall_firecracker() {
 }
 
 function install_artifacts() {
+    # TODO: Install only hypervisors defined in HYPERVISORS
     echo "copying urunc artifacts onto host"
     mkdir -p /host/usr/local/bin
     install_urunc
@@ -86,7 +87,7 @@ die() {
 
 
 function create_runtimeclasses() {
-    echo "Creating the runtime classes"
+    echo "Creating the runtime class"
     kubectl apply -f /urunc-artifacts/runtimeclasses/runtimeclass.yaml
 }
 
@@ -160,22 +161,62 @@ function wait_till_node_is_ready() {
     done
 }
 
+function configure_crio() {
+    # Configure crio to use urunc:
+    echo "Add urunc as a supported runtime for CRIO:"
+    
+    echo "Drop-in configuration directory: $crio_drop_in_conf_dir"
+    echo "Drop-in configuration file: $crio_drop_in_conf_file"
+    echo "Drop-in debug file: $crio_drop_in_conf_file_debug"
+    
+    
+    # As we don't touch the original configuration file in any way,
+    # let's just ensure we remove any exist configuration from a
+    # previous deployment.
+    mkdir -p "$crio_drop_in_conf_dir"
+    rm -f "$crio_drop_in_conf_file"
+    touch "$crio_drop_in_conf_file"
+    rm -f "$crio_drop_in_conf_file_debug"
+    touch "$crio_drop_in_conf_file_debug"
+
+    local urunc_path="/usr/local/bin/containerd-shim-urunc-v2"
+    local urunc_conf="crio.runtime.runtimes.urunc"
+    
+	cat <<EOF | tee -a "$crio_drop_in_conf_file"
+
+[$urunc_conf]
+	runtime_path = "${urunc_path}"
+	runtime_type = "vm"
+	runtime_root = "/run/urunc"
+	privileged_without_host_devices = true
+EOF
+    
+    
+    if [ "${DEBUG}" == "true" ]; then
+		cat <<EOF | tee $crio_drop_in_conf_file_debug
+[crio.runtime]
+log_level = "debug"
+EOF
+    fi
+}
+
+
 function configure_cri_runtime() {
     case $1 in
         crio)
-            # configure_crio
-            die "crio is not supported"
+            configure_crio
+            # TODO: Configure crio
+            # die "crio is not supported"
         ;;
         containerd | k3s | k3s-agent | rke2-agent | rke2-server | k0s-controller | k0s-worker)
             configure_containerd "$1"
         ;;
     esac
-	echo "containerd cofiguration added"
     if [ "$1" == "k0s-worker" ] || [ "$1" == "k0s-controller" ]; then
         # do nothing, k0s will automatically load the config on the fly
         :
     else
-		echo "reloading $1"
+        echo "reloading $1"
         host_systemctl daemon-reload
         host_systemctl restart "$1"
     fi
@@ -184,7 +225,7 @@ function configure_cri_runtime() {
 }
 
 function configure_containerd() {
-    # Configure containerd to use Kata:
+    # Configure containerd to use urunc:
     echo "Add urunc as a supported runtime for containerd"
     echo "Containerd conf file: $containerd_conf_file"
     mkdir -p /etc/containerd/
@@ -202,10 +243,10 @@ function configure_containerd() {
     local pluginid=cri
     local configuration_file="${containerd_conf_file}"
     
-	# Properly set the configuration file in case drop-in files are supported
-	if [ $use_containerd_drop_in_conf_file = "true" ]; then
-		configuration_file="/host${containerd_drop_in_conf_file}"
-	fi
+    # Properly set the configuration file in case drop-in files are supported
+    if [ $use_containerd_drop_in_conf_file = "true" ]; then
+        configuration_file="/host${containerd_drop_in_conf_file}"
+    fi
     
     local containerd_root_conf_file="$containerd_conf_file"
     if [[ "$1" =~ ^(k0s-worker|k0s-controller)$ ]]; then
@@ -213,26 +254,26 @@ function configure_containerd() {
     fi
     
     if grep -q "version = 2\>" $containerd_root_conf_file; then
-		pluginid=\"io.containerd.grpc.v1.cri\"
-	fi
-
-	if grep -q "version = 3\>" $containerd_root_conf_file; then
-		pluginid=\"io.containerd.cri.v1.runtime\"
-	fi
-
-	echo "Plugin ID: ${pluginid}"
+        pluginid=\"io.containerd.grpc.v1.cri\"
+    fi
+    
+    if grep -q "version = 3\>" $containerd_root_conf_file; then
+        pluginid=\"io.containerd.cri.v1.runtime\"
+    fi
+    
+    echo "Plugin ID: ${pluginid}"
     
     local runtime_table=".plugins.${pluginid}.containerd.runtimes.\"${runtime}\""
     local runtime_type=\"io.containerd.urunc.v2\"
     # local container_annotations="\[\"com.urunc.unikernel.*\"\]"
     # local pod_annotations="\[\"com.urunc.unikernel.*\"\]"
     # local snapshottter="devmapper"
-
-	echo "Once again, configuration file is ${configuration_file}"
-	# configuration_file = "/host${configuration_file}"
-
-	tomlq -i -t $(printf '%s.runtime_type=%s' ${runtime_table} ${runtime_type}) ${configuration_file}
-   
+    
+    echo "Once again, configuration file is ${configuration_file}"
+    # configuration_file = "/host${configuration_file}"
+    
+    tomlq -i -t $(printf '%s.runtime_type=%s' ${runtime_table} ${runtime_type}) ${configuration_file}
+    
     if [ "${DEBUG}" == "true" ]; then
         tomlq -i -t '.debug.level = "debug"' ${configuration_file}
     fi
@@ -299,8 +340,8 @@ function main() {
             install_artifacts
             configure_cri_runtime "$runtime"
             kubectl label node "$NODE_NAME" --overwrite urunc.io/urunc-runtime=true
-			echo "EVERYTHING WENT WELL"
-			sleep infinity
+            echo "EVERYTHING WENT WELL"
+            sleep infinity
         ;;
         cleanup)
             uninstall
