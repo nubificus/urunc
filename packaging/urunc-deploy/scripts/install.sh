@@ -178,7 +178,7 @@ function configure_crio() {
     touch "$crio_drop_in_conf_file"
     rm -f "$crio_drop_in_conf_file_debug"
     touch "$crio_drop_in_conf_file_debug"
-
+    
     local urunc_path="/usr/local/bin/containerd-shim-urunc-v2"
     local urunc_conf="crio.runtime.runtimes.urunc"
     
@@ -297,7 +297,6 @@ function main() {
     runtime=$(get_container_runtime)
     # CRI-O isn't consistent with the naming -- let's use crio to match the service file
     if [ "$runtime" == "cri-o" ]; then
-        die "cri-o is not supported"
         runtime="crio"
         elif [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
         containerd_conf_tmpl_file="${containerd_conf_file}.tmpl"
