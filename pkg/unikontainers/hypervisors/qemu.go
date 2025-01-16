@@ -15,6 +15,7 @@
 package hypervisors
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"syscall"
@@ -46,7 +47,8 @@ func (q *Qemu) Execve(args ExecArgs) error {
 	cmdString := q.binaryPath + " -m " + qemuMem + "M"
 	cmdString += " -cpu host"            // Choose CPU
 	cmdString += " -enable-kvm"          // Enable KVM to use CPU virt extensions
-	cmdString += " -nographic -vga none" // Disable graphic output
+	cmdString += " -nographic -vga none -serial stdio -nodefaults" // Disable graphic output
+	cmdString += " -no-reboot"
 
 	if args.Seccomp {
 		// Enable Seccomp in QEMU
@@ -76,13 +78,16 @@ func (q *Qemu) Execve(args ExecArgs) error {
 		// TODO: For the time being, we only have support for initrd with
 		// QEMU and Unikraft. We will need to add support for block device
 		// and other storage options in QEMU (e.g. shared fs)
-		vmmLog.Warn("Block device is currently not supported in QEMU execution")
+		cmdString += " -drive file=" + args.BlockDevice + ",format=raw,if=none,id=hd0"
+		cmdString += " -device virtio-blk-pci,id=blk0,drive=hd0,scsi=off"
 	}
 	if args.InitrdPath != "" {
 		cmdString += " -initrd " + args.InitrdPath
 	}
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)
+	fmt.Println(cmdString)
+	fmt.Println(exArgs)
 	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")
 	return syscall.Exec(q.Path(), exArgs, args.Environment) //nolint: gosec
 }
