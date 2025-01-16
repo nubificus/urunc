@@ -56,6 +56,9 @@ func New(unikernelType string) (Unikernel, error) {
 	case MewzUnikernel:
 		unikernel := newMewz()
 		return unikernel, nil
+	case LinuxUnikernel:
+		unikernel := newLinux()
+		return unikernel, nil
 	default:
 		return nil, ErrNotSupportedUnikernel
 	}
