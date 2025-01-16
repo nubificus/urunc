@@ -16,7 +16,6 @@ package unikernels
 
 import (
 	"fmt"
-	"strings"
 )
 
 const LinuxUnikernel string = "linux"
@@ -29,13 +28,22 @@ type Linux struct {
 type LinuxNet struct {
 	Address string
 	Gateway string
+	Mask string
 }
 
 func (l *Linux) CommandString() (string, error) {
-	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr init=/guest_start.sh %s %s %s",
+	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr init=/guest_start.sh %s %s %s",
+	//	l.Net.Address,
+	//	l.Net.Gateway,
+	//	l.Command), nil
+	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw quiet loglevel=0 nokaslr init=%s",
+	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr ip=%s::%s:%s:urunc:eth0:off init=%s",
 		l.Net.Address,
 		l.Net.Gateway,
+		l.Net.Mask,
 		l.Command), nil
+	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=14 nokaslr init=%s",
+	//	l.Command), nil
 }
 
 func (l *Linux) SupportsBlock() bool {
@@ -43,7 +51,7 @@ func (l *Linux) SupportsBlock() bool {
 }
 
 func (l *Linux) SupportsFS(_ string) bool {
-	return false
+	return true
 }
 
 func (l *Linux) Init(data UnikernelParams) error {
@@ -52,8 +60,9 @@ func (l *Linux) Init(data UnikernelParams) error {
 	// Otherwise, we use the first word as the name of the app
 	l.Command = data.CmdLine
 
-	l.Net.Address = strings.ReplaceAll(data.EthDeviceIP, ".", " ") + " 24"
-	l.Net.Gateway = strings.ReplaceAll(data.EthDeviceGateway, ".", " ")
+	l.Net.Address = data.EthDeviceIP
+	l.Net.Gateway = data.EthDeviceGateway
+	l.Net.Mask = data.EthDeviceMask
 
 	return nil
 }
