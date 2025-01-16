@@ -122,7 +122,15 @@ func (fc *Firecracker) Execve(args ExecArgs, _ unikernels.Unikernel) error {
 	// Block config for Firecracker
 	// TODO: Add support for block devices in FIrecracker
 	FCDrives := make([]FirecrackerDrive, 0)
-
+	if args.BlockDevice != "" {
+		aBlock := FirecrackerDrive{
+			DriveID:   "rootfs",
+			IsRO:      false,
+			IsRootDev: true,
+			HostPath:  args.BlockDevice,
+		}
+		FCDrives = append(FCDrives, aBlock)
+	}
 	// TODO: Check if this check causes any performance drop
 	// or explore alternative implementations
 	if runtime.GOARCH == "arm64" {
@@ -132,7 +140,7 @@ func (fc *Firecracker) Execve(args ExecArgs, _ unikernels.Unikernel) error {
 
 	FCSource := FirecrackerBootSource{
 		ImagePath:  args.UnikernelPath,
-		BootArgs:   args.Command,
+		BootArgs:   "console=ttyS0 reboot=k panic=1 pci=off init=" + args.Command,
 		InitrdPath: args.InitrdPath,
 	}
 	FCConfig := &FirecrackerConfig{
