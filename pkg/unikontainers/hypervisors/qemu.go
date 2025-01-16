@@ -15,6 +15,7 @@
 package hypervisors
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"syscall"
@@ -49,7 +50,8 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	cmdString := q.binaryPath + " -m " + qemuMem + "M"
 	cmdString += " -cpu host"            // Choose CPU
 	cmdString += " -enable-kvm"          // Enable KVM to use CPU virt extensions
-	cmdString += " -nographic -vga none" // Disable graphic output
+	cmdString += " -nographic -vga none -serial stdio -nodefaults" // Disable graphic output
+	cmdString += " -no-reboot"
 
 	if args.Seccomp {
 		// Enable Seccomp in QEMU
@@ -94,6 +96,8 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	cmdString = appendNonEmpty(cmdString, " ", ukernel.MonitorCli(qemuString))
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)
+	fmt.Println(cmdString)
+	fmt.Println(exArgs)
 	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")
 	return syscall.Exec(q.Path(), exArgs, args.Environment) //nolint: gosec
 }
