@@ -16,30 +16,25 @@ package unikernels
 
 import (
 	"fmt"
+	"strings"
 )
 
 const LinuxUnikernel string = "linux"
 
 type Linux struct {
-	AppName string
 	Command string
 	Net     LinuxNet
-	VFS     LinuxVFS
-	Version string
 }
 
 type LinuxNet struct {
 	Address string
-	Mask    string
 	Gateway string
 }
 
-type LinuxVFS struct {
-	RootFS string
-}
-
 func (l *Linux) CommandString() (string, error) {
-	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr init=%s",
+	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr init=/guest_start.sh %s %s %s",
+		l.Net.Address,
+		l.Net.Gateway,
 		l.Command), nil
 }
 
@@ -57,17 +52,8 @@ func (l *Linux) Init(data UnikernelParams) error {
 	// Otherwise, we use the first word as the name of the app
 	l.Command = data.CmdLine
 
-	//l.Net.Address = "netdev.ip=" + data.EthDeviceIP + "/24:" + data.EthDeviceGateway + ":8.8.8.8"
-	//// TODO: We need to add support for actual block devices (e.g. virtio-blk)
-	//// and sharedfs or any other Linux related ways to pass data to guest.
-	//if data.RootFSType == "initrd" {
-	//	// TODO: This needs better handling. We need to revisit this
-	//	// when we better understand all the available options for
-	//	// passing info inside linux unikernels.
-	//	l.VFS.RootFS = "vfs.fstab=[ \"initrd0:/:extract:::\" ]"
-	//} else {
-	//	l.VFS.RootFS = ""
-	//}
+	l.Net.Address = strings.ReplaceAll(data.EthDeviceIP, ".", " ") + " 24"
+	l.Net.Gateway = strings.ReplaceAll(data.EthDeviceGateway, ".", " ")
 
 	return nil
 }
