@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 	"github.com/sirupsen/logrus"
 )
 
@@ -46,7 +47,7 @@ var ErrVMMNotInstalled = errors.New("vmm not found")
 var vmmLog = logrus.WithField("subsystem", "hypervisors")
 
 type VMM interface {
-	Execve(args ExecArgs) error
+	Execve(args ExecArgs, ukernel unikernels.Unikernel) error
 	Stop(t string) error
 	Path() string
 	Ok() error
