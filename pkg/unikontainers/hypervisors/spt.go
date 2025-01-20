@@ -18,6 +18,8 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+
+	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 )
 
 const (
@@ -49,11 +51,13 @@ func (s *SPT) Ok() error {
 	return nil
 }
 
-func (s *SPT) Execve(args ExecArgs) error {
+func (s *SPT) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
+	sptString := string(SptVmm)
 	sptMem := bytesToStringMB(args.MemSizeB)
 	cmdString := s.binaryPath + " --mem=" + sptMem
-	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
-	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
+	cmdString = appendNonEmpty(cmdString, " "+ukernel.MonitorNetCli(sptString), args.TapDevice)
+	cmdString = appendNonEmpty(cmdString, " "+ukernel.MonitorBlockCli(sptString), args.BlockDevice)
+	cmdString = appendNonEmpty(cmdString, " ", ukernel.MonitorCli(sptString))
 	cmdString += " " + args.UnikernelPath + " " + args.Command
 	cmdArgs := strings.Split(cmdString, " ")
 	vmmLog.WithField("spt command", cmdString).Error("Ready to execve spt")
