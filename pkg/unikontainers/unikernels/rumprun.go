@@ -89,6 +89,30 @@ func (r *Rumprun) SupportsFS(fsType string) bool {
 	}
 }
 
+func (r *Rumprun) MonitorNetCli(monitor string) string {
+	switch monitor {
+	case "hvt", "spt":
+		return "--net:tap="
+	default:
+		return ""
+	}
+}
+
+func (r *Rumprun) MonitorBlockCli(monitor string) string {
+	switch monitor {
+	case "hvt", "spt":
+		return "--block:rootfs="
+	default:
+		return ""
+	}
+}
+
+// Rumprun can execute only on top of Solo5 and currently there
+// are no generic Solo5-specific arguments that Rumprun requires
+func (r *Rumprun) MonitorCli(monitor string) string {
+	return ""
+}
+
 func (r *Rumprun) Init(data UnikernelParams) error {
 	// if EthDeviceMask is empty, there is no network support
 	if data.EthDeviceMask != "" {
