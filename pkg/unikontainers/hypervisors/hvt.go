@@ -20,6 +20,7 @@ import (
 	"syscall"
 
 	seccomp "github.com/elastic/go-seccomp-bpf"
+	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 )
 
 const (
@@ -136,11 +137,15 @@ func (h *HVT) Ok() error {
 	return nil
 }
 
-func (h *HVT) Execve(args ExecArgs) error {
+func (h *HVT) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
+	var hvtString string
+
+	hvtString = string(HvtVmm)
 	hvtMem := bytesToStringMB(args.MemSizeB)
 	cmdString := h.binaryPath + " --mem=" + hvtMem
-	cmdString = appendNonEmpty(cmdString, " --net:tap=", args.TapDevice)
-	cmdString = appendNonEmpty(cmdString, " --block:rootfs=", args.BlockDevice)
+	cmdString = appendNonEmpty(cmdString, " " + ukernel.MonitorNetCli(hvtString), args.TapDevice)
+	cmdString = appendNonEmpty(cmdString, " " + ukernel.MonitorBlockCli(hvtString), args.BlockDevice)
+	cmdString = appendNonEmpty(cmdString, " ", ukernel.MonitorCli(hvtString))
 	cmdString += " " + args.UnikernelPath + " " + args.Command
 	cmdArgs := strings.Split(cmdString, " ")
 	if args.Seccomp {

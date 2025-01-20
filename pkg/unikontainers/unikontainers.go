@@ -310,7 +310,7 @@ func (u *Unikontainer) Exec() error {
 	metrics.Capture(u.State.ID, "TS19")
 
 	// metrics.Wait()
-	return vmm.Execve(vmmArgs)
+	return vmm.Execve(vmmArgs, unikernel)
 }
 
 // Kill stops the VMM process, first by asking the VMM struct to stop

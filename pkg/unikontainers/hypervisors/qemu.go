@@ -18,6 +18,8 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+
+	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 )
 
 const (
@@ -41,7 +43,10 @@ func (q *Qemu) Path() string {
 	return q.binaryPath
 }
 
-func (q *Qemu) Execve(args ExecArgs) error {
+func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
+	var qemuString string
+
+	qemuString = string(QemuVmm)
 	qemuMem := bytesToStringMB(args.MemSizeB)
 	cmdString := q.binaryPath + " -m " + qemuMem + "M"
 	cmdString += " -cpu host"            // Choose CPU
@@ -70,17 +75,26 @@ func (q *Qemu) Execve(args ExecArgs) error {
 
 	cmdString += " -kernel " + args.UnikernelPath
 	if args.TapDevice != "" {
-		cmdString += " -net nic,model=virtio -net tap,script=no,ifname=" + args.TapDevice
+		netcli := ukernel.MonitorNetCli(qemuString)
+		if netcli == "" {
+			netcli += " -net nic,model=virtio"
+			netcli += " -net tap,script=no,ifname=" + args.TapDevice
+		}
+		cmdString += netcli
 	}
 	if args.BlockDevice != "" {
 		// TODO: For the time being, we only have support for initrd with
 		// QEMU and Unikraft. We will need to add support for block device
 		// and other storage options in QEMU (e.g. shared fs)
 		vmmLog.Warn("Block device is currently not supported in QEMU execution")
+		blockCli := ukernel.MonitorBlockCli(qemuString)
+		// TODO: Add default cli option if empty.
+		cmdString += blockCli
 	}
 	if args.InitrdPath != "" {
 		cmdString += " -initrd " + args.InitrdPath
 	}
+	cmdString = appendNonEmpty(cmdString, " ", ukernel.MonitorCli(qemuString))
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)
 	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")

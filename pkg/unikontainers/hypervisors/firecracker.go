@@ -22,6 +22,8 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+
+	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 )
 
 const (
@@ -79,7 +81,13 @@ func (fc *Firecracker) Path() string {
 	return fc.binaryPath
 }
 
-func (fc *Firecracker) Execve(args ExecArgs) error {
+func (fc *Firecracker) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
+	// FIXME: Note for getting unikernel specific options.
+	// Due to the way FC operates, we have not encountered any guest specific
+	// options yet. However, we need to revisit how we can use guest specific
+	// options in FC, since the string return value of the Monitor related
+	// functions in the unikernel interface do not integrate well with FC's
+	// json configuration.
 	cmdString := fc.Path() + " --no-api --config-file "
 	JSONConfigDir := filepath.Dir(args.UnikernelPath)
 	JSONConfigFile := filepath.Join(JSONConfigDir, FCJsonFilename)
