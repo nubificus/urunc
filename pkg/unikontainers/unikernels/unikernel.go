@@ -14,13 +14,18 @@
 
 package unikernels
 
-import "errors"
+import (
+	"errors"
+)
 
 type Unikernel interface {
 	Init(UnikernelParams) error
 	CommandString() (string, error)
 	SupportsBlock() bool
 	SupportsFS(string) bool
+	MonitorNetCli(string) string
+	MonitorBlockCli(string) string
+	MonitorCli(string) string
 }
 
 // UnikernelParams holds the data required to build the unikernels commandline

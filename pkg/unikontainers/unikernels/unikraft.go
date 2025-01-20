@@ -63,6 +63,21 @@ func (u *Unikraft) SupportsFS(_ string) bool {
 	return false
 }
 
+// There is no need for any changes here yet.
+func (u *Unikraft) MonitorNetCli(_ string) string {
+	return ""
+}
+
+// We have not managed to make Unikraft run with block yet.
+func (u *Unikraft) MonitorBlockCli(_ string) string {
+	return ""
+}
+
+// There are no generic CLI hypervisor options for Unikraft yet.
+func (u *Unikraft) MonitorCli(_ string) string {
+	return ""
+}
+
 func (u *Unikraft) Init(data UnikernelParams) error {
 	// if there are no spaces in the command line, then
 	// we assume that there was one word (appname) in the command line
