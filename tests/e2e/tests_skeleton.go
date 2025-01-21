@@ -129,7 +129,9 @@ func runTest(tool testTool, t *testing.T) {
 	})
 	// Give some time till the unikernel is up and running.
 	// Maybe we need to revisit this in the future.
-	time.Sleep(1 * time.Second)
+	// MirageOS in Qemu(nested) needs more time to be responsive
+	// in ping requests
+	time.Sleep(2 * time.Second)
 	err = cntrArgs.TestFunc(tool)
 	if err != nil {
 		t.Fatalf("Failed test: %v", err)
