@@ -83,12 +83,11 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 		cmdString += netcli
 	}
 	if args.BlockDevice != "" {
-		// TODO: For the time being, we only have support for initrd with
-		// QEMU and Unikraft. We will need to add support for block device
-		// and other storage options in QEMU (e.g. shared fs)
-		vmmLog.Warn("Block device is currently not supported in QEMU execution")
 		blockCli := ukernel.MonitorBlockCli(qemuString)
-		// TODO: Add default cli option if empty.
+		if blockCli == "" {
+			blockCli += " -device virtio-blk-pci,id=blk0,drive=hd0,scsi=off"
+			blockCli += " -drive format=raw,if=none,id=hd0,file=" + args.BlockDevice
+		}
 		cmdString += blockCli
 	}
 	if args.InitrdPath != "" {
