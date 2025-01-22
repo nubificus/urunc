@@ -16,7 +16,6 @@ package unikontainers
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -232,7 +231,7 @@ func TestMoveFile(t *testing.T) {
 		// Verify the file was moved
 		_, filename := filepath.Split(srcFile.Name())
 		movedFilePath := filepath.Join(targetDir, filename)
-		movedContent, err := ioutil.ReadFile(movedFilePath)
+		movedContent, err := os.ReadFile(movedFilePath)
 		assert.NoError(t, err, "Expected no error in reading moved file")
 		assert.Equal(t, content, string(movedContent), "Expected moved content to match original")
 
