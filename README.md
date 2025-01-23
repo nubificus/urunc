@@ -132,10 +132,11 @@ At the moment, `urunc` is available on GNU/Linux for x86\_64 and arm64 architect
 In addition, the following table provides an overview of the currently
 supported VM/Sandbox monitors and unikernels:
 
-| Unikernel  | VM/Sandbox Monitor   | Arch         | Storage    |
-|----------- |--------------------- |------------- |----------- |
-| Rumprun    | Solo5-hvt, Solo5-spt | x86,aarch64  | Devmapper  |
-| Unikraft   | QEMU, Firecracker    | x86          | Initrd     |
+| Unikernel  | VM/Sandbox Monitor         | Arch         | Storage          |
+|----------- |--------------------------- |------------- |----------------- |
+| Rumprun    | Solo5-hvt, Solo5-spt       | x86,aarch64  | Block/Devmapper  |
+| Unikraft   | QEMU, Firecracker          | x86          | Initrd           |
+| MirageOS   | QEMU, Solo5-hvt, Solo5-spt | x86,aarch64  | Block/Devmapper  |
 
 We plan to add support for more unikernel frameworks and other platforms too.
 Feel free to [contact](#Contact) us for a specific unikernel framework or similar
