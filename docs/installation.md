@@ -293,7 +293,7 @@ $ sudo systemctl restart containerd
 We can clone, build and install both `Solo5-hvt` and `Solo5-spt` from their [common repository](https://github.com/Solo5/solo5)
 
 ```bash
-$ git clone -b v0.6.9 https://github.com/Solo5/solo5.git
+$ git clone -b v0.9.0 https://github.com/Solo5/solo5.git
 $ cd solo5
 $ ./configure.sh  && make -j$(nproc)
 $ sudo cp tenders/hvt/solo5-hvt /usr/local/bin

@@ -48,7 +48,7 @@ spec:
     spec:
       runtimeClassName: urunc
       containers:
-      - image: harbor.nbfc.io/nubificus/urunc/nginx-hvt-rumprun:latest
+      - image: harbor.nbfc.io/nubificus/urunc/nginx-hvt-rumprun-block:latest
         imagePullPolicy: Always
         name: nginx-urunc
         command: ["sleep"]
