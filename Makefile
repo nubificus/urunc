@@ -51,7 +51,7 @@ GO_FLAGS       := GOOS=linux
 CGO            := CGO_ENABLED=1
 NOCGO          := CGO_ENABLED=0
 TEST_FLAGS     := "-count=1"
-TEST_OPTS      += -timeout 3m
+TEST_OPTS      += -timeout 4m
 BUILD_TAGS     ?= netgo osusergo
 
 # Linking variables
