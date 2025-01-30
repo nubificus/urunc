@@ -13,55 +13,92 @@ containerd_conf_file_backup="${containerd_conf_file}.bak"
 containerd_conf_tmpl_file=""
 use_containerd_drop_in_conf_file="false"
 
+IFS=' ' read -a hypervisors <<< "$HYPERVISORS"
+
 function host_systemctl() {
     nsenter --target 1 --mount systemctl "${@}"
 }
 function print_usage() {
-    echo "Usage: $0 [install/uninstall/reset]"
+    echo "Usage: $0 {install|uninstall|cleanup}"
 }
+function install_artifact() {
+    local src="$1"
+    local dest="$2"
+    cp "$src" "$dest"
+    chmod +x "$dest"
+}
+
 function install_urunc() {
-    cp /urunc-artifacts/urunc /host/usr/local/bin/urunc
+    install_artifact /urunc-artifacts/urunc /host/usr/local/bin/urunc
 }
+
 
 function install_shim() {
-    cp /urunc-artifacts/containerd-shim-urunc-v2 /host/usr/local/bin/containerd-shim-urunc-v2
+    install_artifact /urunc-artifacts/containerd-shim-urunc-v2 /host/usr/local/bin/containerd-shim-urunc-v2
 }
 
-function install_qemu() {
-    cp /urunc-artifacts/hypervisors/qemu-system-x86_64 /host/usr/local/bin/qemu-system-x86_64
-    chmod +x /host/usr/local/bin/qemu-system-x86_64
-}
-
-function install_firecracker() {
-    cp /urunc-artifacts/hypervisors/firecracker /host/usr/local/bin/firecracker
-    chmod +x /host/usr/local/bin/firecracker
+function uninstall_artifact() {
+    local artifact="$1"
+    rm -f "/host/usr/local/bin/${artifact}"
 }
 
 function uninstall_urunc() {
-    rm -f /host/usr/local/bin/urunc
+    uninstall_artifact "urunc"
 }
 
 function uninstall_shim() {
-    rm -f /host/usr/local/bin/containerd-shim-urunc-v2
+    uninstall_artifact "containerd-shim-urunc-v2"
 }
 
 function uninstall_qemu() {
-    rm -f /host/usr/local/bin/qemu-system-x86_64
+    uninstall_artifact "qemu-system-x86_64"
 }
 
 function uninstall_firecracker() {
-    rm -f /host/usr/local/bin/firecracker
+    uninstall_artifact "firecracker"
 }
 
+function uninstall_solo5-spt() {
+    uninstall_artifact "solo5-spt"
+}
+
+function uninstall_solo5-hvt() {
+    uninstall_artifact "solo5-hvt"
+}
+
+
 function install_artifacts() {
-    # TODO: Install only hypervisors defined in HYPERVISORS
     echo "copying urunc artifacts onto host"
     mkdir -p /host/usr/local/bin
+
     install_urunc
     install_shim
-    install_qemu
-    install_firecracker
-    create_runtimeclasses
+
+    # install only the hypervisors found in the HYPERVISORS environment variable
+    for hypervisor in "${hypervisors[@]}" ; do
+        case "$hypervisor" in
+        qemu)
+            echo "Installing qemu"
+            install_artifact /urunc-artifacts/hypervisors/qemu-system-x86_64 /host/usr/local/bin/qemu-system-x86_64
+            ;;
+        firecracker)
+            echo "Installing firecracker"
+            install_artifact /urunc-artifacts/hypervisors/firecracker /host/usr/local/bin/firecracker
+            ;;
+        solo5-spt)
+            echo "Installing solo5-spt"
+            install_artifact /urunc-artifacts/hypervisors/solo5-spt /host/usr/local/bin/solo5-spt
+            ;;
+        solo5-hvt)
+            echo "Installing solo5-hvt"
+            install_artifact /urunc-artifacts/hypervisors/solo5-hvt /host/usr/local/bin/solo5-hvt
+            ;;
+        *) 
+            echo "Unsupported hypervisor: $hypervisor"
+            ;;
+	    esac
+    done
+    create_runtimeclass
 }
 
 function uninstall() {
@@ -86,7 +123,7 @@ die() {
 }
 
 
-function create_runtimeclasses() {
+function create_runtimeclass() {
     echo "Creating the runtime class"
     kubectl apply -f /urunc-artifacts/runtimeclasses/runtimeclass.yaml
 }
