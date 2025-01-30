@@ -12,6 +12,7 @@ containerd_conf_file="/etc/containerd/config.toml"
 containerd_conf_file_backup="${containerd_conf_file}.bak"
 containerd_conf_tmpl_file=""
 use_containerd_drop_in_conf_file="false"
+containerd_drop_in_conf_file="/etc/containerd/config.d/urunc-deploy.toml"
 
 IFS=' ' read -a hypervisors <<< "$HYPERVISORS"
 
