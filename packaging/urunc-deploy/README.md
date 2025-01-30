@@ -40,6 +40,8 @@ git checkout feat_urunc-deploy
 cd packaging/urunc-deploy
 
 kubectl apply -f urunc-rbac/base/urunc-rbac.yaml && kubectl apply -f urunc-deploy/base/urunc-deploy.yaml && kubectl apply -k urunc-deploy/overlays/k3s && echo "OK"
+
+
 kubectl delete -f urunc-deploy/base/urunc-deploy.yaml && kubectl delete -k urunc-deploy/overlays/k3s && kubectl delete -f urunc-deploy/base/urunc-deploy.yaml
 ```
 
