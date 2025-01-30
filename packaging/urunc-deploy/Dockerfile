@@ -7,6 +7,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 
 RUN git clone -b v0.6.9 https://github.com/Solo5/solo5.git && \
     cd solo5 && \
+    sed -i '/^HOSTLDFLAGS/a HOSTLDFLAGS += -static' tenders/GNUmakefile && \
     ./configure.sh && \
     make
 
