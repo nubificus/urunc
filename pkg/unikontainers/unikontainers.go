@@ -265,7 +265,7 @@ func (u *Unikontainer) Exec() error {
 			return err
 		}
 		if unikernel.SupportsFS(rootFsDevice.FsType) {
-			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, uruncJSONFilename, initrdPath)
+			err = prepareDMAsBlock(rootFsDevice.Path, unikernelPath, uruncJSONFilename, initrdPath)
 			if err != nil {
 				return err
 			}
@@ -366,7 +366,7 @@ func (u *Unikontainer) Delete() error {
 	}
 	annotBlock := u.State.Annotations[annotBlock]
 	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
-		err := cleanupExtractedFiles(u.State.Bundle)
+		err := cleanupExtractedFiles(u.Spec.Root.Path)
 		if err != nil {
 			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
 		}

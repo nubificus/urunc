@@ -79,15 +79,15 @@ func getBlockDevice(path string) (RootFs, error) {
 
 // extractUnikernelFromBlock creates target directory inside the bundle and moves unikernel & urunc.json
 // FIXME: This approach fills up /run with unikernel binaries and urunc.json files for each unikernel we run
-func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bundle string) (string, error) {
+func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, rootfsPath string) (string, error) {
 	// create bundle/tmp directory and moves unikernel binary and urunc.json
-	tmpDir := filepath.Join(bundle, "tmp")
-	err := os.Mkdir(tmpDir, 0755)
+	tmpDir := filepath.Join("/tmp", rootfsPath)
+	err := os.MkdirAll(tmpDir, 0755)
 	if err != nil {
 		return "", err
 	}
 
-	currentUnikernelPath := filepath.Join(bundle, rootfsDirName, unikernel)
+	currentUnikernelPath := filepath.Join(rootfsPath, unikernel)
 	targetUnikernelPath := filepath.Join(tmpDir, unikernel)
 	targetUnikernelDir, _ := filepath.Split(targetUnikernelPath)
 	err = moveFile(currentUnikernelPath, targetUnikernelDir)
@@ -100,7 +100,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 	}
 
 	if initrd != "" {
-		currentInitrdPath := filepath.Join(bundle, rootfsDirName, initrd)
+		currentInitrdPath := filepath.Join(rootfsPath, initrd)
 		targetInitrdPath := filepath.Join(tmpDir, initrd)
 		targetInitrdDir, _ := filepath.Split(targetInitrdPath)
 		err = moveFile(currentInitrdPath, targetInitrdDir)
@@ -113,7 +113,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 		}
 	}
 
-	currentConfigPath := filepath.Join(bundle, rootfsDirName, uruncJSON)
+	currentConfigPath := filepath.Join(rootfsPath, uruncJSON)
 	err = moveFile(currentConfigPath, tmpDir)
 	if err != nil {
 		err1 := os.RemoveAll(tmpDir)
@@ -131,12 +131,11 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, bu
 // directory. Then it unmounts the devmapper device and renames the temporary
 // directory as the container rootfs. This is needed to keep the same paths
 // for the unikernel files.
-func prepareDMAsBlock(bundle string, unikernel string, uruncJSON string, initrd string) error {
-	rootfsPath := filepath.Join(bundle, rootfsDirName)
+func prepareDMAsBlock(rootfsPath string, unikernel string, uruncJSON string, initrd string) error {
 	// extract unikernel
 	// FIXME: This approach fills up /run with unikernel binaries and
 	// urunc.json files for each unikernel instance we run
-	tmpDir, err := extractFilesFromBlock(unikernel, uruncJSON, initrd, bundle)
+	tmpDir, err := extractFilesFromBlock(unikernel, uruncJSON, initrd, rootfsPath)
 	if err != nil {
 		return err
 	}
@@ -164,7 +163,6 @@ func prepareDMAsBlock(bundle string, unikernel string, uruncJSON string, initrd 
 // binary the initrd and the urunc.json file.
 // For the time being it acts as a placeholder for future changes, where we might
 // need to do more advanced things than removing files.
-func cleanupExtractedFiles(bundle string) error {
-	rootfsPath := filepath.Join(bundle, rootfsDirName)
+func cleanupExtractedFiles(rootfsPath string) error {
 	return os.RemoveAll(rootfsPath)
 }
