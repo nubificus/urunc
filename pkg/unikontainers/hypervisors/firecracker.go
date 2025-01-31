@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -89,8 +88,7 @@ func (fc *Firecracker) Execve(args ExecArgs, _ unikernels.Unikernel) error {
 	// functions in the unikernel interface do not integrate well with FC's
 	// json configuration.
 	cmdString := fc.Path() + " --no-api --config-file "
-	JSONConfigDir := filepath.Dir(args.UnikernelPath)
-	JSONConfigFile := filepath.Join(JSONConfigDir, FCJsonFilename)
+	JSONConfigFile := FCJsonFilename
 	cmdString += JSONConfigFile
 	if !args.Seccomp {
 		cmdString += " --no-seccomp"

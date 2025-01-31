@@ -155,24 +155,32 @@ func (u *Unikontainer) Exec() error {
 	vmmType := u.State.Annotations[annotHypervisor]
 	unikernelType := u.State.Annotations[annotType]
 	unikernelVersion := u.State.Annotations[annotVersion]
-	unikernelPath := u.State.Annotations[annotBinary]
-	initrdPath := u.State.Annotations[annotInitrd]
+
+	// TODO: Remove this when we chroot
+	unikernelPath, err := filepath.Rel("/", u.State.Annotations[annotBinary])
+	if err != nil {
+		return err
+	}
+
+	// TODO: Remove this when we chroot
+	var initrdPath string
+	if u.State.Annotations[annotInitrd] != "" {
+		initrdPath, err = filepath.Rel("/", u.State.Annotations[annotInitrd])
+		if err != nil {
+			return err
+		}
+	}
 
 	rootfsDir := u.Spec.Root.Path
 	if !filepath.IsAbs(rootfsDir) {
 		rootfsDir = filepath.Join(u.State.Bundle, rootfsDir)
 	}
-	unikernelAbsPath := filepath.Join(rootfsDir, unikernelPath)
-	initrdAbsPath := ""
-	if initrdPath != "" {
-		initrdAbsPath = filepath.Join(rootfsDir, initrdPath)
-	}
 
 	// populate vmm args
 	vmmArgs := hypervisors.ExecArgs{
 		Container:     u.State.ID,
-		UnikernelPath: unikernelAbsPath,
-		InitrdPath:    initrdAbsPath,
+		UnikernelPath: unikernelPath,
+		InitrdPath:    initrdPath,
 		BlockDevice:   "",
 		Seccomp:       true, // Enable Seccomp by default
 		MemSizeB:      0,
@@ -228,7 +236,7 @@ func (u *Unikontainer) Exec() error {
 		unikernelParams.EthDeviceGateway = ""
 	}
 
-	if initrdAbsPath != "" {
+	if initrdPath != "" {
 		unikernelParams.RootFSType = "initrd"
 	} else {
 		unikernelParams.RootFSType = ""
@@ -256,7 +264,11 @@ func (u *Unikontainer) Exec() error {
 		useDevmapper = true
 	}
 	if u.State.Annotations[annotBlock] != "" && unikernel.SupportsBlock() {
-		vmmArgs.BlockDevice = filepath.Join(rootfsDir, u.State.Annotations[annotBlock])
+		// TODO: Remove this when we chroot
+		vmmArgs.BlockDevice, err = filepath.Rel("/", u.State.Annotations[annotBlock])
+		if err != nil {
+			return err
+		}
 	}
 
 	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
@@ -273,6 +285,12 @@ func (u *Unikontainer) Exec() error {
 		}
 	}
 	metrics.Capture(u.State.ID, "TS18")
+
+	// Set CWD the rootfs of the container
+	err = os.Chdir(rootfsDir)
+	if err != nil {
+		return err
+	}
 
 	// get a new vmm
 	vmm, err := hypervisors.NewVMM(hypervisors.VmmType(vmmType))
