@@ -171,9 +171,11 @@ func (u *Unikontainer) Exec() error {
 		}
 	}
 
-	rootfsDir := u.Spec.Root.Path
+	// Make sure paths are clean
+	bundleDir := filepath.Clean(u.State.Bundle)
+	rootfsDir := filepath.Clean(u.Spec.Root.Path)
 	if !filepath.IsAbs(rootfsDir) {
-		rootfsDir = filepath.Join(u.State.Bundle, rootfsDir)
+		rootfsDir = filepath.Join(bundleDir, rootfsDir)
 	}
 
 	// populate vmm args
@@ -277,7 +279,7 @@ func (u *Unikontainer) Exec() error {
 			return err
 		}
 		if unikernel.SupportsFS(rootFsDevice.FsType) {
-			err = prepareDMAsBlock(u.State.Bundle, unikernelPath, uruncJSONFilename, initrdPath)
+			err = prepareDMAsBlock(rootFsDevice.Path, unikernelPath, uruncJSONFilename, initrdPath)
 			if err != nil {
 				return err
 			}
@@ -384,9 +386,15 @@ func (u *Unikontainer) Delete() error {
 	}
 	annotBlock := u.State.Annotations[annotBlock]
 	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
-		err := cleanupExtractedFiles(u.State.Bundle)
+		// Make sure paths are clean
+		bundleDir := filepath.Clean(u.State.Bundle)
+		rootfsDir := filepath.Clean(u.Spec.Root.Path)
+		if !filepath.IsAbs(rootfsDir) {
+			rootfsDir = filepath.Join(bundleDir, rootfsDir)
+		}
+		err := cleanupExtractedFiles(rootfsDir)
 		if err != nil {
-			return fmt.Errorf("cannot delete bundle %s: %v", u.State.Bundle, err)
+			return fmt.Errorf("cannot delete rootfs %s: %v", rootfsDir, err)
 		}
 	}
 	return os.RemoveAll(u.BaseDir)
