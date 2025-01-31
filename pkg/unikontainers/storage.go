@@ -80,8 +80,10 @@ func getBlockDevice(path string) (RootFs, error) {
 // extractUnikernelFromBlock creates target directory inside the bundle and moves unikernel & urunc.json
 // FIXME: This approach fills up /run with unikernel binaries and urunc.json files for each unikernel we run
 func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, rootfsPath string) (string, error) {
+	rootBase, _ := filepath.Split(rootfsPath)
 	// create bundle/tmp directory and moves unikernel binary and urunc.json
-	tmpDir := filepath.Join("/tmp", rootfsPath)
+	//tmpDir := filepath.Join("/tmp", rootfsPath)
+	tmpDir := filepath.Join(rootBase, "/tmp")
 	err := os.MkdirAll(tmpDir, 0755)
 	if err != nil {
 		return "", err
