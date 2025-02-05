@@ -47,10 +47,12 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	qemuString := string(QemuVmm)
 	qemuMem := bytesToStringMB(args.MemSizeB)
 	cmdString := q.binaryPath + " -m " + qemuMem + "M"
-	cmdString += " -cpu host"            // Choose CPU
-	cmdString += " -enable-kvm"          // Enable KVM to use CPU virt extensions
-	cmdString += " -nographic -vga none" // Disable graphic output
-
+	cmdString += " -cpu host,pmu=off"                                                          // Choose CPU
+	cmdString += " -machine q35,accel=kvm,nvdimm=on"                                           // Enable KVM to use CPU virt extensions
+	cmdString += " -rtc base=utc,driftfix=slew,clock=host"                                     // Enable KVM to use CPU virt extensions
+	cmdString += " -global kvm-pit.lost_tick_policy=discard"                                   // Enable KVM to use CPU virt extensions
+	cmdString += " -nographic -vga none -no-user-config --no-reboot -serial stdio -nodefaults" // Disable graphic output
+	cmdString += " -no-reboot"
 	if args.Seccomp {
 		// Enable Seccomp in QEMU
 		cmdString += " --sandbox on"
