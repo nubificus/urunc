@@ -1,15 +1,17 @@
-FROM docker.io/library/alpine:3.21 AS solo5-builder
-RUN apk add --no-cache build-base libseccomp-dev git pkgconfig
+FROM docker.io/library/ubuntu:22.04 AS solo5-builder
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential \
+    libseccomp-dev git pkg-config
 WORKDIR /app
-RUN git clone --branch v0.6.9 https://github.com/Solo5/solo5.git .
-RUN sed -i '66 a\HOSTLDFLAGS += -static' tenders/GNUmakefile
-RUN ./configure.sh
-RUN  make
+RUN git -c http.sslVerify=false clone --branch v0.6.9 https://github.com/Solo5/solo5.git . && \
+    sed -i '66 a\HOSTLDFLAGS += -static' tenders/GNUmakefile
+RUN ./configure.sh && \
+    make
 WORKDIR /artifacts
 RUN cp /app/tenders/hvt/solo5-hvt .
 RUN cp /app/tenders/spt/solo5-spt .
 
-FROM docker.io/libray/golang:alpine3.21 as urunc-builder
+FROM docker.io/libray/golang:alpine3.21 AS urunc-builder
 RUN apk add --no-cache git make
 WORKDIR /app
 ARG BRANCH=main
