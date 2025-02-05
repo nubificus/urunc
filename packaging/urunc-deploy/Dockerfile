@@ -1,65 +1,55 @@
-# Get solo5 tenders
-FROM ubuntu:22.04 AS solo5-builder
+FROM docker.io/library/alpine:3.21 AS solo5-builder
+RUN apk add --no-cache build-base libseccomp-dev git pkgconfig
+WORKDIR /app
+RUN git clone --branch v0.6.9 https://github.com/Solo5/solo5.git .
+RUN sed -i '66 a\HOSTLDFLAGS += -static' tenders/GNUmakefile
+RUN ./configure.sh
+RUN  make
+WORKDIR /artifacts
+RUN cp /app/tenders/hvt/solo5-hvt .
+RUN cp /app/tenders/spt/solo5-spt .
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential \
-    libseccomp-dev git pkg-config
+FROM docker.io/libray/golang:alpine3.21 as urunc-builder
+RUN apk add --no-cache git make
+WORKDIR /app
+ARG BRANCH=main
+RUN git clone --branch ${BRANCH} https://github.com/nubificus/urunc.git .
+RUN make
+WORKDIR /artifacts
+RUN cp -r /app/dist .
 
-RUN git clone -b v0.6.9 https://github.com/Solo5/solo5.git && \
-    cd solo5 && \
-    sed -i '/^HOSTLDFLAGS/a HOSTLDFLAGS += -static' tenders/GNUmakefile && \
-    ./configure.sh && \
-    make
-
-# Get firecracker binary
-FROM ubuntu:22.04 AS firecracker-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y curl tar
-RUN \
-    ARCH=$(uname -m) && \
+FROM docker.io/library/alpine:3.21 AS firecracker-builder
+RUN apk add --no-cache curl tar
+RUN ARCH=$(uname -m) && \
     VERSION="v1.7.0" && \
     RELEASE_URL="https://github.com/firecracker-microvm/firecracker/releases" && \
     curl -L -o firecracker.tgz ${RELEASE_URL}/download/${VERSION}/firecracker-${VERSION}-${ARCH}.tgz && \
     tar xzf firecracker.tgz && \
     mv release-${VERSION}-${ARCH}/firecracker-${VERSION}-${ARCH} firecracker
+WORKDIR /artifacts
+RUN cp /firecracker .
 
-# Get Qemu binary
 FROM quay.io/kata-containers/kata-deploy:latest AS qemu-builder
-RUN \
-    ARCH=$(uname -m) && \
-    cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} /qemu-system
+WORKDIR /artifacts
+RUN ARCH=$(uname -m) && \
+    cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} ./qemu-system
 
-# Final image with artifacts and urunc-deploy.sh script
-FROM alpine:3.18
-
-COPY --from=solo5-builder /solo5/tenders/spt/solo5-spt /urunc-artifacts/hypervisors/solo5-spt
-COPY --from=solo5-builder /solo5/tenders/hvt/solo5-hvt /urunc-artifacts/hypervisors/solo5-hvt
-COPY --from=firecracker-builder /firecracker /urunc-artifacts/hypervisors/firecracker
-COPY --from=qemu-builder /qemu-system /urunc-artifacts/hypervisors/qemu-system
-
-RUN apk --no-cache add bash curl
-WORKDIR /urunc-artifacts
-RUN \
-    ARCH=$(uname -m) && \
-    if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
-    if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
-    DEBIAN_ARCH=${ARCH} && \
-	if [ "${DEBIAN_ARCH}" = "ppc64le" ]; then DEBIAN_ARCH=ppc64el; fi && \
-    curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
-	chmod +x /usr/bin/kubectl && \
-    curl -L -o /urunc-artifacts/urunc https://github.com/nubificus/urunc/releases/download/v0.4.0/urunc_${ARCH} && \
-    curl -L -o /urunc-artifacts/containerd-shim-urunc-v2 \
-        https://github.com/nubificus/urunc/releases/download/v0.4.0/containerd-shim-urunc-v2_${ARCH} && \
-    chmod +x /urunc-artifacts/urunc && \
-    chmod +x /urunc-artifacts/containerd-shim-urunc-v2 && \
+FROM docker.io/library/alpine:3.21
+RUN apk --no-cache add bash curl && \
+    DEBIAN_ARCH=$(uname -m) && \
+    if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
+    if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
     chmod +x /usr/bin/jq && \
     apk --no-cache add py3-pip && \
-    pip install --no-cache-dir yq==3.2.3 && \
-    mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
-
-
+    pip install --no-cache-dir --break-system-packages yq==3.2.3
 COPY scripts /urunc-artifacts/scripts
 COPY runtimeclasses /urunc-artifacts/runtimeclasses
 RUN chmod +x /urunc-artifacts/scripts/install.sh
 
+COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
+COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
+COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
+
+RUN ARCH=$(uname -m) && \
+    mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
