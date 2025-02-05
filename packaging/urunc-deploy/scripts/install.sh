@@ -309,6 +309,8 @@ function configure_containerd() {
     
     echo "Once again, configuration file is ${configuration_file}"
     # configuration_file = "/host${configuration_file}"
+    mkdir -p $(dirname ${configuration_file})
+    touch ${configuration_file}
     
     tomlq -i -t $(printf '%s.runtime_type=%s' ${runtime_table} ${runtime_type}) ${configuration_file}
     

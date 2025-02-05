@@ -25,6 +25,9 @@ RUN \
 
 # Get Qemu binary
 FROM quay.io/kata-containers/kata-deploy:latest AS qemu-builder
+RUN \
+    ARCH=$(uname -m) && \
+    cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} /qemu-system
 
 # Final image with artifacts and urunc-deploy.sh script
 FROM alpine:3.18
@@ -32,7 +35,7 @@ FROM alpine:3.18
 COPY --from=solo5-builder /solo5/tenders/spt/solo5-spt /urunc-artifacts/hypervisors/solo5-spt
 COPY --from=solo5-builder /solo5/tenders/hvt/solo5-hvt /urunc-artifacts/hypervisors/solo5-hvt
 COPY --from=firecracker-builder /firecracker /urunc-artifacts/hypervisors/firecracker
-COPY --from=qemu-builder /opt/kata-artifacts/opt/kata/bin/qemu-system-x86_64 /urunc-artifacts/hypervisors/qemu-system-x86_64
+COPY --from=qemu-builder /qemu-system /urunc-artifacts/hypervisors/qemu-system
 
 RUN apk --no-cache add bash curl
 WORKDIR /urunc-artifacts
@@ -52,7 +55,9 @@ RUN \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
     chmod +x /usr/bin/jq && \
     apk --no-cache add py3-pip && \
-    pip install --no-cache-dir yq==3.2.3
+    pip install --no-cache-dir yq==3.2.3 && \
+    mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
+
 
 COPY scripts /urunc-artifacts/scripts
 COPY runtimeclasses /urunc-artifacts/runtimeclasses
