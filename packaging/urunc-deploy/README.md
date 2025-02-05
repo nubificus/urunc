@@ -2,9 +2,10 @@
 
 TODO:
 
-- k3s with containerd<2: INSTALL OK, UNINSTALL PENDING
+- k3s:                   INSTALL OK, UNINSTALL PENDING
 - k8s with containerd<2: INSTALL OK, UNINSTALL PENDING
 - k8s with containerd>2: INSTALL OK, UNINSTALL PENDING
+- k8s with crio:         PENDING
 
 ## k3s quickstart
 
