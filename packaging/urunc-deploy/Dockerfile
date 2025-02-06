@@ -51,30 +51,25 @@ WORKDIR /artifacts
 RUN ARCH=$(uname -m) && \
     cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} ./qemu-system
 
-FROM scratch
-WORKDIR /urunc-artifacts/hypervisors
+
+FROM docker.io/library/alpine:3.21
+RUN apk update && \
+apk add --no-cache bash curl && \
+    DEBIAN_ARCH=$(uname -m) && \
+    if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
+    if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
+    curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
+    chmod +x /usr/bin/jq && \
+    apk --no-cache add py3-pip && \
+    pip install --no-cache-dir --break-system-packages yq==3.2.3
+COPY scripts /urunc-artifacts/scripts
+COPY runtimeclasses /urunc-artifacts/runtimeclasses
+RUN chmod +x /urunc-artifacts/scripts/install.sh
+
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=urunc-builder /artifacts /urunc-artifacts
 
-# FROM docker.io/library/alpine:3.21
-# RUN apk update && \
-# apk add --no-cache bash curl && \
-#     DEBIAN_ARCH=$(uname -m) && \
-#     if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
-#     if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
-#     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
-#     chmod +x /usr/bin/jq && \
-#     apk --no-cache add py3-pip && \
-#     pip install --no-cache-dir --break-system-packages yq==3.2.3
-# COPY scripts /urunc-artifacts/scripts
-# COPY runtimeclasses /urunc-artifacts/runtimeclasses
-# RUN chmod +x /urunc-artifacts/scripts/install.sh
-
-# COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
-# COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
-# COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
-
-# RUN ARCH=$(uname -m) && \
-#     mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
+RUN ARCH=$(uname -m) && \
+    mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
