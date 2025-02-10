@@ -69,7 +69,13 @@ RUN chmod +x /urunc-artifacts/scripts/install.sh
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
-COPY --from=urunc-builder /artifacts /urunc-artifacts
+COPY --from=urunc-builder /artifacts/dist /urunc-artifacts
 
 RUN ARCH=$(uname -m) && \
     mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
+
+RUN DEBIAN_ARCH=$(uname -m) && \
+if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
+if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
+mv /urunc-artifacts/containerd-shim-urunc-v2_${DEBIAN_ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
+mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc
