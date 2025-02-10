@@ -1,0 +1,100 @@
+name: 🍜 Build/publish urunc-deploy
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+    - 'deployment/urunc-deploy/Dockerfile'
+    - 'deployment/urunc-deploy/scripts/install.sh'
+    - 'cmd'
+    - 'pkg'
+    - 'internal'
+    - 'Makefile'
+  push:
+    branches: ["main"]
+    paths:
+      - 'deployment/urunc-deploy/Dockerfile'
+      - 'deployment/urunc-deploy/scripts/install.sh'
+      - 'cmd'
+      - 'pkg'
+      - 'internal'
+      - 'Makefile'
+
+  workflow_dispatch: # build on demand
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  get-changed-files:
+    runs-on: ubuntu-latest
+    outputs:
+      files_deploy: ${{ steps.replace_files_deploy.outputs.deploy_files_new }}
+      deploy: ${{ steps.filter.outputs.deploy }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Get Changed Files
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: 'json'
+          base: 'main'
+          filters: |
+            deploy:
+              - 'deployment/urunc-deploy/Dockerfile'
+
+      - name: Show Changed Files
+        run: |
+          echo "Files in deploy: ${{ steps.filter.outputs.deploy_files }}"
+          echo "Files changed: ${{ steps.filter.outputs.changes }}"
+
+      - name: Replace file paths in deploy_files
+        id: replace_files_deploy
+        run: |
+          # Get the changed Dockerfiles from the paths-filter output
+          FILES="${{ steps.filter.outputs.deploy_files }}"
+
+          # Remove the brackets and split the string by commas
+          FILES_ARRAY=($(echo "$FILES" | sed 's/[][]//g' | tr ',' '\n'))
+
+          # Initialize a variable to store the new names
+          NEW_FILE_NAMES=()
+
+          # Loop through the files and replace the paths
+          for FILE_PATH in "${FILES_ARRAY[@]}"; do
+            echo "Processing file: $FILE_PATH"
+            # Remove 'images/' and '.Dockerfile' from the filename
+            NEW_NAME=$(basename "$FILE_PATH" | sed 's/^images\///')
+            # Append the new name to the array
+            NEW_FILE_NAMES+=("\"$NEW_NAME\"")
+          done
+
+          # Join the array into a JSON array format
+          JSON_OUTPUT=$(printf "[%s]" "$(IFS=,; echo "${NEW_FILE_NAMES[*]}")")
+
+          # Debugging output
+          echo "Final JSON Output: $JSON_OUTPUT"
+
+          # Set the output for the replaced names in JSON format
+          echo "deploy_files_new=${JSON_OUTPUT}" >> "$GITHUB_OUTPUT"
+
+
+      - name: Use replaced filenames
+        run: |
+          echo "Processed filenames: ${{ steps.replace_files_deploy.outputs.deploy_files_new}}"
+
+
+  build-dockerfiles-deploy:
+    needs: [get-changed-files]
+    name: Deploy
+    if: ${{ needs.get-changed-files.outputs.deploy }}
+    uses: ./.github/workflows/build-latest.yml
+    secrets: inherit
+    with:
+      runner: '["base", "dind", "2204"]'
+      runner-archs: '["amd64", "arm64"]'
+      dockerfiles: ${{ needs.get-changed-files.outputs.files_deploy }}
