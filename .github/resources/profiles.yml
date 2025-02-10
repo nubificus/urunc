@@ -25,7 +25,7 @@ ubuntuurunc:
 
 ubuntufat:
   client: fuji00
-  image: ubuntuuruncdocker
+  image: newubuntuuruncdocker_0.qcow2
   numcpus: 2
   memory: 4096
   nets:
