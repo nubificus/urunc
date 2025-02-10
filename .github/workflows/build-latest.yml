@@ -1,0 +1,199 @@
+name: 🍜 Build/publish runners
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["base", "dind", "2204"]'
+      runner-archs:
+        type: string
+        default: '["amd64", "aarch64"]'
+      dockerfiles:
+        type: string
+        default: '["Dockerfile"]'
+      runner-arch-map:
+        type: string
+        default: '[{"amd64":"x86_64", "aarch64":"aarch64", "armv7l":"armv7l"}]'
+      registry:
+        type: string
+        default: 'harbor.nbfc.io'
+    secrets:
+      GIT_CLONE_PAT:
+        required: false
+      harbor_user:
+        required: false
+      harbor_secret:
+        required: false
+
+jobs:
+  build-all:
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    timeout-minutes: 600
+    permissions:
+      contents: write # for uploading the SBOM to the release
+      packages: write # for uploading the finished container
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      id-token: write # to complete the identity challenge with sigstore/fulcio when running outside of PRs
+    strategy:
+      matrix:
+        dockerfile: ["${{ fromJSON(inputs.dockerfiles) }}"]
+        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+    continue-on-error: true
+
+    env:
+      REGISTRY: ${{ inputs.registry }}
+      IMAGE_NAME: ${{ inputs.registry }}/${{ github.repository }}/urunc-deploy
+      ARCH: ${{ matrix.arch }}
+
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        run: echo "SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.harbor_user }}
+          password: ${{ secrets.harbor_secret }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=${{ env.ARCH }}-
+
+      - name: Get revision SHA and branch
+        id: get-rev
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if [ "${{ github.event.pull_request.merged }}" == true ]; then
+              sha="${{ github.sha }}"
+              branch="${{ github.base_ref }}"
+              echo "PR merged. SHA: ${sha}, Branch: ${branch}"
+            else
+              sha="${{ github.event.pull_request.head.sha }}"
+              branch="${{ github.event.pull_request.head.ref }}"
+              echo "PR not yet merged. SHA: ${sha}, Branch: ${branch}"
+            fi
+          else
+            sha="${{ github.sha }}"
+            branch="${{ github.ref_name }}"
+            echo "${{ github.event_name }} event. SHA: ${sha}, Branch: ${branch}"
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+        shell: bash
+ 
+      - name: Build and push urunc-deploy-${{ matrix.arch}}
+        id: build-and-push
+        uses: docker/build-push-action@master
+        with:
+          context: ./deployment/urunc-deploy
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          #cache-from: type=local,src=/tmp
+          #cache-to: type=local,mode=max,dest=/tmp
+          #file: ${{ inputs.dockerfile }}
+          file: ./deployment/urunc-deploy/${{ matrix.dockerfile }}
+          build-args: |
+            BRANCH=${{ steps.get-rev.outputs.branch }}
+          #build-contexts: |
+          # ${{ steps.base-image-calculator.outputs.base_image }}
+          provenance: false
+ 
+      - name: Get image digest
+        run: |
+          echo "IMAGE_DIGEST=$(docker inspect \
+          ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy:${{ env.ARCH }}-${{ env.SHA_SHORT }} | \
+          jq -r '.[0].Id')" >> $GITHUB_ENV
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Sign the published Docker image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGEST: ${{steps.build-and-push.outputs.digest}}
+        run: |
+          cosign sign --yes ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy@$DIGEST \
+          -a "repo=${{github.repository}}" \
+          -a "workflow=${{github.workflow}}" \
+          -a "ref=${{github.sha}}" \
+          -a "author=Nubificus LTD"
+
+  manifest:
+    needs: [build-all]
+    runs-on: base-dind-2204-amd64
+    permissions:
+      contents: write # for uploading the SBOM to the release
+      packages: write # for uploading the finished container
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      id-token: write # to complete the identity challenge with sigstore/fulcio when running outside of PRs
+    strategy:
+      matrix:
+        dockerfile: ["${{ fromJSON(inputs.dockerfiles) }}"] 
+    env:
+      REGISTRY: ${{ inputs.registry }}
+      TAG: generic
+
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        run: echo "SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Log into registry ${{ inputs.REGISTRY }}
+        uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.harbor_user }}
+          password: ${{ secrets.harbor_secret }}
+
+      - name: Process runner architectures and create docker manifest
+        id: create-manifest
+        run: |
+          runner_archs='${{ inputs.runner-archs }}'  # Using the input string array
+          amend_command=""
+
+          # Loop over the architectures and build the amend command
+          for arch in $(echo $runner_archs | jq -r '.[]'); do
+            amend_command+=" --amend ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy:$arch-${{ env.SHA_SHORT }}"
+          done
+
+          echo "-------------------- Amend command constructed -------------------"
+          echo "$amend_command"
+
+          # Create the docker manifest with the amend command
+          docker manifest create ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy:${{ env.TAG }} $amend_command
+
+          # Optionally push the manifest (comment out if not needed)
+          #          docker manifest push ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.dockerfile }}:${{ env.TAG }}
+          VAR=`docker manifest push ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy:${{ env.TAG }} | tail -1`
+          echo "manifest_sha=$VAR" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Sign the published Docker image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGEST: ${{steps.create-manifest.outputs.manifest_sha }}
+        # run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: |
+          #cosign sign --yes harbor.nbfc.io/nubificus/${{ github.repository }}/${{ matrix.dockerfile }}:${{ env.ARCH }}-${{ env.SHA_SHORT }}@$DIGEST \
+          cosign sign --yes ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy@$DIGEST \
+          -a "repo=${{github.repository}}" \
+          -a "workflow=${{github.workflow}}" \
+          -a "ref=${{github.sha}}" \
+          -a "author=Nubificus LTD"
