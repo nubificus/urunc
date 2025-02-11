@@ -11,7 +11,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential libseccomp-dev git pkg-config
 WORKDIR /app
-RUN git -c http.sslVerify=false clone --branch v0.6.9 https://github.com/Solo5/solo5.git . && \
+RUN git -c http.sslVerify=false clone --branch v0.9.0 https://github.com/Solo5/solo5.git . && \
     sed -i '66 a\HOSTLDFLAGS += -static' tenders/GNUmakefile
 RUN ./configure.sh && \
     make || true
