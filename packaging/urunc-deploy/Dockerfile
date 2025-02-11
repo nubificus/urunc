@@ -68,6 +68,8 @@ RUN DEBIAN_ARCH=$(uname -m) && \
     if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
     mv /urunc-artifacts/containerd-shim-urunc-v2_${DEBIAN_ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
     mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc && \
+    apk update && \
+    apk add --no-cache bash curl && \
     curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
     chmod +x /usr/bin/kubectl && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
