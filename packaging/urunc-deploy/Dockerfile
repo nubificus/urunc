@@ -23,7 +23,7 @@ RUN cp /app/tenders/spt/solo5-spt .
 
 FROM docker.io/library/golang:alpine3.21 AS urunc-builder
 RUN apk update && \
-apk add --no-cache git make
+    apk add --no-cache git make
 WORKDIR /app
 ARG BRANCH=main
 RUN git clone --branch ${BRANCH} https://github.com/nubificus/urunc.git .
@@ -34,7 +34,7 @@ RUN cp -r /app/dist .
 
 FROM docker.io/library/alpine:3.21 AS firecracker-builder
 RUN apk update && \
-apk add --no-cache curl tar
+    apk add --no-cache curl tar
 RUN ARCH=$(uname -m) && \
     VERSION="v1.7.0" && \
     RELEASE_URL="https://github.com/firecracker-microvm/firecracker/releases" && \
@@ -54,10 +54,14 @@ RUN ARCH=$(uname -m) && \
 
 FROM docker.io/library/alpine:3.21
 RUN apk update && \
-apk add --no-cache bash curl && \
-    DEBIAN_ARCH=$(uname -m) && \
-    if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
-    if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
+    apk add --no-cache bash curl && \
+    ARCH=$(uname -m) && \
+    if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
+    if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
+    DEBIAN_ARCH=${ARCH} && \
+    if [ "${DEBIAN_ARCH}" = "ppc64le" ]; then DEBIAN_ARCH=ppc64el; fi && \
+    curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
+    chmod +x /usr/bin/kubectl && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
     chmod +x /usr/bin/jq && \
     apk --no-cache add py3-pip && \
@@ -75,7 +79,7 @@ RUN ARCH=$(uname -m) && \
     mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
 
 RUN DEBIAN_ARCH=$(uname -m) && \
-if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
-if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
-mv /urunc-artifacts/containerd-shim-urunc-v2_${DEBIAN_ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
-mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc
+    if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
+    if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
+    mv /urunc-artifacts/containerd-shim-urunc-v2_${DEBIAN_ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
+    mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc
