@@ -70,6 +70,9 @@ RUN DEBIAN_ARCH=$(uname -m) && \
     mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc && \
     apk update && \
     apk add --no-cache bash curl && \
+    ARCH=$(uname -m) && \
+	if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
+	if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
     curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
     chmod +x /usr/bin/kubectl && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
@@ -84,3 +87,4 @@ RUN apk update && \
 COPY --from=intermediate /urunc-artifacts /urunc-artifacts
 COPY --from=intermediate /usr/bin/jq /usr/bin/jq
 COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl
+
