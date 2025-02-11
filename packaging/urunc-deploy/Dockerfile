@@ -51,29 +51,14 @@ WORKDIR /artifacts
 RUN ARCH=$(uname -m) && \
     cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} ./qemu-system
 
-
-FROM docker.io/library/alpine:3.21
-RUN apk update && \
-    apk add --no-cache bash curl && \
-    ARCH=$(uname -m) && \
-    if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
-    if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
-    DEBIAN_ARCH=${ARCH} && \
-    if [ "${DEBIAN_ARCH}" = "ppc64le" ]; then DEBIAN_ARCH=ppc64el; fi && \
-    curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
-    chmod +x /usr/bin/kubectl && \
-    curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
-    chmod +x /usr/bin/jq && \
-    apk --no-cache add py3-pip && \
-    pip install --no-cache-dir --break-system-packages yq==3.2.3
-COPY scripts /urunc-artifacts/scripts
-COPY runtimeclasses /urunc-artifacts/runtimeclasses
-RUN chmod +x /urunc-artifacts/scripts/install.sh
+FROM docker.io/library/alpine:3.21 AS intermediate
 
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=urunc-builder /artifacts/dist /urunc-artifacts
+COPY scripts /urunc-artifacts/scripts
+COPY runtimeclasses /urunc-artifacts/runtimeclasses
 
 RUN ARCH=$(uname -m) && \
     mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}
@@ -82,4 +67,18 @@ RUN DEBIAN_ARCH=$(uname -m) && \
     if [ "${DEBIAN_ARCH}" = "x86_64" ]; then DEBIAN_ARCH=amd64; fi && \
     if [ "${DEBIAN_ARCH}" = "aarch64" ]; then DEBIAN_ARCH=arm64; fi && \
     mv /urunc-artifacts/containerd-shim-urunc-v2_${DEBIAN_ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
-    mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc
+    mv /urunc-artifacts/urunc_static_${DEBIAN_ARCH} /urunc-artifacts/urunc && \
+    curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
+    chmod +x /usr/bin/kubectl && \
+    curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
+    chmod +x /usr/bin/jq && \
+    chmod +x /urunc-artifacts/scripts/install.sh
+
+
+FROM docker.io/library/alpine:3.21
+RUN apk update && \
+    apk add --no-cache bash curl py3-pip && \
+    pip install --no-cache-dir --break-system-packages yq==3.2.3
+COPY --from=intermediate /urunc-artifacts /urunc-artifacts
+COPY --from=intermediate /usr/bin/jq /usr/bin/jq
+COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl

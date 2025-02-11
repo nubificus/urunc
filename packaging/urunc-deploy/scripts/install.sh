@@ -80,7 +80,7 @@ function install_artifacts() {
         case "$hypervisor" in
         qemu)
             echo "Installing qemu"
-            install_artifact /urunc-artifacts/hypervisors/qemu-system-x86_64 /host/usr/local/bin/qemu-system-x86_64
+            install_artifact /urunc-artifacts/hypervisors/qemu-system-(uname -m) /host/usr/local/bin/qemu-system-(uname -m)
             ;;
         firecracker)
             echo "Installing firecracker"
