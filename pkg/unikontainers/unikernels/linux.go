@@ -16,6 +16,9 @@ package unikernels
 
 import (
 	"fmt"
+	"os"
+	"bufio"
+	"strings"
 )
 
 const LinuxUnikernel string = "linux"
@@ -32,16 +35,52 @@ type LinuxNet struct {
 }
 
 func (l *Linux) CommandString() (string, error) {
+	f, err := os.Open("/proc/net/arp")
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+	var mac string
+	s := bufio.NewScanner(f)
+	s.Scan() // skip the field descriptions
+	for s.Scan() {
+		line := s.Text()
+		fields := strings.Fields(line)
+		if fields[0] == l.Net.Gateway {
+			mac = fields[3]
+			break
+		}
+	}
+	gwParts := strings.Split(l.Net.Gateway, ".")
+	if mac == "" {
+		mac = "ff:ff:ff:ff:ff:ff"
+	}
+	macParts := strings.Split(mac, ":")
 	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr init=/guest_start.sh %s %s %s",
 	//	l.Net.Address,
 	//	l.Net.Gateway,
 	//	l.Command), nil
 	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw quiet loglevel=0 nokaslr init=%s",
-	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr ip=%s::%s:%s:urunc:eth0:off init=%s",
+	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr ip=%s::%s:%s:urunc:eth0:off init=/init.sh %s %s %s %s %s %s %s %s %s %s",
 		l.Net.Address,
 		l.Net.Gateway,
 		l.Net.Mask,
-		l.Command), nil
+		gwParts[0],
+		gwParts[1],
+		gwParts[2],
+		gwParts[3],
+		macParts[0],
+		macParts[1],
+		macParts[2],
+		macParts[3],
+		macParts[4],
+		macParts[5]), nil
+	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr ip=%s::%s:%s:urunc:eth0:off init=%s",
+	//	l.Net.Address,
+	//	l.Net.Gateway,
+	//	l.Net.Mask,
+	//	l.Command), nil
 	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=14 nokaslr init=%s",
 	//	l.Command), nil
 }
