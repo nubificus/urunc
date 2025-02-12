@@ -92,8 +92,10 @@ func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link
 		// Firecracker does not support multiqueue tap devices at this time:
 		// https://github.com/firecracker-microvm/firecracker/issues/750
 		Queues: 1,
+		//Queues: 2,
 
-		Flags: netlink.TUNTAP_ONE_QUEUE | // single queue tap device
+		Flags:  netlink.TUNTAP_NO_PI |
+			//netlink.TUNTAP_MULTI_QUEUE_DEFAULTS |
 			netlink.TUNTAP_VNET_HDR, // parse vnet headers added by the vm's virtio_net implementation
 	}
 
