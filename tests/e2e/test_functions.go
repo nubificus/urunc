@@ -105,6 +105,7 @@ func httpStaticNetTest(tool testTool) (err error) {
 	}
 	var tapUrunc net.Interface
 	for _, iface := range ifaces {
+		fmt.Println(iface.Name)
 		if strings.Contains(iface.Name, "urunc") {
 			tapUrunc = iface
 			break
@@ -125,6 +126,7 @@ func httpStaticNetTest(tool testTool) (err error) {
 	}
 	ipAddr := ""
 	for _, addr := range addrs {
+		fmt.Println(addr.String())
 		tmp := strings.Split(addr.String(), "/")[0]
 		if govalidator.IsIPv4(tmp) {
 			ipAddr = tmp
