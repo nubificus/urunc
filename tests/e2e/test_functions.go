@@ -124,6 +124,8 @@ func httpStaticNetTest(tool testTool) (err error) {
 	if err != nil {
 		return fmt.Errorf("Failed to get %s interface's IP addresses: %v", tapUrunc.Name, err)
 	}
+	out, err := commonCmdExec("ip a")
+	fmt.Println(out)
 	ipAddr := ""
 	for _, addr := range addrs {
 		fmt.Println(addr.String())
