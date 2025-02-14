@@ -61,6 +61,7 @@ only Initramfs is supported for the time being.
 Supported unikernel frameworks with `urunc`:
 
 - [Unikraft](../unikernel-support#unikraft)
+- [MirageOS](../unikernel-support#mirage)
 
 An example unikernel:
 
@@ -159,7 +160,7 @@ $ sudo apt install libseccomp-dev pkg-config build-essential
 Next, we can clone and build `solo5-hvt`.
 
 ```bash
-$ git clone -b v0.6.9 https://github.com/Solo5/solo5.git
+$ git clone -b v0.9.0 https://github.com/Solo5/solo5.git
 $ cd solo5
 $ ./configure.sh && make -j$(nproc)
 ```
@@ -192,6 +193,7 @@ type (e.g. ext2/3/4). This is the case for Rumprun unikernel.
 Supported unikernel frameworks with `urunc`:
 
 - [Rumprun](../unikernel-support#rumprun)
+- [MirageOS](../unikernel-support#mirage)
 
 An example unikernel with a block image inside the conntainer's rootfs:
 
@@ -240,7 +242,7 @@ $ sudo apt install libseccomp-dev pkg-config build-essential
 Next, we can clone and build `solo5-spt`.
 
 ```bash
-$ git clone -b v0.6.9 https://github.com/Solo5/solo5.git
+$ git clone -b v0.9.0 https://github.com/Solo5/solo5.git
 $ cd solo5
 $ ./configure.sh && make -j$(nproc)
 ```
@@ -262,14 +264,10 @@ section](#solo5-hvt-and-urunc).
 Supported unikernel frameworks with `urunc`:
 
 - [Rumprun](../unikernel-support#rumprun)
+- [MirageOS](../unikernel-support#mirage)
 
 An example unikernel which utilizes devmapper for block storage:
 
 ```bash
 $ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
 ```
-
-> Note: Since only Rumrpun can boot on top of Solo5-{hvt|spt} (from the supported
-unikernels in `urunc`) we use the v0.6.9 version of
-[Solo5](https://github.com/Solo5/solo5) since Rumprun has not been updated for
-the newer ones.
