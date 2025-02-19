@@ -57,7 +57,6 @@ COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=urunc-builder /artifacts/dist /urunc-artifacts
-COPY scripts /urunc-artifacts/scripts
 COPY runtimeclasses /urunc-artifacts/runtimeclasses
 
 RUN ARCH=$(uname -m) && \
@@ -71,15 +70,15 @@ RUN DEBIAN_ARCH=$(uname -m) && \
     apk update && \
     apk add --no-cache bash curl && \
     ARCH=$(uname -m) && \
-	if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
-	if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
+    if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
+    if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
     curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl && \
     chmod +x /usr/bin/kubectl && \
     curl -fL --progress-bar -o /usr/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${DEBIAN_ARCH} && \
-    chmod +x /usr/bin/jq && \
-    chmod +x /urunc-artifacts/scripts/install.sh
+    chmod +x /usr/bin/jq
 
 
+# Final image
 FROM docker.io/library/alpine:3.21
 RUN apk update && \
     apk add --no-cache bash curl py3-pip && \
@@ -87,4 +86,5 @@ RUN apk update && \
 COPY --from=intermediate /urunc-artifacts /urunc-artifacts
 COPY --from=intermediate /usr/bin/jq /usr/bin/jq
 COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl
-
+COPY scripts /urunc-artifacts/scripts
+RUN chmod +x /urunc-artifacts/scripts/install.sh

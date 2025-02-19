@@ -15,6 +15,7 @@ use_containerd_drop_in_conf_file="false"
 containerd_drop_in_conf_file="/etc/containerd/config.d/urunc-deploy.toml"
 
 IFS=' ' read -a hypervisors <<< "$HYPERVISORS"
+HELM_POST_DELETE_HOOK="${HELM_POST_DELETE_HOOK:-"false"}"
 
 function host_systemctl() {
     nsenter --target 1 --mount systemctl "${@}"
@@ -99,7 +100,6 @@ function install_artifacts() {
             ;;
 	    esac
     done
-    create_runtimeclass
 }
 
 function remove_artifacts() {
@@ -107,11 +107,6 @@ function remove_artifacts() {
     uninstall_shim
     uninstall_qemu
     uninstall_firecracker
-}
-
-function ensure_root() {
-    # script requires that user is root
-
 }
 
 die() {
@@ -127,32 +122,30 @@ function create_runtimeclass() {
 }
 
 function get_container_runtime() {
-    local runtime=$(kubectl get node $NODE_NAME -o jsonpath='{.status.nodeInfo.containerRuntimeVersion}')
-    if [ "$?" -ne 0 ]; then
-        die "invalid node name"
-    fi
+	local runtime=$(kubectl get node $NODE_NAME -o jsonpath='{.status.nodeInfo.containerRuntimeVersion}')
+	if [ "$?" -ne 0 ]; then
+                die "invalid node name"
+	fi
 
-    if echo "$runtime" | grep -qE "cri-o"; then
-        echo "cri-o"
-        elif echo "$runtime" | grep -qE 'containerd.*-k3s'; then
-        if host_systemctl is-active --quiet rke2-agent; then
-            echo "rke2-agent"
-            elif host_systemctl is-active --quiet rke2-server; then
-            echo "rke2-server"
-            elif host_systemctl is-active --quiet k3s-agent; then
-            echo "k3s-agent"
-        else
-            echo "k3s"
-        fi
-        # Note: we assumed you used a conventional k0s setup and k0s will generate a systemd entry k0scontroller.service and k0sworker.service respectively
-        # and it is impossible to run this script without a kubelet, so this k0s controller must also have worker mode enabled
-        elif host_systemctl is-active --quiet k0scontroller; then
-        echo "k0s-controller"
-        elif host_systemctl is-active --quiet k0sworker; then
-        echo "k0s-worker"
-    else
-        echo "$runtime" | awk -F '[:]' '{print $1}'
-    fi
+	if echo "$runtime" | grep -qE "cri-o"; then
+		echo "cri-o"
+	elif echo "$runtime" | grep -qE 'containerd.*-k3s'; then
+		if host_systemctl is-active --quiet rke2-agent; then
+			echo "rke2-agent"
+		elif host_systemctl is-active --quiet rke2-server; then
+			echo "rke2-server"
+		elif host_systemctl is-active --quiet k3s-agent; then
+			echo "k3s-agent"
+		else
+			echo "k3s"
+		fi
+	elif host_systemctl is-active --quiet k0scontroller; then
+		echo "k0s-controller"
+	elif host_systemctl is-active --quiet k0sworker; then
+		echo "k0s-worker"
+	else
+		echo "$runtime" | awk -F '[:]' '{print $1}'
+	fi
 }
 
 function is_containerd_capable_of_using_drop_in_files() {
@@ -274,7 +267,7 @@ function configure_containerd() {
     if [ $use_containerd_drop_in_conf_file = "true" ]; then
         tomlq -i -t $(printf '.imports|=.+["%s"]' ${containerd_drop_in_conf_file}) ${containerd_conf_file}
     fi
-    local runtime="urunc"
+    local urunc_runtime="urunc"
     local pluginid=cri
     local configuration_file="${containerd_conf_file}"
 
@@ -298,7 +291,7 @@ function configure_containerd() {
 
     echo "Plugin ID: ${pluginid}"
 
-    local runtime_table=".plugins.${pluginid}.containerd.runtimes.\"${runtime}\""
+    local runtime_table=".plugins.${pluginid}.containerd.runtimes.\"urunc\""
     local runtime_type=\"io.containerd.urunc.v2\"
     # local container_annotations="\[\"com.urunc.unikernel.*\"\]"
     # local pod_annotations="\[\"com.urunc.unikernel.*\"\]"
@@ -396,13 +389,10 @@ function main() {
         die  "This script must be run as root"
     fi
     runtime=$(get_container_runtime)
-    # CRI-O isn't consistent with the naming -- let's use crio to match the service file
-    if [ "$runtime" == "cri-o" ]; then
-        runtime="crio"
-        elif [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
+    if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
         containerd_conf_tmpl_file="${containerd_conf_file}.tmpl"
         containerd_conf_file_backup="${containerd_conf_tmpl_file}.bak"
-        elif [[ "$runtime" =~ ^(k0s-worker|k0s-controller)$ ]]; then
+    elif [[ "$runtime" =~ ^(k0s-worker|k0s-controller)$ ]]; then
         # From 1.27.1 onwards k0s enables dynamic configuration on containerd CRI runtimes.
         # This works by k0s creating a special directory in /etc/k0s/containerd.d/ where user can drop-in partial containerd configuration snippets.
         # k0s will automatically pick up these files and adds these in containerd configuration imports list.
@@ -421,6 +411,7 @@ function main() {
 
     case "$action" in
         install)
+            echo "install started" >> /host/urunc-deploy.txt
             if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
                 if [ ! -f "$containerd_conf_tmpl_file" ] && [ -f "$containerd_conf_file" ]; then
                     cp "$containerd_conf_file" "$containerd_conf_tmpl_file"
@@ -429,10 +420,10 @@ function main() {
                 # copying the file to the template location
                 containerd_conf_file="${containerd_conf_tmpl_file}"
                 containerd_conf_file_backup="${containerd_conf_tmpl_file}.bak"
-                elif [[ "$runtime" =~ ^(k0s-worker|k0s-controller)$ ]]; then
+            elif [[ "$runtime" =~ ^(k0s-worker|k0s-controller)$ ]]; then
                 mkdir -p $(dirname "$containerd_conf_file")
                 touch "$containerd_conf_file"
-                elif [[ "$runtime" == "containerd" ]]; then
+            elif [[ "$runtime" == "containerd" ]]; then
                 if [ ! -f "$containerd_conf_file" ] && [ -d $(dirname "$containerd_conf_file") ] && [ -x $(command -v containerd) ]; then
                     containerd config default > "$containerd_conf_file"
                 fi
@@ -440,9 +431,13 @@ function main() {
             install_artifacts
             configure_cri_runtime "$runtime"
             kubectl label node "$NODE_NAME" --overwrite urunc.io/urunc-runtime=true
+            # create_runtimeclass
             echo "EVERYTHING WENT WELL"
+            echo "install completed" >> /host/urunc-deploy.txt
         ;;
         cleanup)
+            echo "cleanup started" >> /host/urunc-deploy.txt
+
             if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
 			       containerd_conf_file_backup="${containerd_conf_tmpl_file}.bak"
 			       containerd_conf_file="${containerd_conf_tmpl_file}"
@@ -470,6 +465,7 @@ function main() {
 				fi
 			fi
             remove_artifacts
+            echo "cleanup completed" >> /host/urunc-deploy.txt
 
 
 			if [ "${HELM_POST_DELETE_HOOK}" == "true" ]; then
@@ -478,9 +474,10 @@ function main() {
 				exit 0
 			fi
 			;;
-        ;;
 		reset)
+            echo "reset started" >> /host/urunc-deploy.txt
 			reset_runtime $runtime
+            echo "reset completed" >> /host/urunc-deploy.txt
 			;;
 		*)
             print_usage

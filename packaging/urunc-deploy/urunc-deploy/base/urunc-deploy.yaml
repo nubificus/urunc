@@ -14,6 +14,7 @@ spec:
         name: urunc-deploy
     spec:
       serviceAccountName: urunc-deploy-sa
+      # terminationGracePeriodSeconds: 60
       hostPID: true
       containers:
         - name: kube-urunc
