@@ -94,7 +94,7 @@ function install_artifacts() {
             echo "Installing solo5-hvt"
             install_artifact /urunc-artifacts/hypervisors/solo5-hvt /host/usr/local/bin/solo5-hvt
             ;;
-        *) 
+        *)
             echo "Unsupported hypervisor: $hypervisor"
             ;;
 	    esac
@@ -102,7 +102,7 @@ function install_artifacts() {
     create_runtimeclass
 }
 
-function uninstall() {
+function remove_artifacts() {
     uninstall_urunc
     uninstall_shim
     uninstall_qemu
@@ -111,10 +111,7 @@ function uninstall() {
 
 function ensure_root() {
     # script requires that user is root
-    euid=$(id -u)
-    if [[ $euid -ne 0 ]]; then
-        die  "This script must be run as root"
-    fi
+
 }
 
 die() {
@@ -134,7 +131,7 @@ function get_container_runtime() {
     if [ "$?" -ne 0 ]; then
         die "invalid node name"
     fi
-    
+
     if echo "$runtime" | grep -qE "cri-o"; then
         echo "cri-o"
         elif echo "$runtime" | grep -qE 'containerd.*-k3s'; then
@@ -160,20 +157,20 @@ function get_container_runtime() {
 
 function is_containerd_capable_of_using_drop_in_files() {
     local runtime="$1"
-    
+
     if [ "$runtime" == "crio" ]; then
         # This should never happen but better be safe than sorry
         echo "false"
         return
     fi
-    
+
     if [[ "$runtime" =~ ^(k0s-worker|k0s-controller)$ ]]; then
         # k0s does the work of using drop-in files better than any other "k8s distro", so
         # we don't mess up with what's being correctly done.
         echo "false"
         return
     fi
-    
+
     local version_major=$(kubectl get node $NODE_NAME -o jsonpath='{.status.nodeInfo.containerRuntimeVersion}' | grep -oE '[0-9]+\.[0-9]+' | cut -d'.' -f1)
     if [ $version_major -lt 2 ]; then
         # Only containerd 2.0 does the merge of the plugins section from different snippets,
@@ -185,14 +182,14 @@ function is_containerd_capable_of_using_drop_in_files() {
         echo "false"
         return
     fi
-    
+
     echo "true"
 }
 
 
 function wait_till_node_is_ready() {
     local ready="False"
-    
+
     while ! [[ "${ready}" == "True" ]]; do
         sleep 2s
         ready=$(kubectl get node $NODE_NAME -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
@@ -202,12 +199,12 @@ function wait_till_node_is_ready() {
 function configure_crio() {
     # Configure crio to use urunc:
     echo "Add urunc as a supported runtime for CRIO:"
-    
+
     echo "Drop-in configuration directory: $crio_drop_in_conf_dir"
     echo "Drop-in configuration file: $crio_drop_in_conf_file"
     echo "Drop-in debug file: $crio_drop_in_conf_file_debug"
-    
-    
+
+
     # As we don't touch the original configuration file in any way,
     # let's just ensure we remove any exist configuration from a
     # previous deployment.
@@ -216,10 +213,10 @@ function configure_crio() {
     touch "$crio_drop_in_conf_file"
     rm -f "$crio_drop_in_conf_file_debug"
     touch "$crio_drop_in_conf_file_debug"
-    
+
     local urunc_path="/usr/local/bin/containerd-shim-urunc-v2"
     local urunc_conf="crio.runtime.runtimes.urunc"
-    
+
 	cat <<EOF | tee -a "$crio_drop_in_conf_file"
 
 [$urunc_conf]
@@ -228,8 +225,8 @@ function configure_crio() {
 	runtime_root = "/run/urunc"
 	privileged_without_host_devices = true
 EOF
-    
-    
+
+
     if [ "${DEBUG}" == "true" ]; then
 		cat <<EOF | tee $crio_drop_in_conf_file_debug
 [crio.runtime]
@@ -258,7 +255,7 @@ function configure_cri_runtime() {
         host_systemctl daemon-reload
         host_systemctl restart "$1"
     fi
-    
+
     wait_till_node_is_ready
 }
 
@@ -267,59 +264,118 @@ function configure_containerd() {
     echo "Add urunc as a supported runtime for containerd"
     echo "Containerd conf file: $containerd_conf_file"
     mkdir -p /etc/containerd/
-    
+
     if [ $use_containerd_drop_in_conf_file = "false" ] && [ -f "$containerd_conf_file" ]; then
         # only backup in case drop-in files are not supported, and when doing the backup
         # only do it if a backup doesn't already exist (don't override original)
         cp -n "$containerd_conf_file" "$containerd_conf_file_backup"
     fi
-    
+
     if [ $use_containerd_drop_in_conf_file = "true" ]; then
         tomlq -i -t $(printf '.imports|=.+["%s"]' ${containerd_drop_in_conf_file}) ${containerd_conf_file}
     fi
     local runtime="urunc"
     local pluginid=cri
     local configuration_file="${containerd_conf_file}"
-    
+
     # Properly set the configuration file in case drop-in files are supported
     if [ $use_containerd_drop_in_conf_file = "true" ]; then
         configuration_file="/host${containerd_drop_in_conf_file}"
     fi
-    
+
     local containerd_root_conf_file="$containerd_conf_file"
     if [[ "$1" =~ ^(k0s-worker|k0s-controller)$ ]]; then
         containerd_root_conf_file="/etc/containerd/containerd.toml"
     fi
-    
+
     if grep -q "version = 2\>" $containerd_root_conf_file; then
         pluginid=\"io.containerd.grpc.v1.cri\"
     fi
-    
+
     if grep -q "version = 3\>" $containerd_root_conf_file; then
         pluginid=\"io.containerd.cri.v1.runtime\"
     fi
-    
+
     echo "Plugin ID: ${pluginid}"
-    
+
     local runtime_table=".plugins.${pluginid}.containerd.runtimes.\"${runtime}\""
     local runtime_type=\"io.containerd.urunc.v2\"
     # local container_annotations="\[\"com.urunc.unikernel.*\"\]"
     # local pod_annotations="\[\"com.urunc.unikernel.*\"\]"
     # local snapshottter="devmapper"
-    
+
     echo "Once again, configuration file is ${configuration_file}"
     # configuration_file = "/host${configuration_file}"
     mkdir -p $(dirname ${configuration_file})
     touch ${configuration_file}
-    
+
     tomlq -i -t $(printf '%s.runtime_type=%s' ${runtime_table} ${runtime_type}) ${configuration_file}
-    
+
     if [ "${DEBUG}" == "true" ]; then
         tomlq -i -t '.debug.level = "debug"' ${configuration_file}
     fi
 }
 
+function cleanup_cri_runtime() {
+	case $1 in
+	crio)
+		cleanup_crio
+		;;
+	containerd | k3s | k3s-agent | rke2-agent | rke2-server | k0s-controller | k0s-worker)
+		cleanup_containerd
+		;;
+	esac
 
+	[ "${HELM_POST_DELETE_HOOK}" == "false" ] && return
+
+	# Only run this code in the HELM_POST_DELETE_HOOK
+	restart_cri_runtime "$1"
+}
+
+function cleanup_crio() {
+	rm -f $crio_drop_in_conf_file
+	if [[ "${DEBUG}" == "true" ]]; then
+		rm -f $crio_drop_in_conf_file_debug
+	fi
+}
+
+function cleanup_containerd() {
+	if [ $use_containerd_drop_in_conf_file = "true" ]; then
+		# There's no need to remove the drop-in file, as it'll be removed as
+		# part of the artefacts removal.  Thus, simply remove the file from
+		# the imports line of the containerd configuration and return.
+		tomlq -i -t $(printf '.imports|=.-["%s"]' ${containerd_drop_in_conf_file}) ${containerd_conf_file}
+		return
+	fi
+
+	rm -f $containerd_conf_file
+	if [ -f "$containerd_conf_file_backup" ]; then
+		mv "$containerd_conf_file_backup" "$containerd_conf_file"
+	fi
+}
+
+function restart_cri_runtime() {
+	local runtime="${1}"
+
+	if [ "${runtime}" == "k0s-worker" ] || [ "${runtime}" == "k0s-controller" ]; then
+		# do nothing, k0s will automatically unload the config on the fly
+		:
+	else
+		host_systemctl daemon-reload
+		host_systemctl restart "${runtime}"
+	fi
+}
+
+function reset_runtime() {
+	kubectl label node "$NODE_NAME" katacontainers.io/kata-runtime-
+	restart_cri_runtime "$1"
+
+	if [ "$1" == "crio" ] || [ "$1" == "containerd" ]; then
+		host_systemctl restart kubelet
+	fi
+
+	wait_till_node_is_ready
+}
 
 function main() {
     action=${1:-}
@@ -333,7 +389,12 @@ function main() {
     echo "Environment variables passed to this script"
     echo "* NODE_NAME: ${NODE_NAME}"
     echo "* HYPERVISORS: ${HYPERVISORS}"
-    ensure_root
+
+    # verify user is root
+    euid=$(id -u)
+    if [[ $euid -ne 0 ]]; then
+        die  "This script must be run as root"
+    fi
     runtime=$(get_container_runtime)
     # CRI-O isn't consistent with the naming -- let's use crio to match the service file
     if [ "$runtime" == "cri-o" ]; then
@@ -348,16 +409,16 @@ function main() {
         containerd_conf_file="/etc/containerd/containerd.d/urunc.toml"
         containerd_conf_file_backup="${containerd_conf_tmpl_file}.bak"
     fi
-    
+
     use_containerd_drop_in_conf_file=$(is_containerd_capable_of_using_drop_in_files "$runtime")
     echo "Using containerd drop-in files: $use_containerd_drop_in_conf_file"
-    
+
     echo "Runtime: ${runtime}"
     echo "containerd_conf_file: ${containerd_conf_file}"
     echo "containerd_conf_tmpl_file: ${containerd_conf_tmpl_file}"
     echo "containerd_conf_file_backup: ${containerd_conf_file_backup}"
     echo "Using containerd drop-in files: $use_containerd_drop_in_conf_file"
-    
+
     case "$action" in
         install)
             if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
@@ -380,16 +441,55 @@ function main() {
             configure_cri_runtime "$runtime"
             kubectl label node "$NODE_NAME" --overwrite urunc.io/urunc-runtime=true
             echo "EVERYTHING WENT WELL"
-            sleep infinity
         ;;
         cleanup)
-            uninstall
+            if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
+			       containerd_conf_file_backup="${containerd_conf_tmpl_file}.bak"
+			       containerd_conf_file="${containerd_conf_tmpl_file}"
+			fi
+
+            local urunc_deploy_installations=$(kubectl -n kube-system get ds | grep urunc-deploy | wc -l)
+
+			if [ "${HELM_POST_DELETE_HOOK}" == "true" ]; then
+				# Remove the label as the first thing, so we ensure no more urunc
+				# pods would be scheduled here.
+				#
+				# If we still have any other installation here, it means we'll break them
+				# removing the label, so we just don't do it.
+				if [ $urunc_deploy_installations -eq 0 ]; then
+					kubectl label node "$NODE_NAME" urunc.io/urunc-runtime-
+				fi
+			fi
+
+			cleanup_cri_runtime "$runtime"
+			if [ "${HELM_POST_DELETE_HOOK}" == "false" ]; then
+				# If we still have any other installation here, it means we'll break them
+				# removing the label, so we just don't do it.
+				if [ $urunc_deploy_installations -eq 0 ]; then
+					kubectl label node "$NODE_NAME" --overwrite urunc.io/urunc-runtime=cleanup
+				fi
+			fi
+            remove_artifacts
+
+
+			if [ "${HELM_POST_DELETE_HOOK}" == "true" ]; then
+				# After everything was cleaned up, there's no reason to continue
+				# and sleep forever.  Let's just return success..
+				exit 0
+			fi
+			;;
         ;;
-        *)
+		reset)
+			reset_runtime $runtime
+			;;
+		*)
             print_usage
             die "invalid arguments"
         ;;
     esac
+    # Script is being called as a Daemonset. We need to keep it running, otherwise the pod will be restarted.
+    sleep infinity
+
 }
 
 main "$@"
