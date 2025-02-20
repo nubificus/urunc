@@ -55,6 +55,7 @@ FROM docker.io/library/alpine:3.21 AS intermediate
 
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
+COPY --from=qemu-builder /opt/kata-artifacts/opt/kata/share/kata-qemu/qemu /urunc-artifacts/opt/kata/share/kata-qemu/qemu
 COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=urunc-builder /artifacts/dist /urunc-artifacts
 COPY runtimeclasses /urunc-artifacts/runtimeclasses
@@ -88,4 +89,3 @@ COPY --from=intermediate /usr/bin/jq /usr/bin/jq
 COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl
 COPY scripts /urunc-artifacts/scripts
 RUN chmod +x /urunc-artifacts/scripts/install.sh
-
