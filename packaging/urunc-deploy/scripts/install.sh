@@ -23,6 +23,7 @@ function host_systemctl() {
 function print_usage() {
     echo "Usage: $0 {install|uninstall|cleanup}"
 }
+
 function install_artifact() {
     local src="$1"
     local dest="$2"
@@ -53,7 +54,8 @@ function uninstall_shim() {
 }
 
 function uninstall_qemu() {
-    uninstall_artifact "qemu-system-x86_64"
+    uninstall_artifact "qemu-system-${uname -m}"
+    uninstall_artifact "qemu-urunc"
 }
 
 function uninstall_firecracker() {
@@ -81,7 +83,19 @@ function install_artifacts() {
         case "$hypervisor" in
         qemu)
             echo "Installing qemu"
-            install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-system-$(uname -m)
+            if which "qemu-system-$(uname -m)" >/dev/null 2>&1; then
+                echo "QEMU is already installed."
+            else
+                install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-urunc
+                qemu_wrapper="/host/usr/local/bin/qemu-system-$(uname -m)"
+                cat <<EOF > $qemu_wrapper
+#!/bin/bash
+exec qemu-urunc -L /usr/local/share/qemu "\$@"
+EOF
+                chmod +x $qemu_wrapper
+                mkdir -p /host/usr/local/share/qemu/
+                cp -r /urunc-artifacts/opt/kata/share/kata-qemu/qemu /host/usr/local/share
+            fi
             ;;
         firecracker)
             echo "Installing firecracker"
@@ -107,6 +121,7 @@ function remove_artifacts() {
     uninstall_shim
     uninstall_qemu
     uninstall_firecracker
+    rm -rf /host/usr/local/share/qemu
 }
 
 die() {
@@ -411,7 +426,6 @@ function main() {
 
     case "$action" in
         install)
-            echo "install started" >> /host/urunc-deploy.txt
             if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
                 if [ ! -f "$containerd_conf_tmpl_file" ] && [ -f "$containerd_conf_file" ]; then
                     cp "$containerd_conf_file" "$containerd_conf_tmpl_file"
@@ -433,11 +447,8 @@ function main() {
             kubectl label node "$NODE_NAME" --overwrite urunc.io/urunc-runtime=true
             # create_runtimeclass
             echo "EVERYTHING WENT WELL"
-            echo "install completed" >> /host/urunc-deploy.txt
         ;;
         cleanup)
-            echo "cleanup started" >> /host/urunc-deploy.txt
-
             if [[ "$runtime" =~ ^(k3s|k3s-agent|rke2-agent|rke2-server)$ ]]; then
 			       containerd_conf_file_backup="${containerd_conf_tmpl_file}.bak"
 			       containerd_conf_file="${containerd_conf_tmpl_file}"
@@ -465,8 +476,6 @@ function main() {
 				fi
 			fi
             remove_artifacts
-            echo "cleanup completed" >> /host/urunc-deploy.txt
-
 
 			if [ "${HELM_POST_DELETE_HOOK}" == "true" ]; then
 				# After everything was cleaned up, there's no reason to continue
@@ -475,10 +484,8 @@ function main() {
 			fi
 			;;
 		reset)
-            echo "reset started" >> /host/urunc-deploy.txt
             kubectl label node "$NODE_NAME" urunc.io/urunc-runtime- # TODO: not sure if we want to remove this
 			reset_runtime $runtime
-            echo "reset completed" >> /host/urunc-deploy.txt
 			;;
 		*)
             print_usage
