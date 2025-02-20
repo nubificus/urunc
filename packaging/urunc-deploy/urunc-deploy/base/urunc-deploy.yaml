@@ -18,7 +18,7 @@ spec:
       hostPID: true
       containers:
         - name: kube-urunc
-          image: harbor.nbfc.io/nubificus/urunc/urunc-deploy:generic
+          image: harbor.nbfc.io/nubificus/urunc/urunc-deploy:fix_ns_net
           imagePullPolicy: Always
           lifecycle:
             preStop:

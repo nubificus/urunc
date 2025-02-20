@@ -476,6 +476,7 @@ function main() {
 			;;
 		reset)
             echo "reset started" >> /host/urunc-deploy.txt
+            kubectl label node "$NODE_NAME" urunc.io/urunc-runtime- # TODO: not sure if we want to remove this
 			reset_runtime $runtime
             echo "reset completed" >> /host/urunc-deploy.txt
 			;;
