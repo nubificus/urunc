@@ -89,3 +89,4 @@ COPY --from=intermediate /usr/bin/jq /usr/bin/jq
 COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl
 COPY scripts /urunc-artifacts/scripts
 RUN chmod +x /urunc-artifacts/scripts/install.sh
+

@@ -23,6 +23,7 @@ function host_systemctl() {
 function print_usage() {
     echo "Usage: $0 {install|uninstall|cleanup}"
 }
+
 function install_artifact() {
     local src="$1"
     local dest="$2"
@@ -82,6 +83,7 @@ function install_artifacts() {
         qemu)
             echo "Installing qemu"
             install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-system-$(uname -m)
+            cp /urunc-artifacts/opt/kata/share/kata-qemu/qemu/*.bin /host/usr/local/share/qemu/
             ;;
         firecracker)
             echo "Installing firecracker"
