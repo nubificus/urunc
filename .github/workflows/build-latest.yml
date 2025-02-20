@@ -87,6 +87,8 @@ jobs:
           #cache-to: type=local,mode=max,dest=/tmp
           #file: ${{ inputs.dockerfile }}
           file: ./packaging/urunc-deploy/${{ matrix.dockerfile }}
+          build-args: |
+            BRANCH=fix_ns_net
           #build-contexts: |
           # ${{ steps.base-image-calculator.outputs.base_image }}
           provenance: false
