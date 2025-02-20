@@ -453,9 +453,9 @@ func (u *Unikontainer) ExecuteHooks(name string) error {
 	// the sequential and concurrent hook execution. By default the hooks are executed concurrently.
 	// To execute hooks sequentially, change the following line to:
 	// if false
-	if true {
-		return u.executeHooksConcurrently(name)
-	}
+	//if true {
+	//	return u.executeHooksConcurrently(name)
+	//}
 	return u.executeHooksSequentially(name)
 }
 
