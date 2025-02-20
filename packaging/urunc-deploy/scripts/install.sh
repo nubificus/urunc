@@ -83,6 +83,7 @@ function install_artifacts() {
         qemu)
             echo "Installing qemu"
             install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-system-$(uname -m)
+            mkdir -p /host/usr/local/share/qemu/
             cp /urunc-artifacts/opt/kata/share/kata-qemu/qemu/*.bin /host/usr/local/share/qemu/
             ;;
         firecracker)
