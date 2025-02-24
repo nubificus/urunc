@@ -30,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 	"github.com/urfave/cli"
 )
 
