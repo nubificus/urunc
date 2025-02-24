@@ -15,15 +15,19 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"github.com/creack/pty"
 	"github.com/nubificus/urunc/pkg/unikontainers"
+	"github.com/opencontainers/runc/libcontainer/logs"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"golang.org/x/sys/unix"
@@ -78,14 +82,17 @@ var createCommand = cli.Command{
 	},
 }
 
-// createUnikontainer creates a Unikernel struct from bundle data, initializes it's base dir and state.json,
+// createUnikontainer creates a Unikernel struct from bundle data,
+// initializes it's base dir and state.json,
 // setups terminal if required and spawns reexec process,
 // waits for reexec process to notify, executes CreateRuntime hooks,
 // sends ACK to reexec process and executes CreateContainer hooks
-func createUnikontainer(context *cli.Context) error {
+func createUnikontainer(context *cli.Context) (err error) {
+	err = nil
 	containerID := context.Args().First()
 	if containerID == "" {
-		return fmt.Errorf("container id cannot be empty")
+		err = fmt.Errorf("container id cannot be empty")
+		return err
 	}
 	metrics.Capture(containerID, "TS00")
 
@@ -96,7 +103,6 @@ func createUnikontainer(context *cli.Context) error {
 	// is either the CWD or the one defined in the cli option
 	bundlePath := context.String("bundle")
 	if bundlePath == "" {
-		var err error
 		bundlePath, err = os.Getwd()
 		if err != nil {
 			return err
@@ -109,7 +115,8 @@ func createUnikontainer(context *cli.Context) error {
 		if errors.Is(err, unikontainers.ErrQueueProxy) ||
 			errors.Is(err, unikontainers.ErrNotUnikernel) {
 			// Exec runc to handle non unikernel containers
-			return runcExec()
+			err = runcExec()
+			return err
 		}
 		return err
 	}
@@ -141,41 +148,68 @@ func createUnikontainer(context *cli.Context) error {
 		}
 	}()
 
-	// create reexec process
-	selfBinary, err := os.Executable()
+	// Create socket for nsenter
+	initSockParent, initSockChild, err := newSockPair("init")
 	if err != nil {
-		return fmt.Errorf("failed to retrieve urunc executable: %w", err)
+		err = fmt.Errorf("failed to create init socket: %w", err)
+		return err
 	}
-	myArgs := os.Args[1:]
-	myArgs = append(myArgs, "--reexec")
-	reexecCommand := &exec.Cmd{
-		Path: selfBinary,
-		Args: append([]string{selfBinary}, myArgs...),
-		SysProcAttr: &syscall.SysProcAttr{
-			Cloneflags: syscall.CLONE_NEWNET,
-		},
-		Env: os.Environ(),
+	defer func() {
+		tmpErr := initSockParent.Close()
+		if tmpErr != nil && err == nil {
+			err = fmt.Errorf("failed to close parent socket pair: %w", tmpErr)
+			return
+		}
+	}()
+
+	// Create log pipe for nsenter
+	// NOTE: We might want to switch form pipe to socketpair for logs too.
+	logPipeParent, logPipeChild, err := os.Pipe()
+	if err != nil {
+		err = fmt.Errorf("failed to create pipe for logs: %w", err)
+		return err
 	}
 
+	// get the data to send to nsenter
+	nsenterInfo, err := unikontainer.FormatNsenterInfo()
+	if err != nil {
+		err = fmt.Errorf("failed to format namespace info for nsenter: %w", err)
+		return err
+	}
+
+	// Setup reexecCommand
+	reexecCommand := createReexecCmd(initSockChild, logPipeChild)
+
+	// Create a go func to handle logs from nsenter
+	logsDone := logs.ForwardLogs(logPipeParent)
+
+	// Start reexec process
+	metrics.Capture(containerID, "TS03")
 	// setup terminal if required and start reexec process
+	// TODO: This part of code needs better rhandling. It is not the
+	// job of the urunc create to setup the terminal for reexec.
+	// The main concern is the nsenter execution before the reexec.
+	// If anythong goes wrong and we mess up with nsenter debugging
+	// is extremely hard.
 	if unikontainer.Spec.Process.Terminal {
-		metrics.Capture(containerID, "TS03")
-
 		ptm, err := pty.Start(reexecCommand)
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to create pty")
+			err = fmt.Errorf("failed to setup pty and start reexec process: %w", err)
+			return err
 		}
 		defer ptm.Close()
 		consoleSocket := context.String("console-socket")
 		conn, err := net.Dial("unix", consoleSocket)
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to dial console socket")
+			err = fmt.Errorf("failed to dial console socker: %w", err)
+			return err
 		}
 		defer conn.Close()
 
 		uc, ok := conn.(*net.UnixConn)
 		if !ok {
-			logrus.Fatal("failed to cast unix socket")
+			err = fmt.Errorf("failed to cast unix socket")
+			return err
 		}
 		defer uc.Close()
 
@@ -183,18 +217,55 @@ func createUnikontainer(context *cli.Context) error {
 		oob := unix.UnixRights(int(ptm.Fd()))
 		_, _, err = uc.WriteMsgUnix([]byte(ptm.Name()), oob, nil)
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to send PTY file descriptor over socket")
+			err = fmt.Errorf("failed to send PTY file descriptor over socket: %w", err)
+			return err
 		}
 	} else {
 		reexecCommand.Stdin = os.Stdin
 		reexecCommand.Stdout = os.Stdout
 		reexecCommand.Stderr = os.Stderr
-		metrics.Capture(containerID, "TS03")
-
 		err := reexecCommand.Start()
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to start reexec process")
+			err = fmt.Errorf("failed to start reexec process: %w", err)
+			return err
 		}
+	}
+
+	// Close child ends of sockets and pipes.
+	err = initSockChild.Close()
+	if err != nil {
+		err = fmt.Errorf("failed to close child socket pair: %w", err)
+		return err
+	}
+	err = logPipeChild.Close()
+	if err != nil {
+		err = fmt.Errorf("failed to close child log pipe: %w", err)
+		return err
+	}
+
+	// Send data to nsenter
+	_, err = io.Copy(initSockParent, nsenterInfo)
+	if err != nil {
+		err = fmt.Errorf("failed to copy nsenter info to socket: %w", err)
+		return err
+	}
+
+	// Get pids from nsenter and reap dead children
+	reexecPid, err := handleNsenterRet(initSockParent, reexecCommand)
+	if err != nil {
+		return err
+	}
+
+	if logsDone != nil {
+		defer func() {
+			// Wait for log forwarder to finish. This depends on
+			// reexec closing the _LIBCONTAINER_LOGPIPE log fd.
+			tmpErr := <-logsDone
+			if tmpErr != nil && err == nil {
+				err = fmt.Errorf("unable to forward init logs: %w", tmpErr)
+				return
+			}
+		}()
 	}
 
 	// Wait for reexec process to notify us
@@ -205,8 +276,8 @@ func createUnikontainer(context *cli.Context) error {
 	metrics.Capture(containerID, "TS07")
 
 	// Retrieve reexec cmd's pid and write to file and state
-	pid := reexecCommand.Process.Pid
-	err = unikontainer.Create(pid)
+	containerPid := reexecPid
+	err = unikontainer.Create(containerPid)
 	if err != nil {
 		return err
 	}
@@ -214,14 +285,16 @@ func createUnikontainer(context *cli.Context) error {
 	// execute CreateRuntime hooks
 	err = unikontainer.ExecuteHooks("CreateRuntime")
 	if err != nil {
-		return fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
+		err = fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
+		return err
 	}
 	metrics.Capture(containerID, "TS08")
 
 	// send ACK to reexec process
 	err = unikontainer.SendAckReexec()
 	if err != nil {
-		return fmt.Errorf("failed to send ACK to reexec process: %w", err)
+		err = fmt.Errorf("failed to send ACK to reexec process: %w", err)
+		return err
 
 	}
 	metrics.Capture(containerID, "TS09")
@@ -229,11 +302,73 @@ func createUnikontainer(context *cli.Context) error {
 	// execute CreateRuntime hooks
 	err = unikontainer.ExecuteHooks("CreateContainer")
 	if err != nil {
-		return fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
+		err = fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
+		return err
 	}
 	metrics.Capture(containerID, "TS11")
 
-	return nil
+	err = nil
+	return err
+}
+
+func createReexecCmd(initSock *os.File, logPipe *os.File) *exec.Cmd {
+	selfPath := "/proc/self/exe"
+	reexecCommand := &exec.Cmd{
+		Path: selfPath,
+		Args: append(os.Args, "--reexec"),
+		Env:  os.Environ(),
+	}
+	// Set files that we want to pass to children. In particular,
+	// we need to pass a socketpair for the communication with the nsenter
+	// and a log pipe to get logs from nsenter.
+	// NOTE: Currently we only pass two files to children. In the future
+	// we might need to refactor the following code, in case we need to
+	// pass more than just these files.
+	reexecCommand.ExtraFiles = append(reexecCommand.ExtraFiles, initSock)
+	reexecCommand.ExtraFiles = append(reexecCommand.ExtraFiles, logPipe)
+	// The hardcoded value here refers to the first open file descriptor after
+	// the stdio file descriptors. Therefore, since the initSockChild was the
+	// first file we added in ExtraFiles, its file descriptor should be 2+1=3,
+	// since 0 is stdin, 1 is stdout and 2 is stderr. Similarly, the logPipeChild
+	// should be right after initSockChild, hence 4
+	// NOTE: THis might need bette rhandling in the future.
+	reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_INITPIPE=3")
+	reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_LOGPIPE=4")
+	logLevel := strconv.Itoa(int(logrus.GetLevel()))
+	if logLevel != "" {
+		reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_LOGLEVEL="+logLevel)
+	}
+
+	return reexecCommand
+}
+
+func handleNsenterRet(initSock *os.File, reexec *exec.Cmd) (int, error) {
+	var pid struct {
+		Stage2Pid int `json:"stage2_pid"`
+		Stage1Pid int `json:"stage1_pid"`
+	}
+	decoder := json.NewDecoder(initSock)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&pid); err != nil {
+		return -1, fmt.Errorf("error reading pid from init pipe: %w", err)
+	}
+
+	// Clean up the zombie parent process
+	Stage1Process, _ := os.FindProcess(pid.Stage1Pid)
+	// Ignore the error in case the child has already been reaped for any reason
+	_, _ = Stage1Process.Wait()
+
+	status, err := reexec.Process.Wait()
+	if err != nil {
+		_ = reexec.Wait()
+		return -1, fmt.Errorf("nsenter error: %w", err)
+	}
+	if !status.Success() {
+		_ = reexec.Wait()
+		return -1, fmt.Errorf("nsenter unsuccessful exit: %w", err)
+	}
+
+	return pid.Stage2Pid, nil
 }
 
 // reexecUnikontainer gets a Unikernel struct from state.json,
@@ -246,6 +381,25 @@ func reexecUnikontainer(context *cli.Context) error {
 	// checked later. We just want it for the metrics
 	containerID := context.Args().First()
 	metrics.Capture(containerID, "TS04")
+
+	logFd, err := strconv.Atoi(os.Getenv("_LIBCONTAINER_LOGPIPE"))
+	if err != nil {
+		return fmt.Errorf("unable to convert _LIBCONTAINER_LOGPIPE: %w", err)
+	}
+	logPipe := os.NewFile(uintptr(logFd), "logpipe")
+	err = logPipe.Close()
+	if err != nil {
+		return fmt.Errorf("close log pipe: %w", err)
+	}
+	initFd, err := strconv.Atoi(os.Getenv("_LIBCONTAINER_INITPIPE"))
+	if err != nil {
+		return fmt.Errorf("unable to convert _LIBCONTAINER_INITPIPE: %w", err)
+	}
+	initPipe := os.NewFile(uintptr(initFd), "initpipe")
+	err = initPipe.Close()
+	if err != nil {
+		return fmt.Errorf("close init pipe: %w", err)
+	}
 
 	// get Unikontainer data from state.json
 	unikontainer, err := getUnikontainer(context)
@@ -270,6 +424,15 @@ func reexecUnikontainer(context *cli.Context) error {
 	}
 	metrics.Capture(containerID, "TS10")
 
+	// get Unikontainer data from state.json
+	// Reload state in order to get the pid written from urunc create
+	// TODO: We need to find a better way to synchronize and make sure
+	// the pid is written from urunc` create.
+	unikontainer, err = getUnikontainer(context)
+	if err != nil {
+		return err
+	}
+
 	// wait StartExecve message on urunc.sock from urunc start process
 	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.StartExecve)
 	if err != nil {
@@ -277,11 +440,6 @@ func reexecUnikontainer(context *cli.Context) error {
 	}
 	metrics.Capture(containerID, "TS15")
 
-	unikontainer.State.Pid = os.Getpid()
-	err = unikontainer.Create(unikontainer.State.Pid)
-	if err != nil {
-		return err
-	}
 	// execute Prestart hooks
 	err = unikontainer.ExecuteHooks("Prestart")
 	if err != nil {

@@ -38,6 +38,7 @@ header:
     - 'VERSION'
     - 'build*'
     - 'docs/CNAME'
+    - 'pkg/unikontainers/ipc_message.go'
 
   language:
     Go:
