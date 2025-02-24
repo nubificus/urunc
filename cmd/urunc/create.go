@@ -78,7 +78,8 @@ var createCommand = cli.Command{
 	},
 }
 
-// createUnikontainer creates a Unikernel struct from bundle data, initializes it's base dir and state.json,
+// createUnikontainer creates a Unikernel struct from bundle data,
+// initializes it's base dir and state.json,
 // setups terminal if required and spawns reexec process,
 // waits for reexec process to notify, executes CreateRuntime hooks,
 // sends ACK to reexec process and executes CreateContainer hooks
@@ -141,29 +142,16 @@ func createUnikontainer(context *cli.Context) error {
 		}
 	}()
 
-	// create reexec process
-	selfBinary, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to retrieve urunc executable: %w", err)
-	}
-	myArgs := os.Args[1:]
-	myArgs = append(myArgs, "--reexec")
-	reexecCommand := &exec.Cmd{
-		Path: selfBinary,
-		Args: append([]string{selfBinary}, myArgs...),
-		SysProcAttr: &syscall.SysProcAttr{
-			Cloneflags: syscall.CLONE_NEWNET,
-		},
-		Env: os.Environ(),
-	}
+	reexecCommand := createReexecCmd()
+	reexecCommand.Args = append(os.Args, "--reexec")
+	reexecCommand.Env = os.Environ()
 
+	metrics.Capture(containerID, "TS03")
 	// setup terminal if required and start reexec process
 	if unikontainer.Spec.Process.Terminal {
-		metrics.Capture(containerID, "TS03")
-
 		ptm, err := pty.Start(reexecCommand)
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to create pty")
+			logrus.WithError(err).Fatal("failed to setup pty and start reexec process")
 		}
 		defer ptm.Close()
 		consoleSocket := context.String("console-socket")
@@ -185,12 +173,11 @@ func createUnikontainer(context *cli.Context) error {
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to send PTY file descriptor over socket")
 		}
+
 	} else {
 		reexecCommand.Stdin = os.Stdin
 		reexecCommand.Stdout = os.Stdout
 		reexecCommand.Stderr = os.Stderr
-		metrics.Capture(containerID, "TS03")
-
 		err := reexecCommand.Start()
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to start reexec process")
@@ -234,6 +221,19 @@ func createUnikontainer(context *cli.Context) error {
 	metrics.Capture(containerID, "TS11")
 
 	return nil
+}
+
+func createReexecCmd() *exec.Cmd {
+	// create reexec process
+	selfPath := "/proc/self/exe"
+	reexecCommand := &exec.Cmd{
+		Path: selfPath,
+		SysProcAttr: &syscall.SysProcAttr{
+			Cloneflags: syscall.CLONE_NEWNET,
+		},
+	}
+
+	return reexecCommand
 }
 
 // reexecUnikontainer gets a Unikernel struct from state.json,

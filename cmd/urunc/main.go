@@ -31,6 +31,7 @@ import (
 	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 
 	"github.com/urfave/cli"
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
 
 const (
