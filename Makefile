@@ -48,14 +48,18 @@ SHIM_BIN       := $(BUILD_DIR)/containerd-shim-urunc-v2
 #? GO go binary to use (default: go)
 GO             ?= go
 GO_FLAGS       := GOOS=linux
-GO_FLAGS       += CGO_ENABLED=0
+CGO            ?= CGO_ENABLED=1 # Required for static building
 TEST_FLAGS     := "-count=1"
 TEST_OPTS      += -timeout 3m
+BUILD_TAGS     ?= netgo osusergo
 
 # Linking variables
 LDFLAGS_COMMON := -X main.version=$(VERSION)
-LDFLAGS_STATIC := --extldflags -static
+LDFLAGS_STATIC := -linkmode external -extldflags -static
 LDFLAGS_OPT    := -s -w
+
+# Cross compiling flags
+LDFLAGS_COMMON := -X main.version=$(VERSION)
 
 # Source files variables
 #
@@ -135,7 +139,8 @@ $(VENDOR_DIR):
 # we avoid the rebuilding of urunc if it has previously built and the
 # source files have not changed.
 $(URUNC_BIN)_static_%: $(URUNC_SRC) | prepare
-	$(GO_FLAGS) GOARCH=$* $(GO) build \
+	$(GO_FLAGS) GOARCH=$* $(CGO) $(GO) build \
+		-tags "$(BUILD_TAGS)" \
 		-ldflags "$(LDFLAGS_COMMON) $(LDFLAGS_STATIC) $(LDFLAGS_OPT)" \
 		-o $(URUNC_BIN)_static_$* $(CURDIR)/cmd/urunc
 
@@ -147,7 +152,7 @@ $(URUNC_BIN)_dynamic_%: $(URUNC_SRC) | prepare
 $(SHIM_BIN)_%: $(SHIM_SRC) | prepare
 	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' \
 		$(VENDOR_DIR)/github.com/containerd/go-runc/runc.go
-	$(GO_FLAGS) GOARCH=$* $(GO) build \
+	GOARCH=$* $(GO) build \
 		-o $(SHIM_BIN)_$* $(CURDIR)/cmd/containerd-shim-urunc-v2
 
 ## install Install urunc and shim in PREFIX
