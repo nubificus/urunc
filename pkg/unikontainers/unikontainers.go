@@ -19,10 +19,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -30,6 +32,7 @@ import (
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 	"github.com/vishvananda/netns"
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
 	"github.com/nubificus/urunc/internal/constants"
@@ -614,6 +617,205 @@ func loadUnikontainerState(stateFilePath string) (*specs.State, error) {
 		return nil, err
 	}
 	return &state, nil
+}
+
+// FormatNsenterComm encodes namespace info in netlink binary format
+// as a io.Reader, in order to send the info to nsenter.
+// The implementation is taken from:
+// https://github.com/opencontainers/runc/blob/c8737446d2f99c1b7f2fcf374a7ee5b4519b2051/libcontainer/container_linux.go#L1047
+func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
+	r := nl.NewNetlinkRequest(int(initMsg), 0)
+
+	// Our custom messages cannot bubble up an error using returns, instead
+	// they will panic with the specific error type, netlinkError. In that
+	// case, recover from the panic and return that as an error.
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(netlinkError); ok {
+				Err = e.error
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	const numNS = 8
+	var writePaths bool = false
+	var writeFlags bool = false
+	var cloneFlags int
+	var nsPaths [numNS]string // We have 8 namespaces right now
+	// We need to set the namespace paths in a specific order.
+	// The order should be: user, ipc, uts, net, pid, mount, cgroup, time
+	// Therefore, the first element of the above array holds the path of user
+	// namespace, while the last element, the time namespace path
+	// Order does not matter in clone flags
+	for _, ns := range u.Spec.Linux.Namespaces {
+		// If the path is empty, the we have to create it.
+		// Otherwise, we store the path to the respective eleemnt
+		// of the array.
+		switch ns.Type {
+		case specs.UserNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWUSER
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[0] = "user:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.IPCNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWIPC
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[1] = "ipc:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.UTSNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWUTS
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[2] = "uts:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.NetworkNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWNET
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[3] = "net:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.PIDNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWPID
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[4] = "pid:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.MountNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWNS
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[5] = "mnt:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.CgroupNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWCGROUP
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[6] = "cgroup:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.TimeNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWTIME
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err != nil {
+					nsPaths[7] = "time:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		default:
+			Log.Warn("Unsupported namespace: %s. It will get ignored", ns.Type)
+			continue
+		}
+		if ns.Path == "" {
+			writeFlags = true
+		} else {
+			writePaths = true
+		}
+	}
+
+	if writeFlags {
+		r.AddData(&int32msg{
+			Type:  cloneFlagsAttr,
+			Value: uint32(cloneFlags),
+		})
+	}
+
+	var nsStringBuilder strings.Builder
+	if writePaths {
+		for i := 0; i < numNS; i++ {
+			if nsPaths[i] != "" {
+				if nsStringBuilder.Len() > 0 {
+					nsStringBuilder.WriteString(",")
+				}
+				nsStringBuilder.WriteString(nsPaths[i])
+			}
+		}
+
+		r.AddData(&bytemsg{
+			Type:  nsPathsAttr,
+			Value: []byte(nsStringBuilder.String()),
+		})
+
+	}
+
+	// Setup uid/gid mappings only in the case we need to create a new
+	// user namespace. As far as I understand (and I might be very wrong),
+	// we cna set up the uid/gid mappings only once in a user namespace.
+	// Therefore, if we enter a user namespace and try to set the uid/gid
+	// mappings, we will get EPERM. Therefore, it is important to note that
+	// according to runc, when the config instructs us to use an existing
+	// user namespace, the uid/gid mappings should be empty and hence
+	// inherit the ones that are already set. Check:
+	// https://github.com/opencontainers/runc/blob/e0e22d33eabc4dc280b7ca0810ed23049afdd370/libcontainer/specconv/spec_linux.go#L1036
+
+	if nsPaths[0] == "" {
+		// write uid mappings
+		if len(u.Spec.Linux.UIDMappings) > 0 {
+			// TODO: Rootless
+			b, err := encodeIDMapping(u.Spec.Linux.UIDMappings)
+			if err != nil {
+				return nil, err
+			}
+			r.AddData(&bytemsg{
+				Type:  uidmapAttr,
+				Value: b,
+			})
+		}
+		// write gid mappings
+		if len(u.Spec.Linux.GIDMappings) > 0 {
+			b, err := encodeIDMapping(u.Spec.Linux.GIDMappings)
+			if err != nil {
+				return nil, err
+			}
+			r.AddData(&bytemsg{
+				Type:  gidmapAttr,
+				Value: b,
+			})
+			// TODO: Rootless
+		}
+	}
+
+	return bytes.NewReader(r.Serialize()), nil
 }
 
 func (u *Unikontainer) GetInitSockAddr() string {

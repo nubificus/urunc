@@ -15,6 +15,7 @@
 package unikontainers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -179,4 +180,29 @@ func handleQueueProxy(spec specs.Spec, configFile string) error {
 func remove(s []string, i int) []string {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
+}
+
+func checkValidNsPath(path string) error {
+	// only set to join this namespace if it exists
+	if _, err := os.Lstat(path); err != nil {
+		return fmt.Errorf("namespace path: %w", err)
+	}
+	// do not allow namespace path with comma as we use it to separate
+	// the namespace paths
+	if strings.ContainsRune(path, ',') {
+		return fmt.Errorf("invalid namespace path %s", path)
+	}
+
+	return nil
+}
+
+func encodeIDMapping(idMap []specs.LinuxIDMapping) ([]byte, error) {
+	data := bytes.NewBuffer(nil)
+	for _, im := range idMap {
+		line := fmt.Sprintf("%d %d %d\n", im.ContainerID, im.HostID, im.Size)
+		if _, err := data.WriteString(line); err != nil {
+			return nil, err
+		}
+	}
+	return data.Bytes(), nil
 }
