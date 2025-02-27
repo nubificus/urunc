@@ -192,7 +192,9 @@ func (u *Unikontainer) Exec() error {
 	// Check if memory limit was not set
 	if u.Spec.Linux.Resources.Memory != nil {
 		if u.Spec.Linux.Resources.Memory.Limit != nil {
-			vmmArgs.MemSizeB = uint64(*u.Spec.Linux.Resources.Memory.Limit)
+			if *u.Spec.Linux.Resources.Memory.Limit > 0 {
+				vmmArgs.MemSizeB = uint64(*u.Spec.Linux.Resources.Memory.Limit) // nolint:gosec
+			}
 		}
 	}
 
@@ -472,7 +474,8 @@ func (u *Unikontainer) executeHooksConcurrently(name string) error {
 		return nil
 	}
 	hooks := map[string][]specs.Hook{
-		"Prestart":        u.Spec.Hooks.Prestart,
+		// TODO: Prestart is deprecated
+		"Prestart":        u.Spec.Hooks.Prestart, // nolint:staticcheck
 		"CreateRuntime":   u.Spec.Hooks.CreateRuntime,
 		"CreateContainer": u.Spec.Hooks.CreateContainer,
 		"StartContainer":  u.Spec.Hooks.StartContainer,
@@ -553,7 +556,8 @@ func (u *Unikontainer) executeHooksSequentially(name string) error {
 	}
 
 	hooks := map[string][]specs.Hook{
-		"Prestart":        u.Spec.Hooks.Prestart,
+		// TODO: Prestart is deprecated
+		"Prestart":        u.Spec.Hooks.Prestart, // nolint:staticcheck
 		"CreateRuntime":   u.Spec.Hooks.CreateRuntime,
 		"CreateContainer": u.Spec.Hooks.CreateContainer,
 		"StartContainer":  u.Spec.Hooks.StartContainer,
