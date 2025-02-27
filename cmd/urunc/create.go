@@ -382,6 +382,15 @@ func reexecUnikontainer(context *cli.Context) error {
 	}
 	metrics.Capture(containerID, "TS10")
 
+	// get Unikontainer data from state.json
+	// Reload state in order to get the pid written from urunc create
+	// TODO: We need to find a better way to synchronize and make sure
+	// the pid is written from urunc` create.
+	unikontainer, err = getUnikontainer(context)
+	if err != nil {
+		return err
+	}
+
 	// wait StartExecve message on urunc.sock from urunc start process
 	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.StartExecve)
 	if err != nil {
@@ -389,11 +398,6 @@ func reexecUnikontainer(context *cli.Context) error {
 	}
 	metrics.Capture(containerID, "TS15")
 
-	unikontainer.State.Pid = os.Getpid()
-	err = unikontainer.Create(unikontainer.State.Pid)
-	if err != nil {
-		return err
-	}
 	// execute Prestart hooks
 	err = unikontainer.ExecuteHooks("Prestart")
 	if err != nil {

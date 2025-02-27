@@ -318,7 +318,6 @@ func (u *Unikontainer) Exec() error {
 
 	// update urunc.json state
 	u.State.Status = "running"
-	u.State.Pid = os.Getpid()
 	err = u.saveContainerState()
 	if err != nil {
 		return err
