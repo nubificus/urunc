@@ -52,7 +52,7 @@ jobs:
 
     - name: Build urunc binaries
       run: |
-        make all
+        make
 
     - name: Upload urunc_aarch64 to S3
       if: matrix.archconfig == 'aarch64'

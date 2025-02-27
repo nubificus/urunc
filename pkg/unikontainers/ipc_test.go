@@ -119,7 +119,7 @@ func testSendIPCMessageHelper(t *testing.T, socketAddress string, message IPCMes
 	select {
 	case err := <-errChan:
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("Test timed out")
