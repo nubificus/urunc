@@ -33,13 +33,6 @@ func TestGetSockAddr(t *testing.T) {
 	assert.Equal(t, expected, result, "Expected %s, but got %s", expected, result)
 }
 
-func TestGetInitSockAddr(t *testing.T) {
-	containerDir := "/tmp/container"
-	expected := filepath.Join(containerDir, initSock)
-	result := getInitSockAddr(containerDir)
-	assert.Equal(t, expected, result, "Expected %s, but got %s", expected, result)
-}
-
 func TestGetUruncSockAddr(t *testing.T) {
 	containerDir := "/tmp/container"
 	expected := filepath.Join(containerDir, uruncSock)
