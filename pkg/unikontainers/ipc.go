@@ -29,7 +29,6 @@ import (
 type IPCMessage string
 
 const (
-	initSock                 = "init.sock"
 	uruncSock                = "urunc.sock"
 	ReexecStarted IPCMessage = "BOOTED"
 	AckReexec     IPCMessage = "ACK"
@@ -40,10 +39,6 @@ const (
 
 func getSockAddr(dir string, name string) string {
 	return filepath.Join(dir, name)
-}
-
-func getInitSockAddr(containerDir string) string {
-	return getSockAddr(containerDir, initSock)
 }
 
 func getUruncSockAddr(containerDir string) string {
