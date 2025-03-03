@@ -17,21 +17,20 @@ The timestamps currently depicting each unikernel container execution are the fo
 | TS02         | create  | initial setup completed                       |
 | TS03         | create  | start reexec process (with or without pty)    |
 | TS04         | reexec  | `urunc create --reexec` was invoked           |
-| TS05         | reexec  | unikontainer struct created from spec         |
-| TS06         | reexec  | sent `BOOTED` IPC message to `create` process |
-| TS07         | create  | received `BOOTED` message from `reexec`       |
-| TS08         | create  | executed `CreateRuntime` hooks                |
-| TS09         | create  | sent `ACK` IPC message to `reexec` process    |
-| TS10         | reexec  | received `ACK` message from `create`          |
-| TS11         | create  | `urunc create` terminated                     |
-| TS12         | start   | `urunc start` was invoked                     |
-| TS13         | start   | unikontainer struct created from spec         |
-| TS14         | start   | sent `START` IPC message to `reexec`          |
-| TS15         | reexec  | received `START` message from `start`         |
-| TS16         | reexec  | joined sandbox network namespace              |
-| TS17         | reexec  | network setup completed                       |
-| TS18         | reexec  | disk setup completed                          |
-| TS19         | reexec  | `execve` the hypervisor process               |
+| TS05         | reexec  | close nsenter pipes and setup base dir        |
+| TS06         | create  | received pids from nsenter                    |
+| TS07         | create  | executed `CreateRuntime` hooks                |
+| TS08         | create  | sent `ACK` IPC message to `reexec` process    |
+| TS09         | reexec  | received `ACK` message from `create`          |
+| TS10         | create  | `urunc create` terminated                     |
+| TS11         | start   | `urunc start` was invoked                     |
+| TS12         | start   | unikontainer struct created from spec         |
+| TS13         | start   | sent `START` IPC message to `reexec`          |
+| TS14         | reexec  | received `START` message from `start`         |
+| TS15         | reexec  | joined sandbox network namespace              |
+| TS16         | reexec  | network setup completed                       |
+| TS17         | reexec  | disk setup completed                          |
+| TS18         | reexec  | `execve` the hypervisor process               |
 
 ## Timestamping logging method
 
