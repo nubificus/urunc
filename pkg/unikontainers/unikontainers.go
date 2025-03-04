@@ -32,7 +32,6 @@ import (
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
 	"github.com/vishvananda/netlink/nl"
-	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
 	"github.com/nubificus/urunc/internal/constants"
@@ -148,11 +147,6 @@ func (u *Unikontainer) Create(pid int) error {
 func (u *Unikontainer) Exec() error {
 	// FIXME: We need to find a way to set the output file
 	var metrics = m.NewZerologMetrics(constants.TimestampTargetFile)
-	err := u.joinSandboxNetNs()
-	if err != nil {
-		return err
-	}
-
 	metrics.Capture(u.State.ID, "TS15")
 
 	vmmType := u.State.Annotations[annotHypervisor]
@@ -404,32 +398,51 @@ func (u *Unikontainer) Delete() error {
 	return os.RemoveAll(u.BaseDir)
 }
 
-// joinSandboxNetns finds the sandbox id of the container, retrieves the sandbox's init pid,
-// finds the init pid netns and joins it
+// joinSandboxNetns joins the network namespace of the sandbox (pause container).
+// This function should be called only from a locked thread
+// (i.e. runtime. LockOSThread())
 func (u Unikontainer) joinSandboxNetNs() error {
-	sandboxID := u.Spec.Annotations["io.kubernetes.cri.sandbox-id"]
-	if sandboxID == "" {
-		return nil
+	var netNsPath string
+	// We want enter the network namespace of the container.
+	// There are two possibilities:
+	// 1. The unikernel was running inside a Pod and hence we need to join
+	//    the namespace of the pause container
+	// 2. The unikernel was running in its own network namespace (typical
+	//    in docker, nerdctl etc.). If that is the case, then when the
+	//    unikernel dies/exits the namespace will also die, since there will
+	//    not be any process in that namespace. Therefore, the cleanup will
+	//    happen automatically and we do not need to care about that.
+	// Therefore, focus only in the first case above.
+	for _, ns := range u.Spec.Linux.Namespaces {
+		if ns.Type == specs.NetworkNamespace {
+			if ns.Path == "" {
+				// We had to create the network namespace, when
+				// creating the container. Therefore, the namespace
+				// will die along with the unikernel.
+				return nil
+			}
+			err := checkValidNsPath(ns.Path)
+			if err == nil {
+				netNsPath = ns.Path
+			} else {
+				return err
+			}
+			break
+		}
 	}
-	containerDir := filepath.Join(u.RootDir, sandboxID)
-	stateFilePath := filepath.Join(containerDir, stateFilename)
-	sandboxInitPid, err := getInitPid(stateFilePath)
-	if err != nil {
-		return err
-	}
-	sandboxInitNetns, err := netns.GetFromPid(int(sandboxInitPid))
-	if err != nil {
-		return err
-	}
+
 	Log.WithFields(logrus.Fields{
-		"sandboxInitPid":   sandboxInitPid,
-		"sandboxInitNetns": sandboxInitNetns,
-	}).Info("Joining sandbox's netns")
-	err = netns.Set(sandboxInitNetns)
+		"path": netNsPath,
+	}).Info("Joining network namespace")
+	fd, err := unix.Open(netNsPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error opening namespace path: %w", err)
 	}
-	Log.Info("Joined sandbox's netns")
+	err = unix.Setns(int(fd), unix.CLONE_NEWNET)
+	if err != nil {
+		return fmt.Errorf("Error joining namespace: %w", err)
+	}
+	Log.Info("Joined network namespace")
 	return nil
 }
 
