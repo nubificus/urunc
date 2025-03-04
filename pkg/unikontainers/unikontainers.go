@@ -662,7 +662,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 		//		cloneFlags |= unix.CLONE_NEWUSER
 		//	} else {
 		//		err := checkValidNsPath(ns.Path)
-		//		if err != nil {
+		//		if err == nil {
 		//			nsPaths[0] = "user:" + ns.Path
 		//		} else {
 		//			return nil, err
@@ -673,7 +673,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWIPC
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[1] = "ipc:" + ns.Path
 				} else {
 					return nil, err
@@ -684,7 +684,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWUTS
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[2] = "uts:" + ns.Path
 				} else {
 					return nil, err
@@ -695,7 +695,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWNET
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[3] = "net:" + ns.Path
 				} else {
 					return nil, err
@@ -706,7 +706,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWPID
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[4] = "pid:" + ns.Path
 				} else {
 					return nil, err
@@ -717,7 +717,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWNS
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[5] = "mnt:" + ns.Path
 				} else {
 					return nil, err
@@ -728,7 +728,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWCGROUP
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[6] = "cgroup:" + ns.Path
 				} else {
 					return nil, err
@@ -739,7 +739,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				cloneFlags |= unix.CLONE_NEWTIME
 			} else {
 				err := checkValidNsPath(ns.Path)
-				if err != nil {
+				if err == nil {
 					nsPaths[7] = "time:" + ns.Path
 				} else {
 					return nil, err
@@ -791,32 +791,33 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 	// inherit the ones that are already set. Check:
 	// https://github.com/opencontainers/runc/blob/e0e22d33eabc4dc280b7ca0810ed23049afdd370/libcontainer/specconv/spec_linux.go#L1036
 
-	if nsPaths[0] == "" {
-		// write uid mappings
-		if len(u.Spec.Linux.UIDMappings) > 0 {
-			// TODO: Rootless
-			b, err := encodeIDMapping(u.Spec.Linux.UIDMappings)
-			if err != nil {
-				return nil, err
-			}
-			r.AddData(&bytemsg{
-				Type:  uidmapAttr,
-				Value: b,
-			})
-		}
-		// write gid mappings
-		if len(u.Spec.Linux.GIDMappings) > 0 {
-			b, err := encodeIDMapping(u.Spec.Linux.GIDMappings)
-			if err != nil {
-				return nil, err
-			}
-			r.AddData(&bytemsg{
-				Type:  gidmapAttr,
-				Value: b,
-			})
-			// TODO: Rootless
-		}
-	}
+	// TODO: Add it when we add user namesapces
+	//if nsPaths[0] == "" {
+	//	// write uid mappings
+	//	if len(u.Spec.Linux.UIDMappings) > 0 {
+	//		// TODO: Rootless
+	//		b, err := encodeIDMapping(u.Spec.Linux.UIDMappings)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		r.AddData(&bytemsg{
+	//			Type:  uidmapAttr,
+	//			Value: b,
+	//		})
+	//	}
+	//	// write gid mappings
+	//	if len(u.Spec.Linux.GIDMappings) > 0 {
+	//		b, err := encodeIDMapping(u.Spec.Linux.GIDMappings)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		r.AddData(&bytemsg{
+	//			Type:  gidmapAttr,
+	//			Value: b,
+	//		})
+	//		// TODO: Rootless
+	//	}
+	//}
 
 	return bytes.NewReader(r.Serialize()), nil
 }
