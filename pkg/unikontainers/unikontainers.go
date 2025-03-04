@@ -653,17 +653,21 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 		// Otherwise, we store the path to the respective eleemnt
 		// of the array.
 		switch ns.Type {
-		case specs.UserNamespace:
-			if ns.Path == "" {
-				cloneFlags |= unix.CLONE_NEWUSER
-			} else {
-				err := checkValidNsPath(ns.Path)
-				if err != nil {
-					nsPaths[0] = "user:" + ns.Path
-				} else {
-					return nil, err
-				}
-			}
+		// Comment out User namespace for the time being and just ignore them
+		// They require better handling for cleaning up and we will address
+		// it in another iteration.
+		// TODO User namespace
+		//case specs.UserNamespace:
+		//	if ns.Path == "" {
+		//		cloneFlags |= unix.CLONE_NEWUSER
+		//	} else {
+		//		err := checkValidNsPath(ns.Path)
+		//		if err != nil {
+		//			nsPaths[0] = "user:" + ns.Path
+		//		} else {
+		//			return nil, err
+		//		}
+		//	}
 		case specs.IPCNamespace:
 			if ns.Path == "" {
 				cloneFlags |= unix.CLONE_NEWIPC
