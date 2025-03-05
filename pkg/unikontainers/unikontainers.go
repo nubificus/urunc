@@ -153,7 +153,7 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 
-	metrics.Capture(u.State.ID, "TS16")
+	metrics.Capture(u.State.ID, "TS15")
 
 	vmmType := u.State.Annotations[annotHypervisor]
 	unikernelType := u.State.Annotations[annotType]
@@ -221,7 +221,7 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		Log.Errorf("Failed to setup network :%v. Possibly due to ctr", err)
 	}
-	metrics.Capture(u.State.ID, "TS17")
+	metrics.Capture(u.State.ID, "TS16")
 
 	// if network info is nil, we didn't find eth0, so we are running with ctr
 	if networkInfo != nil {
@@ -289,7 +289,7 @@ func (u *Unikontainer) Exec() error {
 			vmmArgs.BlockDevice = rootFsDevice.Device
 		}
 	}
-	metrics.Capture(u.State.ID, "TS18")
+	metrics.Capture(u.State.ID, "TS17")
 
 	// Set CWD the rootfs of the container
 	err = os.Chdir(rootfsDir)
@@ -329,7 +329,7 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 	Log.Info("calling vmm execve")
-	metrics.Capture(u.State.ID, "TS19")
+	metrics.Capture(u.State.ID, "TS18")
 
 	// metrics.Wait()
 	return vmm.Execve(vmmArgs, unikernel)
@@ -822,17 +822,13 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 	return bytes.NewReader(r.Serialize()), nil
 }
 
-func (u *Unikontainer) GetInitSockAddr() string {
-	return getSockAddr(u.BaseDir, initSock)
-}
-
-func (u *Unikontainer) GetUruncSockAddr() string {
-	return getSockAddr(u.BaseDir, uruncSock)
+func GetUruncSockAddr(baseDir string) string {
+	return getSockAddr(baseDir, uruncSock)
 }
 
 // ListeAndAwaitMsg opens a new connection to UruncSock and
 // waits for the expectedMsg message
-func (u *Unikontainer) ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error {
+func ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error {
 	listener, err := CreateListener(sockAddr, true)
 	if err != nil {
 		return err
@@ -850,12 +846,6 @@ func (u *Unikontainer) ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error 
 		}
 	}()
 	return AwaitMessage(listener, msg)
-}
-
-// SendReexecStarted sends an ReexecStarted message to InitSock
-func (u *Unikontainer) SendReexecStarted() error {
-	sockAddr := getInitSockAddr(u.BaseDir)
-	return sendIPCMessageWithRetry(sockAddr, ReexecStarted, true)
 }
 
 // SendAckReexec sends an AckReexec message to UruncSock

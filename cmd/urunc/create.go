@@ -18,11 +18,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"io"
 	"net"
 	"os"
 	"os/exec"
-	"syscall"
 	"strconv"
 
 	"github.com/creack/pty"
@@ -126,25 +126,6 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 	}
 
 	metrics.Capture(containerID, "TS02")
-
-	// Setup a listener for init socket before the creation of reexec process
-	sockAddr := unikontainer.GetInitSockAddr()
-	listener, err := unikontainers.CreateListener(sockAddr, true)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = listener.Close()
-		if err != nil {
-			logrus.WithError(err).Error("failed to close listener")
-		}
-	}()
-	defer func() {
-		err = syscall.Unlink(sockAddr)
-		if err != nil {
-			logrus.WithError(err).Errorf("failed to unlink %s", sockAddr)
-		}
-	}()
 
 	// Create socket for nsenter
 	initSockParent, initSockChild, err := newSockPair("init")
@@ -254,18 +235,11 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 		}()
 	}
 
-	// Wait for reexec process to notify us
-	err = unikontainers.AwaitMessage(listener, unikontainers.ReexecStarted)
-	if err != nil {
-		return err
-	}
-	metrics.Capture(containerID, "TS07")
-
 	// Retrieve reexec cmd's pid and write to file and state
 	containerPid := reexecPid
+	metrics.Capture(containerID, "TS06")
+
 	err = unikontainer.Create(containerPid)
-	//pid := reexecCommand.Process.Pid
-	//err = unikontainer.Create(pid)
 	if err != nil {
 		return err
 	}
@@ -275,7 +249,7 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
 	}
-	metrics.Capture(containerID, "TS08")
+	metrics.Capture(containerID, "TS07")
 
 	// send ACK to reexec process
 	err = unikontainer.SendAckReexec()
@@ -283,14 +257,14 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 		return fmt.Errorf("failed to send ACK to reexec process: %w", err)
 
 	}
-	metrics.Capture(containerID, "TS09")
+	metrics.Capture(containerID, "TS08")
 
 	// execute CreateRuntime hooks
 	err = unikontainer.ExecuteHooks("CreateContainer")
 	if err != nil {
 		return fmt.Errorf("failed to execute CreateRuntime hooks: %w", err)
 	}
-	metrics.Capture(containerID, "TS11")
+	metrics.Capture(containerID, "TS10")
 
 	return nil
 }
@@ -385,44 +359,34 @@ func reexecUnikontainer(context *cli.Context) error {
 		return fmt.Errorf("close init pipe: %w", err)
 	}
 
+	// We have already made sure in main.go that root is not nil
+	rootDir := context.GlobalString("root")
+	baseDir := filepath.Join(rootDir, containerID)
+
+	metrics.Capture(containerID, "TS05")
+
+	// wait AckReexec message on urunc.sock from parent process
+	socketPath := unikontainers.GetUruncSockAddr(baseDir)
+	err = unikontainers.ListenAndAwaitMsg(socketPath, unikontainers.AckReexec)
+	if err != nil {
+		return err
+	}
+	metrics.Capture(containerID, "TS09")
+
 	// get Unikontainer data from state.json
+	// TODO: We need to find a better way to synchronize and make sure
+	// the pid is written from urunc` create.
 	unikontainer, err := getUnikontainer(context)
 	if err != nil {
 		return err
 	}
 
-	metrics.Capture(containerID, "TS05")
-
-	// send ReexecStarted message to init.sock to parent process
-	err = unikontainer.SendReexecStarted()
-	if err != nil {
-		return err
-	}
-	metrics.Capture(containerID, "TS06")
-
-	// wait AckReexec message on urunc.sock from parent process
-	socketPath := unikontainer.GetUruncSockAddr()
-	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.AckReexec)
-	if err != nil {
-		return err
-	}
-	metrics.Capture(containerID, "TS10")
-
-	// get Unikontainer data from state.json
-	// Reload state in order to get the pid written from urunc create
-	// TODO: We need to find a better way to synchronize and make sure
-	// the pid is written from urunc` create.
-	unikontainer, err = getUnikontainer(context)
-	if err != nil {
-		return err
-	}
-
 	// wait StartExecve message on urunc.sock from urunc start process
-	err = unikontainer.ListenAndAwaitMsg(socketPath, unikontainers.StartExecve)
+	err = unikontainers.ListenAndAwaitMsg(socketPath, unikontainers.StartExecve)
 	if err != nil {
 		return err
 	}
-	metrics.Capture(containerID, "TS15")
+	metrics.Capture(containerID, "TS14")
 
 	// execute Prestart hooks
 	err = unikontainer.ExecuteHooks("Prestart")
