@@ -15,15 +15,19 @@
 package urunce2etesting
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/vishvananda/netns"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var matchTest testMethod
@@ -47,6 +51,98 @@ func seccompTest(tool testTool) error {
 	} else {
 		if args.Seccomp {
 			return fmt.Errorf("Seccomp should be enabled")
+		}
+	}
+
+	return nil
+}
+
+func namespaceTest(tool testTool) error {
+	// We need to retrieve the container's config, in order to get 
+	// the neamspaces that the container should have joined.
+	containerID := tool.getContainerID()
+	// Try /run/containerd/io.containerd.runtime.v2.task/default/containerID first
+	configPath := filepath.Join("/var/run/containerd/io.containerd.runtime.v2.task/default/", containerID, "/config.json")
+	_, err := os.Stat(configPath)
+	if os.IsNotExist(err) {
+		configPath = filepath.Join("/var/run/containerd/io.containerd.runtime.v2.task/k8s.io/", containerID, "/config.json")
+		_, err = os.Stat(configPath)
+		if os.IsNotExist(err) {
+			configPath = filepath.Join("/var/run/containerd/io.containerd.runtime.v2.task/moby/", containerID, "/config.json")
+			_, err = os.Stat(configPath)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("Could not retrieve container's config file")
+	}
+
+	var spec specs.Spec
+	specData, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read specification: %w", err)
+	}
+	if err := json.Unmarshal(specData, &spec); err != nil {
+		return fmt.Errorf("failed to parse specification json: %w", err)
+	}
+
+	unikernelPID, err := tool.inspectCAndGet("pid")
+	if err != nil {
+		return fmt.Errorf("Failed to extract unikernel PID: %v", err)
+	}
+	cntrNsMap, err := getProcNS(unikernelPID)
+	if err != nil {
+		return fmt.Errorf("failed to get namespaces of unikernel: %w", err)
+	}
+
+	selfNsMap, err := getProcNS("self")
+	if err != nil {
+		return fmt.Errorf("failed to get namespaces of current process: %w", err)
+	}
+
+	for _, ns := range spec.Linux.Namespaces {
+		switch ns.Type {
+		case specs.UserNamespace:
+			err = compareNS(cntrNsMap["user"], selfNsMap["user"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("user: %w", err)
+			}
+		case specs.IPCNamespace:
+			err = compareNS(cntrNsMap["ipc"], selfNsMap["ipc"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("ipc: %w", err)
+			}
+		case specs.UTSNamespace:
+			err = compareNS(cntrNsMap["uts"], selfNsMap["uts"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("uts: %w", err)
+			}
+		case specs.NetworkNamespace:
+			err = compareNS(cntrNsMap["net"], selfNsMap["net"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("net: %w", err)
+			}
+		case specs.PIDNamespace:
+			err = compareNS(cntrNsMap["pid"], selfNsMap["pid"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("pid: %w", err)
+			}
+		case specs.MountNamespace:
+			err = compareNS(cntrNsMap["mnt"], selfNsMap["mnt"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("mnt: %w", err)
+			}
+		case specs.CgroupNamespace:
+			err = compareNS(cntrNsMap["cgroup"], selfNsMap["cgroup"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("cgroup: %w", err)
+			}
+		case specs.TimeNamespace:
+			err = compareNS(cntrNsMap["uts"], selfNsMap["uts"], ns.Path)
+			if err != nil {
+				return fmt.Errorf("uts: %w", err)
+			}
+		default:
+			continue
 		}
 	}
 
