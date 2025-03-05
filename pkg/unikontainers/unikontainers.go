@@ -746,7 +746,7 @@ func (u *Unikontainer) FormatNsenterComm() (rdr io.Reader, Err error) {
 				}
 			}
 		default:
-			Log.Warn("Unsupported namespace: %s. It will get ignored", ns.Type)
+			Log.Warn("Unsupported namespace: ", ns.Type, "% .It will get ignored")
 			continue
 		}
 		if ns.Path == "" {
