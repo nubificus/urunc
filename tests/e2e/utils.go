@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -44,6 +45,67 @@ func pingUnikernel(ipAddress string) error {
 	return nil
 }
 
+func compareNS(cntr string, defNS string, specPath string) error {
+	if specPath == "" {
+		if cntr == defNS {
+			return fmt.Errorf("Unikernel's namespace is the default")
+		}
+	} else {
+		nsLink, err := os.Readlink(specPath)
+		if err != nil {
+			return err
+		}
+		if cntr != nsLink {
+			return fmt.Errorf("Unikernel's namespace differs from spec's namespace")
+		}
+	}
+
+	return nil
+}
+
+func getProcNS(proc string) (map[string]string, error) {
+	procPath := filepath.Join("/proc", proc, "ns")
+	ns := make(map[string]string)
+	cgroupPath := filepath.Join(procPath, "cgroup")
+	var err error
+	ns["cgroup"], err = os.Readlink(cgroupPath)
+	if err != nil {
+		return nil, err
+	}
+	ipcPath := filepath.Join(procPath, "ipc")
+	ns["ipc"], err = os.Readlink(ipcPath)
+	if err != nil {
+		return nil, err
+	}
+	mntPath := filepath.Join(procPath, "mnt")
+	ns["mnt"], err = os.Readlink(mntPath)
+	if err != nil {
+		return nil, err
+	}
+	netPath := filepath.Join(procPath, "net")
+	ns["net"], err = os.Readlink(netPath)
+	if err != nil {
+		return nil, err
+	}
+	pidPath := filepath.Join(procPath, "pid")
+	ns["pid"], err = os.Readlink(pidPath)
+	if err != nil {
+		return nil, err
+	}
+	userPath := filepath.Join(procPath, "user")
+	ns["user"], err = os.Readlink(userPath)
+	if err != nil {
+		return nil, err
+	}
+	utsPath := filepath.Join(procPath, "uts")
+	ns["uts"], err = os.Readlink(utsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return ns, nil
+}
+
 func verifyNoStaleFiles(containerID string) error {
 	// Check /run/containerd/runc/default/containerID directory does not exist
 	dirPath := "/run/containerd/runc/default/" + containerID
@@ -60,14 +122,14 @@ func verifyNoStaleFiles(containerID string) error {
 	}
 
 	// Check /run/containerd/io.containerd.runtime.v2.task/default/containerID directory does not exist
-	dirPath = "run/containerd/io.containerd.runtime.v2.task/default/" + containerID
+	dirPath = "/var/run/containerd/io.containerd.runtime.v2.task/default/" + containerID
 	_, err = os.Stat(dirPath)
 	if !os.IsNotExist(err) {
 		return fmt.Errorf("bundle directory %s still exists", dirPath)
 	}
 
 	// Check /run/containerd/io.containerd.runtime.v2.task/k8s.io/containerID directory does not exist
-	dirPath = "run/containerd/io.containerd.runtime.v2.task/k8s.io/" + containerID
+	dirPath = "/var/run/containerd/io.containerd.runtime.v2.task/k8s.io/" + containerID
 	_, err = os.Stat(dirPath)
 	if !os.IsNotExist(err) {
 		return fmt.Errorf("bundle directory %s still exists", dirPath)

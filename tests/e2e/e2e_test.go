@@ -151,6 +151,16 @@ func TestNerdctl(t *testing.T) {
 			Skippable:      false,
 			TestFunc:       seccompTest,
 		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:           "Firecracker-unikraft-namespaces",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       namespaceTest,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -269,6 +279,16 @@ func TestCrictl(t *testing.T) {
 			Skippable:      false,
 			TestFunc:       httpStaticNetTest,
 		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:           "Firecracker-unikraft-namespaces",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       namespaceTest,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -349,6 +369,16 @@ func TestDocker(t *testing.T) {
 			SideContainers: []string{},
 			Skippable:      false,
 			TestFunc:       seccompTest,
+		},
+		{
+			Image:          "harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest",
+			Name:           "Firecracker-unikraft-namespaces",
+			Devmapper:      false,
+			Seccomp:        true,
+			StaticNet:      false,
+			SideContainers: []string{},
+			Skippable:      false,
+			TestFunc:       namespaceTest,
 		},
 	}
 	for _, tc := range tests {
