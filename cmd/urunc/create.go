@@ -242,12 +242,10 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 		logrus.WithError(err).Errorf("failed to close child socket pair")
 	}
 
-	if nsenterInfo != nil {
-		wbytes, err := io.Copy(initSockParent, nsenterInfo)
-		logrus.Info("Wrote ", wbytes)
-		if err != nil {
-			return fmt.Errorf("error copying nsenter info to pipe: %w", err)
-		}
+	// Send data to nsenter 
+	_, err = io.Copy(initSockParent, nsenterInfo)
+	if err != nil {
+		return fmt.Errorf("error copying nsenter info to pipe: %w", err)
 	}
 
 	//data, _ := io.ReadAll(initSockParent) // Read raw data
