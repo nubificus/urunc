@@ -146,6 +146,7 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 		}
 	}()
 
+	// Create socket for nsenter
 	initSockParent, initSockChild, err := newSockPair("init")
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create init sockpair")
@@ -157,46 +158,33 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 		}
 	}()
 
+	// Create log pipe for nsenter
 	// NOTE: We might want to switch form pipe to socketpair for logs too.
 	logPipeParent, logPipeChild, err := os.Pipe()
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create pipe for logs")
 	}
-	selfPath := "/proc/self/exe"
-	reexecCommand := &exec.Cmd{
-		Path: selfPath,
-		Args: append(os.Args, "--reexec"),
-		Env: os.Environ(),
-	}
-	// Set files that we want to pass to children. In particular,
-	// we need to pass a socketpair for the communication with the nsenter
-	// and a log pipe to get logs from nsenter.
-	// NOTE: Currently we only pass two files to children. In the future
-	// we might need to refactor the following code, in case we need to
-	// pass more than just these files.
-	reexecCommand.ExtraFiles =  append(reexecCommand.ExtraFiles, initSockChild)
-	reexecCommand.ExtraFiles =  append(reexecCommand.ExtraFiles, logPipeChild)
-	// The hardcoded value here refers to the first open file descriptor after
-	// the stdio file descriptors. Therefore, since the initSockChild was the
-	// first file we addedd in ExtraFiles, its file descriptor should be 2+1=3,
-	// since 0 is stdin, 1 is stdout and 2 is stderr. Similarly, the logPipeChild
-	// should be right after initSockChild, hence 4
-	// NOTE: THis might need bette rhandling in the future.
-	reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_INITPIPE=3")
-	reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_LOGPIPE=4")
-	logLevel := strconv.Itoa(int(logrus.GetLevel()))
-	if logLevel != "" {
-		reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_LOGLEVEL="+logLevel)
-	}
 
-	logsDone := logs.ForwardLogs(logPipeParent)
+	// get the data to send to nsenter
 	nsenterInfo, err := unikontainer.FormatNsenterComm()
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to format data for nsenter")
 	}
 
+	// Setup reexecCommand
+	reexecCommand := createReexecCmd(initSockChild, logPipeChild)
+
+	// Create a go func for logs from nsenter
+	logsDone := logs.ForwardLogs(logPipeParent)
+
+	// Start reexec process
 	metrics.Capture(containerID, "TS03")
 	// setup terminal if required and start reexec process
+	// TODO: This part of code needs bette rhandling. It is not the
+	// job of the urunc create to setup the terminal for reexec.
+	// The main concern is the nsenter execution before the reexec.
+	// We do not want in any scenario to mess up with nsenter.
+	// Debugging is hell.
 	if unikontainer.Spec.Process.Terminal {
 		ptm, err := pty.Start(reexecCommand)
 		if err != nil {
@@ -233,6 +221,7 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 		}
 	}
 
+	// CLose child ends of sockets and pipes.
 	err = initSockChild.Close()
 	if err != nil {
 		logrus.WithError(err).Errorf("failed to close child socket pair")
@@ -245,34 +234,13 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 	// Send data to nsenter 
 	_, err = io.Copy(initSockParent, nsenterInfo)
 	if err != nil {
-		return fmt.Errorf("error copying nsenter info to pipe: %w", err)
+		return fmt.Errorf("error copying nsenter info to socket: %w", err)
 	}
 
-	//data, _ := io.ReadAll(initSockParent) // Read raw data
-	//decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder := json.NewDecoder(initSockParent)
-	decoder.DisallowUnknownFields()
-	var pid struct {
-		Stage2Pid int `json:"stage2_pid"`
-		Stage1Pid int `json:"stage1_pid"`
-	}
-	if err := decoder.Decode(&pid); err != nil {
-		return fmt.Errorf("error reading pid from init pipe: %w", err)
-	}
-
-	// Clean up the zombie parent process
-	Stage1Process, _ := os.FindProcess(pid.Stage1Pid)
-	// Ignore the error in case the child has already been reaped for any reason
-	_, _ = Stage1Process.Wait()
-
-	status, err := reexecCommand.Process.Wait()
+	// Get pids from nsenter and reap dead children
+	reexecPid, err := handleNsenterRet(initSockParent, reexecCommand)
 	if err != nil {
-		_ = reexecCommand.Wait()
-		return fmt.Errorf("nsenter error: %w", err)
-	}
-	if !status.Success() {
-		_ = reexecCommand.Wait()
-		return fmt.Errorf("nsenter unsuccessful exit: %w", err)
+		return err
 	}
 
 	if logsDone != nil {
@@ -294,7 +262,7 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 	metrics.Capture(containerID, "TS07")
 
 	// Retrieve reexec cmd's pid and write to file and state
-	containerPid := pid.Stage2Pid
+	containerPid := reexecPid
 	err = unikontainer.Create(containerPid)
 	//pid := reexecCommand.Process.Pid
 	//err = unikontainer.Create(pid)
@@ -325,6 +293,66 @@ func createUnikontainer(context *cli.Context) (retErr error) {
 	metrics.Capture(containerID, "TS11")
 
 	return nil
+}
+
+func createReexecCmd(initSock *os.File, logPipe *os.File) *exec.Cmd {
+	selfPath := "/proc/self/exe"
+	reexecCommand := &exec.Cmd{
+		Path: selfPath,
+		Args: append(os.Args, "--reexec"),
+		Env: os.Environ(),
+	}
+	// Set files that we want to pass to children. In particular,
+	// we need to pass a socketpair for the communication with the nsenter
+	// and a log pipe to get logs from nsenter.
+	// NOTE: Currently we only pass two files to children. In the future
+	// we might need to refactor the following code, in case we need to
+	// pass more than just these files.
+	reexecCommand.ExtraFiles =  append(reexecCommand.ExtraFiles, initSock)
+	reexecCommand.ExtraFiles =  append(reexecCommand.ExtraFiles, logPipe)
+	// The hardcoded value here refers to the first open file descriptor after
+	// the stdio file descriptors. Therefore, since the initSockChild was the
+	// first file we addedd in ExtraFiles, its file descriptor should be 2+1=3,
+	// since 0 is stdin, 1 is stdout and 2 is stderr. Similarly, the logPipeChild
+	// should be right after initSockChild, hence 4
+	// NOTE: THis might need bette rhandling in the future.
+	reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_INITPIPE=3")
+	reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_LOGPIPE=4")
+	logLevel := strconv.Itoa(int(logrus.GetLevel()))
+	if logLevel != "" {
+		reexecCommand.Env = append(reexecCommand.Env, "_LIBCONTAINER_LOGLEVEL="+logLevel)
+	}
+
+	return reexecCommand
+}
+
+func handleNsenterRet(initSock *os.File, reexec *exec.Cmd) (int, error) {
+	var pid struct {
+		Stage2Pid int `json:"stage2_pid"`
+		Stage1Pid int `json:"stage1_pid"`
+	}
+	decoder := json.NewDecoder(initSock)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&pid); err != nil {
+		return -1, fmt.Errorf("error reading pid from init pipe: %w", err)
+	}
+
+	// Clean up the zombie parent process
+	Stage1Process, _ := os.FindProcess(pid.Stage1Pid)
+	// Ignore the error in case the child has already been reaped for any reason
+	_, _ = Stage1Process.Wait()
+
+	status, err := reexec.Process.Wait()
+	if err != nil {
+		_ = reexec.Wait()
+		return -1, fmt.Errorf("nsenter error: %w", err)
+	}
+	if !status.Success() {
+		_ = reexec.Wait()
+		return -1, fmt.Errorf("nsenter unsuccessful exit: %w", err)
+	}
+
+	return pid.Stage2Pid, nil
 }
 
 // reexecUnikontainer gets a Unikernel struct from state.json,
@@ -404,13 +432,4 @@ func reexecUnikontainer(context *cli.Context) error {
 
 	// execve
 	return unikontainer.Exec()
-}
-
-// newSockPair returns a new SOCK_STREAM unix socket pair.
-func newSockPair(name string) (parent, child *os.File, err error) {
-	fds, err := unix.Socketpair(unix.AF_LOCAL, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
-	if err != nil {
-		return nil, nil, err
-	}
-	return os.NewFile(uintptr(fds[1]), name+"-p"), os.NewFile(uintptr(fds[0]), name+"-c"), nil
 }
