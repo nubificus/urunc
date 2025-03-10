@@ -37,6 +37,7 @@ header:
     - 'NOTICE'
     - 'VERSION'
     - 'build*'
+    - 'docs/CNAME'
 
   language:
     Go:

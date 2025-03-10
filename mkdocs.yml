@@ -63,7 +63,7 @@ markdown_extensions:
 toc:
   - permalink: true
 
-copyright: Copyright &copy; 2022 - 2024 Nubificus LTD
+copyright: Copyright &copy; 2022 - 2025 Nubificus LTD
 
 extra_css:
   - stylesheets/extra.css
