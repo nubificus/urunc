@@ -19,7 +19,8 @@ nav:
   - Installation: installation.md
   - VMM/Sandbox Support: hypervisor-support.md
   - Unikernel Support: unikernel-support.md
-  - Packaging unikernels: image-building.md
+  - Building/Packaging unikernels:
+      - package/*.md
   - Design:
       - design/*.md
   - Developer Guide: 
