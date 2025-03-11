@@ -25,6 +25,10 @@ In this section, we will first explain all the annotations that `urunc`
 expects, in order to handle unikernels and describe how to build and package
 unikernels as OCI images using the aforementioned tools.
 
+**Quick links:**
+
+- [Packaging pre-built unikernels](../package/pre-built)
+
 ## Annotations
 
 [OCI
