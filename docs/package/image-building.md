@@ -12,21 +12,19 @@ Nevertheless, in order to differentiate between traditional container images
 and unikernel OCI images, `urunc` makes use of annotations or a metadata file
 (`urunc.json`) inside the container's rootfs.
 
-To facilitate the process, we provide various tools that package a unikernel
+To facilitate the process, we provide various tools that build and package a unikernel
 binary, along with the application's necessary files in a container image and
 set the respective annotations. In particular, we can produce an OCI image with
 all `urunc`'s annotations using:
-1. [bima](https://github.com/nubificus/bima) a standalone tool that communicates
-   with [containerd](https://github.com/containerd/containerd),
-2. [pun](https://github.com/nubificus/pun) a tool that constructs a LLB or acts
-   as a frontend for
-   [buildkit](https://github.com/moby/buildkit?tab=readme-ov-file#output) and
-3. [bimanix](https://github.com/nubificus/bimanix) which uses [Nix
-   packages](https://github.com/NixOS/nix) to build the image.
+1. [bunny](https://github.com/nubificus/bunny) a tool that builds and packages unikernels
+    using buildkit's LLB and can also act as a frontend for
+   [buildkit](https://github.com/moby/buildkit?tab=readme-ov-file#output).
+2. [bimanix](https://github.com/nubificus/bimanix) which uses [Nix
+   packages](https://github.com/NixOS/nix) to package a unikernel as an OCI image.
 
 In this document, we will first explain all the annotations that `urunc`
-expects, in order to handle unikernels and describe each one of the three ways
-to build such OCI images for unikernels.
+expects, in order to handle unikernels and describe how to use the aformentioned
+tools and package unikernels as OCI images.
 
 ## Annotations
 
@@ -76,20 +74,26 @@ format with the above information, where the values are base64 encoded.
 
 ## Tools to construct OCI images with `urunc`'s annotations
 
-As previously mentioned we currently provide 3 different tools to package
-unikernels in OCI images with `urunc`'s annotations.
+As previously mentioned we currently provide 2 different tools to build and
+package unikernels in OCI images with `urunc`'s annotations.
 
-### Bima
+### bunny
 
-[bima](https://github.com/nubificus/bima) uses
-[containerd](https://github.com/containerd/containerd) to build OCI images. In
-particular, [bima](https://github.com/nubificus/bima) reads the contents of a
-file with a Dockerfile-like syntax. This file can contain a set of
-*instructions* that specify how to package an existing unikernel binary as an
-OCI image. The currently supported *instructions* are:
+In an effort to simplify the process of building various unikernels, we built
+[bunny](https://github.com/nubificus/bunny). Except of building unikernels yunub
+can also pack exsiting unikernels (either locally or from OCI images) as OCI images
+for `urunc`. In its core `bunny` makes use
+of [buildkit's LLB](https://github.com/moby/buildkit?tab=readme-ov-file#exploring-llb),
+which allow us to create OCI images from any kind of file. Currently yunub can
+process two formats of files: a) the typical Dockerfile-like syntax files and b)
+`bunnyfile`, a special yaml-based file.
 
-- `FROM`: this is not taken into account at the current implementation, but we
-  plan to add support for.
+In the case of Dockerfile-like files, yunub is only able to package pre-built unikernel
+images and it is not possible to build them. This file format is kept mostly for
+compatibility with pun and bima, which are not maintained anymore. Currently, yunub
+can handle the following *instructions*:
+
+- `FROM`: Specify an existing OCI image to use as a base.
 - `COPY`: this works as in Dockerfiles. At this moment, only a single copy
   operation per *instruction* (think one copy per line). These files are copied
   inside the container's image rootfs.
@@ -97,136 +101,121 @@ OCI image. The currently supported *instructions* are:
   image. They are also added to a special `urunc.json` inside the container's image
   rootfs.
 
-#### Packaging a rumprun unikernel with bima
+To further extend the functionality of yunub and provide information to build
+unikernels too, we use `bunnyfile` a yaml-based specia file that yunub transforms
+to LLB and can be used to build and package unikernels as OCI images. Except of
+building unikernels, bunny can also be used to build or append files in the
+unikernel's rootfs.
 
-The main benefit of [bima](https://github.com/nubificus/bima) is that it is a
-standalone tool which uses
-[containerd](https://github.com/containerd/containerd). Therefore, there are no
-dependencies on using it. For instructions to build and install
-[bima](https://github.com/nubificus/bima) please check [its
-README](https://github.com/nubificus/bima?tab=readme-ov-file#build-from-source)
+The current syntax of `bunnyfile` is the following one:
 
-As a result, to package a unikernel inside an OCI image and setting `urunc`'s
-annotations with [bima](https://github.com/nubificus/bima), we simply need to
-construct the Containerfile with all the necessary *instructions*. For instance,
-to package a Redis unikernel that uses Rumprun and runs on top of Solo5, we can
-construct the Containerfile as:
+```
+#syntax=harbor.nbfc.io/nubificus/bunny:latest   # [1] Set bunnyfile syntax for automatic recogn
+ition from docker.
+version: v0.1                                   # [2] Bunnyfile version.
 
-```Dockerfile
-# the FROM instruction will not be parsed
-FROM scratch
+platforms:                                      # [3] The target platform for building/packaging.
+  framework: unikraft                           # [3a] The unikernel framework.
+  version: v0.15.0                              # [3b] The version of the unikernel framework.
+  monitor: qemu                                 # [3c] The hypervisor/VMM or any other kind of monitor, where the unikernel will run  on top.
+  architecture: x86                             # [3d] The target architecture
 
-COPY test-redis.hvt /unikernel/test-redis.hvt
-COPY redis.conf /conf/redis.conf
+rootfs:                                         # [4] (Optional) Specifies the rootfs of the unikernel.
+  from: local | OCI image                       # [4a] (Optional) The source of the rootfs
+  path: /path/to/file                           # [4b] (Required if from is not scratch) The path in the source, where a prebuilt rootfs file resides.
+  type: initrd | raw | block                    # [4c] The type of rootfs, in case the unikernel framework supports more than one (e.g. initrd, raw, block)
+  include:                                      # [4d] (Optional) A list of local files to include in the rootfs
+    - src:dst
 
-LABEL "com.urunc.unikernel.binary"=/unikernel/test-redis.hvt
-LABEL "com.urunc.unikernel.cmdline"='redis-server /data/conf/redis.conf'
-LABEL "com.urunc.unikernel.unikernelType"="rumprun"
-LABEL "com.urunc.unikernel.hypervisor"="hvt"
+kernel:                                         # [5] Specify a prebuilt kernel to use
+  from: local | OCI image                       # [5a] Specify the source of an existing prebuilt kernel.
+  path: path/to/file                            # [5b] Specify the path to the kernel
+
+cmdline: hello                                  # [6] The cmdline of the app
+
 ```
 
-> Note: For labels, you can use single quotes, double quotes or no quotes at
-all. Defining multiple label key-value pairs in a single LABEL instruction is
-not supported.
+For more information reagarding the `bunnyfile` please take a look at the respective
+section of [bunny's README](https://github.com/nubificus/bunny?tab=readme-ov-file#bunnyfile).
 
-As soon as we create the Containerfile we can build the container with:
+Furthermore, you can find various different examples and use cases for yunub
+in the [examples directory of bunny's repository](https://github.com/nubificus/bunny/tree/main/examples).
 
-```bash
-bima build -t nubificus/image:tag .
-```
+#### Packaging a Unikraft unikernel with bunny
 
-Please check the [README
-file](https://github.com/nubificus/bima?tab=readme-ov-file#usage) of bima for
-more information.
-
-### Pun
-
-As an alternative to [bima](https://github.com/nubificus/bima), we built
-[pun](https://github.com/nubificus/pun) a tool based on
-[buildkit](https://github.com/moby/buildkit?tab=readme-ov-file#output). The main
-differentiate between [bima](https://github.com/nubificus/bima) and
-[pun](https://github.com/nubificus/pun) is that
-[pun](https://github.com/nubificus/pun) supports using existing OCI images with
-a unikernel inside. An example of such images is [Unikraft's application
-catalog](https://github.com/unikraft/catalog). Therefore, with
-[pun](https://github.com/nubificus/pun) a user can simply define an existing
-image to use and [pun](https://github.com/nubificus/pun) will add any other
-files inside the container image and of course the necessary annotations.
-Both [pun](https://github.com/nubificus/pun) and
-[bima](https://github.com/nubificus/bima) support the same set of *instructions*
-with the difference that `FROM` is handled properly from
-[pun](https://github.com/nubificus/pun).
-
-#### Packaging a Unikraft unikernel with pun
-
-Since [pun](https://github.com/nubificus/pun) uses
+Since [bunny](https://github.com/nubificus/bunny) uses
 [buildkit](https://github.com/moby/buildkit?tab=readme-ov-file#output) it
 supports two modes of execution. In the first mode it acts as a [buildkit
 frontend](https://docs.docker.com/build/buildkit/frontend/) and in the second
 mode it outputs a LLB which can be passed to `buildctl`.Therefore,
-[pun](https://github.com/nubificus/pun) depends on
+[bunny](https://github.com/nubificus/bunny) depends on
 [buildkit](https://github.com/moby/buildkit?tab=readme-ov-file#output) which
 should be installed. However, if [docker](https://www.docker.com/) is already
-installed, the frontend execution mode of [pun](https://github.com/nubificus/pun)
+installed, the frontend execution mode of [bunny](https://github.com/nubificus/bunny)
 can be used directly without building anything.
 
-Similarly to [bima](https://github.com/nubificus/bima) the first step to build
-the container is to define the Containerfile. It is important to note that if we
-want to use [pun](https://github.com/nubificus/pun) as a frontend for buildkit
+It is important to note that if we
+want to use [bunny](https://github.com/nubificus/bunny) as a frontend for buildkit
 we need to start the Containerfile with the following line:
 
 ```Dockerfile
-#syntax=harbor.nbfc.io/nubificus/urunc/pun/llb:latest
+#syntax=harbor.nbfc.io/nubificus/bunny:<version>
 ```
 
-Therefore, if we want to package a locally built Ngnix Unikraft unikernel, we
-can define the Containerfile as:
+^^**Using a dockerfile-like syntax file**^^
+
+If we want to package a locally built Ngnix Unikraft unikernel, we
+can define the a Dockerfile-like syntax file as:
 
 ```Dockerfile
-#syntax=harbor.nbfc.io/nubificus/pun:0.1.0
+#syntax=harbor.nbfc.io/nubificus/bunny:0.0.1
 FROM scratch
 
 COPY build/app-nginx_qemu-x86_64 /unikernel/kernel
 COPY data.cpio /unikernel/initrd
 
-LABEL com.urunc.unikernel.binary=/unikernel/kernel
+LABEL "com.urunc.unikernel.binary"=/unikernel/kernel
 LABEL "com.urunc.unikernel.initrd"=/unikernel/initrd
 LABEL "com.urunc.unikernel.cmdline"='nginx -c /nginx/conf/nginx.conf'
 LABEL "com.urunc.unikernel.unikernelType"="unikraft"
 LABEL "com.urunc.unikernel.hypervisor"="qemu"
 ```
 
+^^**Using bunnyfile**^^
+
+If we want to package the same unikernel, using `bunnyfile`, we have to
+define it as:
+
+```
+#syntax=harbor.nbfc.io/nubificus/bunny:0.0.1
+version: v0.1
+
+platforms:
+  framework: unikraft
+  monitor: qemu
+  architecture: x86
+
+rootfs:
+  from: local
+  path: data.cpio
+
+kernel:
+  from: local
+  path: build/app-nginx_qemu-x86_64
+
+cmdline: nginx -c /nginx/conf/nginx.conf
+```
+
 and we can build it with a docker command:
 
 ```bash
-docker build -f Containerfile -t nubificus/urunc/nginx-unikraft-qemu:test .
+docker build -f bunnyfile -t nubificus/urunc/nginx-unikraft-qemu:test .
 ```
 
-In a similar way, if we want to package an existing Nginx Unikraft unikernel
-form [unikraft's catalog](https://github.com/unikraft/catalog), we should define
-the Containerfile as:
+> **NOTE**: We cna use the above command and switch form bunnyfile to the
+> Dockerfile-like file and build the same unikernel OCI image.
 
-```Dockerfile
-#syntax=harbor.nbfc.io/nubificus/pun:0.1.0
-FROM unikraft.org/nginx:1.15
-
-LABEL com.urunc.unikernel.binary="/unikraft/bin/kernel"
-LABEL "com.urunc.unikernel.cmdline"="nginx -c /nginx/conf/nginx.conf"
-LABEL "com.urunc.unikernel.unikernelType"="unikraft"
-LABEL "com.urunc.unikernel.hypervisor"="qemu"
-```
-
-and we can build it with the same docker command:
-
-```bash
-docker build -f Containerfile -t nubificus/urunc/nginx-unikraft-qemu:test .
-```
-
-> Note: For labels, you can use single quotes, double quotes or no quotes at
-all. Defining multiple label key-value pairs in a single LABEL instruction is
-not supported.
-
-For more information check [pun's README](https://github.com/nubificus/pun).
+For more information check [bunny's README](https://github.com/nubificus/bunny).
 
 ### Bimanix
 
