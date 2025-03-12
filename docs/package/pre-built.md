@@ -13,7 +13,7 @@ unikernel from
 [Rumprun-packages](https://github.com/cloudkernels/rumprun-packages) targetting
 [Solo5-hvt](https://github.com/Solo5/solo5).
 
-For simply packaging pre-built unikernel images, we can use both yunub and bnix.
+For simply packaging pre-built unikernel images, we can use both [bunny](https://github.com/nubificus/bunny) and [bimanix](https://github.com/nubificus/bimanix).
 
 Assumptions:
 - We assume that we execute the commands in the same path where the unikernel
