@@ -25,8 +25,9 @@ expects, in order to handle unikernels and describe how to build and package
 unikernels as OCI images using the aformentioned tools.
 
 **Quick links:**
-- [Unikraft](../package/unikraft)
-- [Rumprun](../package/rumprun)
+- [Packaging pre-built unikernels](../package/pre-built)
+- [Using unikernels from existing OCI images](../package/reuse)
+- [Packaging statically built applications](../package/static)
 
 ## Annotations
 
@@ -60,12 +61,15 @@ Except of the above, `urunc` accepts the following optional annotations:
 
 - `com.urunc.unikernel.initrd`: The path to the initrd of the unikernel inside
   the container's rootfs.
+- `com.urunc.unikernel.unikernelVersion`: The version of the unikernel framework (e.g.
+  0.17.0).
 - `com.urunc.unikernel.block`: The path to a block image, inside container's
   rootfs, which will get attached to the unikernel.
 - `com.urunc.unikernel.blkMntPoint`: The mount point of the block image to
   attach in the unikernel.
-- `com.urunc.unikernel.unikernelVersion`: The version of the unikernel framework (e.g.
-  0.17.0).
+- `com.urunc.unikernel.useDMBlock`: A boolean value that if it is `true`, requests
+  from `urunc` to mount the container's image rootfs in the unikernel, if we
+  specify the `devmapper` snapshotter.
 
 Due to the fact that [Docker](https://www.docker.com/) and some high-level
 container runtimes do not pass the image annotations to the underlying container
