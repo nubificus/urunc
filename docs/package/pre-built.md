@@ -6,7 +6,7 @@ description: "Packaging pre-built unikernels"
 
 # Packaging pre-built unikernels for `urunc`
 
-In this page we will expalin the process of packaging an existing / pre-built
+In this page we will explain the process of packaging an existing / pre-built
 unikernel as an OCI image with the necessary annotations for `urunc`. As an
 example, we will use a Redis [Rumprun](https://github.com/cloudkernels/rumprun)
 unikernel from
@@ -56,7 +56,7 @@ cmdline: "redis-server /data/conf/redis.conf"
 ```
 
 In the above file we specify the followings:
-- We want to package a rumprun unikernel that will execute on top o hvt over x86
+- We want to package a Rumprun unikernel that will execute on top o hvt over x86
   architecture.
 - We want to create a raw rootfs which includes the file `redis.conf` and placed
   in `/data/conf/redis.conf`. A raw rootfs means that we will simply copy the
@@ -109,7 +109,7 @@ docker build -f Containerfile -t urunc/prebuilt/redis-rumprun-hvt:test .
 
 In the case of `bimanix` we need the whole repository in the same directly as
 the unikernel. Then, we simply need to edit the `args.nix` file. For our
-pre-built Redis rumprun unikernel we can define the files as:
+pre-built Redis Rumprun unikernel we can define the files as:
 
 ```Nix
 {
