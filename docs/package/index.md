@@ -28,6 +28,7 @@ unikernels as OCI images using the aforementioned tools.
 **Quick links:**
 
 - [Packaging pre-built unikernels](../package/pre-built)
+- [Using unikernels from existing OCI images](../package/reuse)
 
 ## Annotations
 
