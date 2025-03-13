@@ -11,7 +11,7 @@ on:
         default: 'main'
       runner:
         type: string
-        default: '["gcc", "dind", "2204"]'
+        default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
         default: '["amd64"]'
@@ -98,6 +98,17 @@ jobs:
           submodules: 'false'
           remote-actions-repo: ${{ inputs.actions-repo }}
           token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+
+      - name: Fix paths
+        run: |
+          echo "Unset GO PATH, as the following action conflicts with the already installed version"
+          export GOPATH=
+          echo "GOPATH=${GOPATH}" >> "$GITHUB_ENV"
+          export GOTOOLDIR=
+          echo "GOTOOLDIR=${GOTOOLDIR}" >> "$GITHUB_ENV"
+          export GOROOT=
+          echo "GOROOT=${GOROOT}" >> "$GITHUB_ENV"
+        shell: bash
 
       - name: Run license-eye
         uses: apache/skywalking-eyes/header@main
