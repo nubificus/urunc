@@ -11,7 +11,7 @@ on:
         default: 'main'
       runner:
         type: string
-        default: '["gcc", "dind", "2204"]'
+        default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
         default: '["amd64"]'
@@ -100,7 +100,7 @@ jobs:
           token: ${{ secrets.GIT_CLONE_PAT || github.token }}
 
       - name: Run license-eye
-        uses: apache/skywalking-eyes/header@main
+        uses: nubificus/skywalking-eyes/header@feat_update_go
         with:
           config: .github/linters/licenserc.yml
           token: ${{ secrets.GITHUB_TOKEN }}

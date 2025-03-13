@@ -4,7 +4,7 @@ on:
     inputs:
       runner:
         type: string
-        default: '["gcc", "dind", "2204"]'
+        default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
         default: '["amd64"]'

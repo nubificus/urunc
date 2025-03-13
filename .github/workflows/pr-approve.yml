@@ -8,7 +8,7 @@ on:
 
 jobs:
   git-trailers:
-    runs-on: gcc-dind-2204-amd64
+    runs-on: base-dind-2204-amd64
     if: ${{ github.event.review.state == 'approved' }}
 
     steps:
