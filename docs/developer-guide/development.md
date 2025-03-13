@@ -4,7 +4,7 @@ title: Setup a Dev environment
 Most of the steps are covered in the [installation](../../installation) document.
 Please refer to it for:
 
-- installing a recent version of Go (> 1.20)
+- installing a recent version of Go (e.g. 1.24)
 - installing `containerd` and `runc`
 - setting up the devmapper snapshotter
 - installing `nerdctl` and the `CNI` plugins
