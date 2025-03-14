@@ -4,7 +4,7 @@ on:
     inputs:
       runner:
         type: string
-        default: '["gcc", "dind", "2204"]'
+        default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
         default: '["amd64"]'
@@ -30,14 +30,14 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.18'
+          go-version: '1.24.1'
           cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.53
+          version: v1.63
 
           # show only new issues if it's a pull request. The default value is `false`.
           only-new-issues: true
