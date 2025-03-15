@@ -116,36 +116,37 @@ unikernel's rootfs.
 The current syntax of `bunnyfile` is the following one:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:latest   # [1] Set bunnyfile syntax for automatic recogn
-ition from docker.
+#syntax=harbor.nbfc.io/nubificus/bunny:latest   # [1] Set bunnyfile syntax for automatic recognition from buildkit.
 version: v0.1                                   # [2] Bunnyfile version.
 
 platforms:                                      # [3] The target platform for building/packaging.
   framework: unikraft                           # [3a] The unikernel framework.
   version: v0.15.0                              # [3b] The version of the unikernel framework.
-  monitor: qemu                                 # [3c] The hypervisor/VMM or any other kind of monitor, where the unikernel will run  on top.
-  architecture: x86                             # [3d] The target architecture
+  monitor: qemu                                 # [3c] The hypervisor/VMM or any other kind of monitor.
+  architecture: x86                             # [3d] The target architecture.
 
 rootfs:                                         # [4] (Optional) Specifies the rootfs of the unikernel.
-  from: local | OCI image                       # [4a] (Optional) The source of the rootfs
-  path: /path/to/file                           # [4b] (Required if from is not scratch) The path in the source, where a prebuilt rootfs file resides.
-  type: initrd | raw | block                    # [4c] The type of rootfs, in case the unikernel framework supports more than one (e.g. initrd, raw, block)
+  from: local                                   # [4a] (Optional) The source of the rootfs.
+  path: initrd                                  # [4b] (Required if from is not scratch) The path in the source, where the prebuilt rootfs file resides.
+  type: initrd                                  # [4c] (optional) The type of rootfs (e.g. initrd, raw, block)
   include:                                      # [4d] (Optional) A list of local files to include in the rootfs
     - src:dst
 
 kernel:                                         # [5] Specify a prebuilt kernel to use
-  from: local | OCI image                       # [5a] Specify the source of an existing prebuilt kernel.
-  path: path/to/file                            # [5b] Specify the path to the kernel
+  from: local                                   # [5a] Specify the source of a prebuilt kernel.
+  path: local                                   # [5b] The path where the kernel image resides.
 
-cmdline: hello                                  # [6] The cmdline of the app
+cmdline: hello                                  # [6] The cmdline of the app.
 
 ```
 
-For more information reagarding the `bunnyfile` please take a look at the respective
-section of [bunny's README](https://github.com/nubificus/bunny?tab=readme-ov-file#bunnyfile).
+For more information reagarding the `bunnyfile` please take a look at the
+respective section of [bunny's
+README](https://github.com/nubificus/bunny?tab=readme-ov-file#bunnyfile).
 
-Furthermore, you can find various different examples and use cases for [bunny](https://github.com/nubificus/bunny)
-in the [examples directory of bunny's repository](https://github.com/nubificus/bunny/tree/main/examples).
+Furthermore, you can find various different examples and use cases for
+[bunny](https://github.com/nubificus/bunny) in the [examples directory of
+bunny's repository](https://github.com/nubificus/bunny/tree/main/examples).
 
 #### Packaging a unikernel with bunny
 
