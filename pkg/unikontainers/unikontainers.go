@@ -19,17 +19,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/nubificus/urunc/pkg/network"
 	"github.com/nubificus/urunc/pkg/unikontainers/hypervisors"
 	"github.com/nubificus/urunc/pkg/unikontainers/unikernels"
-	"github.com/vishvananda/netns"
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
 	"github.com/nubificus/urunc/internal/constants"
@@ -145,12 +147,7 @@ func (u *Unikontainer) Create(pid int) error {
 func (u *Unikontainer) Exec() error {
 	// FIXME: We need to find a way to set the output file
 	var metrics = m.NewZerologMetrics(constants.TimestampTargetFile)
-	err := u.joinSandboxNetNs()
-	if err != nil {
-		return err
-	}
-
-	metrics.Capture(u.State.ID, "TS16")
+	metrics.Capture(u.State.ID, "TS15")
 
 	vmmType := u.State.Annotations[annotHypervisor]
 	unikernelType := u.State.Annotations[annotType]
@@ -192,7 +189,9 @@ func (u *Unikontainer) Exec() error {
 	// Check if memory limit was not set
 	if u.Spec.Linux.Resources.Memory != nil {
 		if u.Spec.Linux.Resources.Memory.Limit != nil {
-			vmmArgs.MemSizeB = uint64(*u.Spec.Linux.Resources.Memory.Limit)
+			if *u.Spec.Linux.Resources.Memory.Limit > 0 {
+				vmmArgs.MemSizeB = uint64(*u.Spec.Linux.Resources.Memory.Limit) // nolint:gosec
+			}
 		}
 	}
 
@@ -218,7 +217,7 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		Log.Errorf("Failed to setup network :%v. Possibly due to ctr", err)
 	}
-	metrics.Capture(u.State.ID, "TS17")
+	metrics.Capture(u.State.ID, "TS16")
 
 	// if network info is nil, we didn't find eth0, so we are running with ctr
 	if networkInfo != nil {
@@ -286,7 +285,7 @@ func (u *Unikontainer) Exec() error {
 			vmmArgs.BlockDevice = rootFsDevice.Device
 		}
 	}
-	metrics.Capture(u.State.ID, "TS18")
+	metrics.Capture(u.State.ID, "TS17")
 
 	// Set CWD the rootfs of the container
 	err = os.Chdir(rootfsDir)
@@ -315,7 +314,6 @@ func (u *Unikontainer) Exec() error {
 
 	// update urunc.json state
 	u.State.Status = "running"
-	u.State.Pid = os.Getpid()
 	err = u.saveContainerState()
 	if err != nil {
 		return err
@@ -327,7 +325,7 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 	Log.Info("calling vmm execve")
-	metrics.Capture(u.State.ID, "TS19")
+	metrics.Capture(u.State.ID, "TS18")
 
 	// metrics.Wait()
 	return vmm.Execve(vmmArgs, unikernel)
@@ -400,32 +398,51 @@ func (u *Unikontainer) Delete() error {
 	return os.RemoveAll(u.BaseDir)
 }
 
-// joinSandboxNetns finds the sandbox id of the container, retrieves the sandbox's init pid,
-// finds the init pid netns and joins it
+// joinSandboxNetns joins the network namespace of the sandbox (pause container).
+// This function should be called only from a locked thread
+// (i.e. runtime. LockOSThread())
 func (u Unikontainer) joinSandboxNetNs() error {
-	sandboxID := u.Spec.Annotations["io.kubernetes.cri.sandbox-id"]
-	if sandboxID == "" {
-		return nil
+	var netNsPath string
+	// We want enter the network namespace of the container.
+	// There are two possibilities:
+	// 1. The unikernel was running inside a Pod and hence we need to join
+	//    the namespace of the pause container
+	// 2. The unikernel was running in its own network namespace (typical
+	//    in docker, nerdctl etc.). If that is the case, then when the
+	//    unikernel dies/exits the namespace will also die, since there will
+	//    not be any process in that namespace. Therefore, the cleanup will
+	//    happen automatically and we do not need to care about that.
+	// Therefore, focus only in the first case above.
+	for _, ns := range u.Spec.Linux.Namespaces {
+		if ns.Type == specs.NetworkNamespace {
+			if ns.Path == "" {
+				// We had to create the network namespace, when
+				// creating the container. Therefore, the namespace
+				// will die along with the unikernel.
+				return nil
+			}
+			err := checkValidNsPath(ns.Path)
+			if err == nil {
+				netNsPath = ns.Path
+			} else {
+				return err
+			}
+			break
+		}
 	}
-	containerDir := filepath.Join(u.RootDir, sandboxID)
-	stateFilePath := filepath.Join(containerDir, stateFilename)
-	sandboxInitPid, err := getInitPid(stateFilePath)
-	if err != nil {
-		return err
-	}
-	sandboxInitNetns, err := netns.GetFromPid(int(sandboxInitPid))
-	if err != nil {
-		return err
-	}
+
 	Log.WithFields(logrus.Fields{
-		"sandboxInitPid":   sandboxInitPid,
-		"sandboxInitNetns": sandboxInitNetns,
-	}).Info("Joining sandbox's netns")
-	err = netns.Set(sandboxInitNetns)
+		"path": netNsPath,
+	}).Info("Joining network namespace")
+	fd, err := unix.Open(netNsPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error opening namespace path: %w", err)
 	}
-	Log.Info("Joined sandbox's netns")
+	err = unix.Setns(int(fd), unix.CLONE_NEWNET)
+	if err != nil {
+		return fmt.Errorf("Error joining namespace: %w", err)
+	}
+	Log.Info("Joined network namespace")
 	return nil
 }
 
@@ -472,7 +489,8 @@ func (u *Unikontainer) executeHooksConcurrently(name string) error {
 		return nil
 	}
 	hooks := map[string][]specs.Hook{
-		"Prestart":        u.Spec.Hooks.Prestart,
+		// TODO: Prestart is deprecated
+		"Prestart":        u.Spec.Hooks.Prestart, // nolint:staticcheck
 		"CreateRuntime":   u.Spec.Hooks.CreateRuntime,
 		"CreateContainer": u.Spec.Hooks.CreateContainer,
 		"StartContainer":  u.Spec.Hooks.StartContainer,
@@ -553,7 +571,8 @@ func (u *Unikontainer) executeHooksSequentially(name string) error {
 	}
 
 	hooks := map[string][]specs.Hook{
-		"Prestart":        u.Spec.Hooks.Prestart,
+		// TODO: Prestart is deprecated
+		"Prestart":        u.Spec.Hooks.Prestart, // nolint:staticcheck
 		"CreateRuntime":   u.Spec.Hooks.CreateRuntime,
 		"CreateContainer": u.Spec.Hooks.CreateContainer,
 		"StartContainer":  u.Spec.Hooks.StartContainer,
@@ -616,17 +635,217 @@ func loadUnikontainerState(stateFilePath string) (*specs.State, error) {
 	return &state, nil
 }
 
-func (u *Unikontainer) GetInitSockAddr() string {
-	return getSockAddr(u.BaseDir, initSock)
+// FormatNsenterInfo encodes namespace info in netlink binary format
+// as a io.Reader, in order to send the info to nsenter.
+// The implementation is inspired from:
+// https://github.com/opencontainers/runc/blob/c8737446d2f99c1b7f2fcf374a7ee5b4519b2051/libcontainer/container_linux.go#L1047
+func (u *Unikontainer) FormatNsenterInfo() (rdr io.Reader, retErr error) {
+	r := nl.NewNetlinkRequest(int(initMsg), 0)
+
+	// Our custom messages cannot bubble up an error using returns, instead
+	// they will panic with the specific error type, netlinkError. In that
+	// case, recover from the panic and return that as an error.
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(netlinkError); ok {
+				retErr = e.error
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	const numNS = 8
+	var writePaths bool
+	var writeFlags bool
+	var cloneFlags uint32
+	var nsPaths [numNS]string // We have 8 namespaces right now
+	// We need to set the namespace paths in a specific order.
+	// The order should be: user, ipc, uts, net, pid, mount, cgroup, time
+	// Therefore, the first element of the above array holds the path of user
+	// namespace, while the last element, the time namespace path
+	// Order does not matter in clone flags
+	for _, ns := range u.Spec.Linux.Namespaces {
+		// If the path is empty, then we have to create it.
+		// Otherwise, we store the path to the respective element
+		// of the array.
+		switch ns.Type {
+		// Comment out User namespace for the time being and just ignore them
+		// They require better handling for cleaning up and we will address
+		// it in another iteration.
+		// TODO User namespace
+		// case specs.UserNamespace:
+		// 	if ns.Path == "" {
+		// 		cloneFlags |= unix.CLONE_NEWUSER
+		// 	} else {
+		// 		err := checkValidNsPath(ns.Path)
+		// 		if err == nil {
+		// 			nsPaths[0] = "user:" + ns.Path
+		// 		} else {
+		// 			return nil, err
+		// 		}
+		// 	}
+		case specs.IPCNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWIPC
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[1] = "ipc:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.UTSNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWUTS
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[2] = "uts:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.NetworkNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWNET
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[3] = "net:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.PIDNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWPID
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[4] = "pid:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.MountNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWNS
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[5] = "mnt:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.CgroupNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWCGROUP
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[6] = "cgroup:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		case specs.TimeNamespace:
+			if ns.Path == "" {
+				cloneFlags |= unix.CLONE_NEWTIME
+			} else {
+				err := checkValidNsPath(ns.Path)
+				if err == nil {
+					nsPaths[7] = "time:" + ns.Path
+				} else {
+					return nil, err
+				}
+			}
+		default:
+			Log.Warn("Unsupported namespace: ", ns.Type, " .It will get ignored")
+			continue
+		}
+		if ns.Path == "" {
+			writeFlags = true
+		} else {
+			writePaths = true
+		}
+	}
+
+	if writeFlags {
+		r.AddData(&int32msg{
+			Type:  cloneFlagsAttr,
+			Value: uint32(cloneFlags),
+		})
+	}
+
+	var nsStringBuilder strings.Builder
+	if writePaths {
+		for i := 0; i < numNS; i++ {
+			if nsPaths[i] != "" {
+				if nsStringBuilder.Len() > 0 {
+					nsStringBuilder.WriteString(",")
+				}
+				nsStringBuilder.WriteString(nsPaths[i])
+			}
+		}
+
+		r.AddData(&bytemsg{
+			Type:  nsPathsAttr,
+			Value: []byte(nsStringBuilder.String()),
+		})
+
+	}
+
+	// Setup uid/gid mappings only in the case we need to create a new
+	// user namespace. As far as I understand (and I might be very wrong),
+	// we can set up the uid/gid mappings only once in a user namespace.
+	// Therefore, if we enter a user namespace and try to set the uid/gid
+	// mappings, we will get EPERM. Therefore, it is important to note that
+	// according to runc, when the config instructs us to use an existing
+	// user namespace, the uid/gid mappings should be empty and hence
+	// inherit the ones that are already set. Check:
+	// https://github.com/opencontainers/runc/blob/e0e22d33eabc4dc280b7ca0810ed23049afdd370/libcontainer/specconv/spec_linux.go#L1036
+
+	// TODO: Add it when we add user namespaces
+	// if nsPaths[0] == "" {
+	// 	// write uid mappings
+	// 	if len(u.Spec.Linux.UIDMappings) > 0 {
+	// 		// TODO: Rootless
+	// 		b, err := encodeIDMapping(u.Spec.Linux.UIDMappings)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		r.AddData(&bytemsg{
+	// 			Type:  uidmapAttr,
+	// 			Value: b,
+	// 		})
+	// 	}
+	// 	// write gid mappings
+	// 	if len(u.Spec.Linux.GIDMappings) > 0 {
+	// 		b, err := encodeIDMapping(u.Spec.Linux.GIDMappings)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		r.AddData(&bytemsg{
+	// 			Type:  gidmapAttr,
+	// 			Value: b,
+	// 		})
+	// 		// TODO: Rootless
+	// 	}
+	// }
+
+	return bytes.NewReader(r.Serialize()), nil
 }
 
-func (u *Unikontainer) GetUruncSockAddr() string {
-	return getSockAddr(u.BaseDir, uruncSock)
+func GetUruncSockAddr(baseDir string) string {
+	return getSockAddr(baseDir, uruncSock)
 }
 
 // ListeAndAwaitMsg opens a new connection to UruncSock and
 // waits for the expectedMsg message
-func (u *Unikontainer) ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error {
+func ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error {
 	listener, err := CreateListener(sockAddr, true)
 	if err != nil {
 		return err
@@ -644,12 +863,6 @@ func (u *Unikontainer) ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error 
 		}
 	}()
 	return AwaitMessage(listener, msg)
-}
-
-// SendReexecStarted sends an ReexecStarted message to InitSock
-func (u *Unikontainer) SendReexecStarted() error {
-	sockAddr := getInitSockAddr(u.BaseDir)
-	return sendIPCMessageWithRetry(sockAddr, ReexecStarted, true)
 }
 
 // SendAckReexec sends an AckReexec message to UruncSock

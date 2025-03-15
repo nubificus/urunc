@@ -24,6 +24,7 @@ import (
 	"github.com/nubificus/urunc/pkg/unikontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"golang.org/x/sys/unix"
 )
 
 // Argument check types for the `checkArgs` function.
@@ -96,6 +97,17 @@ func runcExec() error {
 	}
 	args[0] = binPath
 	return syscall.Exec(args[0], args, os.Environ()) //nolint: gosec
+}
+
+// newSockPair returns a new SOCK_STREAM unix socket pair.
+func newSockPair(name string) (parent, child *os.File, err error) {
+	fds, err := unix.Socketpair(unix.AF_LOCAL, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+	parent = os.NewFile(uintptr(fds[1]), name+"-p")
+	child = os.NewFile(uintptr(fds[0]), name+"-c")
+	return parent, child, nil
 }
 
 func logrusToStderr() bool {

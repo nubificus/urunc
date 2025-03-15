@@ -33,13 +33,6 @@ func TestGetSockAddr(t *testing.T) {
 	assert.Equal(t, expected, result, "Expected %s, but got %s", expected, result)
 }
 
-func TestGetInitSockAddr(t *testing.T) {
-	containerDir := "/tmp/container"
-	expected := filepath.Join(containerDir, initSock)
-	result := getInitSockAddr(containerDir)
-	assert.Equal(t, expected, result, "Expected %s, but got %s", expected, result)
-}
-
 func TestGetUruncSockAddr(t *testing.T) {
 	containerDir := "/tmp/container"
 	expected := filepath.Join(containerDir, uruncSock)
@@ -119,7 +112,7 @@ func testSendIPCMessageHelper(t *testing.T, socketAddress string, message IPCMes
 	select {
 	case err := <-errChan:
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("Test timed out")

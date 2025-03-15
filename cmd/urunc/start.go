@@ -46,20 +46,20 @@ func startUnikontainer(context *cli.Context) error {
 	// No need to check if containerID is valid, because it will get
 	// checked later. We just want it for the metrics
 	containerID := context.Args().First()
-	metrics.Capture(containerID, "TS12")
+	metrics.Capture(containerID, "TS11")
 
 	// get Unikontainer data from state.json
 	unikontainer, err := getUnikontainer(context)
 	if err != nil {
 		return err
 	}
-	metrics.Capture(containerID, "TS13")
+	metrics.Capture(containerID, "TS12")
 
 	err = unikontainer.SendStartExecve()
 	if err != nil {
 		return err
 	}
-	metrics.Capture(containerID, "TS14")
+	metrics.Capture(containerID, "TS13")
 
 	return unikontainer.ExecuteHooks("Poststart")
 }
