@@ -8,18 +8,14 @@ description: "Packaging pre-built unikernels"
 
 In this page we will explain the process of packaging an existing / pre-built
 unikernel as an OCI image with the necessary annotations for `urunc`. As an
-example, we will use a Redis [Rumprun](https://github.com/cloudkernels/rumprun)
+example, we will use a Hello world [Rumprun](https://github.com/cloudkernels/rumprun)
 unikernel from
 [Rumprun-packages](https://github.com/cloudkernels/rumprun-packages) targetting
 [Solo5-hvt](https://github.com/Solo5/solo5).
 
-For simply packaging pre-built unikernel images, we can use both [bunny](https://github.com/nubificus/bunny) and [bimanix](https://github.com/nubificus/bimanix).
-
-Assumptions:
-- We assume that we execute the commands in the same path where the unikernel
-  resides
-- We assume that all the files we want to copy inside the OCI image reside also
-  in the same path as the unikernel.
+For simply packaging pre-built unikernel images, we can use both
+[bunny](https://github.com/nubificus/bunny) and
+[bimanix](https://github.com/nubificus/bimanix).
 
 > **NOTE**: The below steps can be easily adjusted to any pre-built unikernel image.
 
@@ -42,36 +38,23 @@ platforms:
   monitor: hvt
   architecture: x86
 
-rootfs:
-  from: scratch
-  type: raw
-  include:
-  - redis.conf:/data/conf/redis.conf
-
 kernel:
   from: local
-  path: redis.hvt
+  path: hello.hvt
 
-cmdline: "redis-server /data/conf/redis.conf"
+cmdline: "hello"
 ```
 
 In the above file we specify the followings:
 - We want to package a Rumprun unikernel that will execute on top o hvt over x86
   architecture.
-- We want to create a raw rootfs which includes the file `redis.conf` and placed
-  in `/data/conf/redis.conf`. A raw rootfs means that we will simply copy the
-  files we specify directly in the OCI image (similar to `COPY` in Dockerfile).
-  Because of this type selction, `bunny` will also set up the respective
-  annotations to mount the OCI images rootfs directly to the unikernel. The way
-  `urunc` passes the rootfs will depend on the storage support of the respective
-  unikernel framework (e.g. through shared-fs, virtio-blk).
-- We want to use the `redis.hvt` binary as the unikernel to boot.
-- We specify the cmdline for the unikernel as `redis-server /data/conf/redis.conf`
+- We want to use the `hello.hvt` binary as the unikernel to boot.
+- We specify the cmdline for the unikernel as `hello`
 
 We can build the OCI image with the following command:
 
 ```
-docker build -f bunnyfile -t urunc/prebuilt/redis-rumprun-hvt:test .
+docker build -f bunnyfile -t urunc/prebuilt/hello-rumprun-hvt:test .
 ```
 
 ### Using a Dockerfile-like syntax
@@ -83,52 +66,48 @@ Dockerfile-like syntax file, we can define the `Containerfile` as:
 #syntax=harbor.nbfc.io/nubificus/bunny:0.2.0
 FROM scratch
 
-COPY redis.hvt /unikernel/redis.hvt
-COPY redis.conf /conf/redis.conf
+COPY hello.hvt /unikernel/hello.hvt
 
-LABEL com.urunc.unikernel.binary=/unikernel/redis.hvt
-LABEL "com.urunc.unikernel.cmdline"="redis-server /data/conf/redis.conf"
+LABEL com.urunc.unikernel.binary=/unikernel/hello.hvt
+LABEL "com.urunc.unikernel.cmdline"="hello"
 LABEL "com.urunc.unikernel.unikernelType"="rumprun"
 LABEL "com.urunc.unikernel.hypervisor"="hvt"
-LABEL "com.urunc.unikernel.useDMBlock"="true"
-
 ```
 
 In the above file:
-- We directly copy the unikernel binary and any files that we want to have in
-  the OCI's image rootfs.
+- We directly copy the unikernel binary in the OCI's image rootfs.
 - We manually specify through labels the `urunc` annotations.
 
 We can build the OCI image with the following command:
 
 ```
-docker build -f Containerfile -t urunc/prebuilt/redis-rumprun-hvt:test .
+docker build -f Containerfile -t urunc/prebuilt/hello-rumprun-hvt:test .
 ```
 
 ## Using `bimanix`
 
-In the case of `bimanix` we need the whole repository in the same directly as
-the unikernel. Then, we simply need to edit the `args.nix` file. For our
-pre-built Redis Rumprun unikernel we can define the files as:
+
+In the case of `bimanix` we need to clone the whole
+[repository](https://github.com/nubificus/bimanix).in the same directly as the
+unikernel. Then, we simply need to edit the `args.nix` file. For our pre-built
+hello Rumprun unikernel we can define the files as:
 
 ```Nix
 {
-  name = "urunc/prebuilt/redis-rumprun-hvt";
+  name = "urunc/prebuilt/hello-rumprun-hvt";
   tag = "test";
   files = {
-    "./redis.hvt" = "/unikernel/redis.hvt";
-    "./redis.conf" = "/conf/redis.conf";
+    "./hello.hvt" = "/unikernel/hello.hvt";
   };
   annotations = {
     unikernelType = "rumprun";
     hypervisor = "hvt";
-    binary = "/unikernel/redis.hvt";
+    binary = "/unikernel/hello.hvt";
     cmdline = "hello";
     unikernelVersion = "";
     initrd = "";
     block = "";
     blkMntPoint = "";
-    useDMBlock = "true";
   };
 }
 ```
