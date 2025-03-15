@@ -31,6 +31,22 @@ type LinuxNet struct {
 	Mask string
 }
 
+// There is no need for any changes here yet.
+func (l *Linux) MonitorNetCli(_ string) string {
+	return ""
+}
+
+// We have not managed to make Unikraft run with block yet.
+func (l *Linux) MonitorBlockCli(_ string) string {
+	return ""
+}
+
+// There are no generic CLI hypervisor options for Unikraft yet.
+func (l *Linux) MonitorCli(_ string) string {
+	return ""
+}
+
+
 func (l *Linux) CommandString() (string, error) {
 	//return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr init=/guest_start.sh %s %s %s",
 	//	l.Net.Address,

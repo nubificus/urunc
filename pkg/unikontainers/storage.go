@@ -82,7 +82,7 @@ func getBlockDevice(path string) (RootFs, error) {
 func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, rootfsPath string) (string, error) {
 	rootBase, _ := filepath.Split(rootfsPath)
 	// create bundle/tmp directory and moves unikernel binary and urunc.json
-	rootBase := filepath.Dir(rootfsPath)
+	rootBase = filepath.Dir(rootfsPath)
 	tmpDir := filepath.Join(rootBase, "/tmp")
 	err := os.Mkdir(tmpDir, 0755)
 	if err != nil {
