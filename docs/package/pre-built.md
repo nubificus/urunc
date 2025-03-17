@@ -10,7 +10,7 @@ In this page we will explain the process of packaging an existing / pre-built
 unikernel as an OCI image with the necessary annotations for `urunc`. As an
 example, we will use a Hello world [Rumprun](https://github.com/cloudkernels/rumprun)
 unikernel from
-[Rumprun-packages](https://github.com/cloudkernels/rumprun-packages) targetting
+[Rumprun-packages](https://github.com/cloudkernels/rumprun-packages) targeting
 [Solo5-hvt](https://github.com/Solo5/solo5).
 
 For simply packaging pre-built unikernel images, we can use both
