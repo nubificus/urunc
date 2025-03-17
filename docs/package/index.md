@@ -27,6 +27,7 @@ unikernels as OCI images using the aformentioned tools.
 **Quick links:**
 - [Packaging pre-built unikernels](../package/pre-built)
 - [Using unikernels from existing OCI images](../package/reuse)
+- [Packaging pre-built unikernel and creating its rootfs](../package/rootfs)
 - [Packaging statically built applications](../package/static)
 
 ## Annotations
