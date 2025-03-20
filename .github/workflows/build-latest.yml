@@ -79,14 +79,14 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@master
         with:
-          context: ./packaging/urunc-deploy
+          context: ./deployment/urunc-deploy
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           push: true
           #cache-from: type=local,src=/tmp
           #cache-to: type=local,mode=max,dest=/tmp
           #file: ${{ inputs.dockerfile }}
-          file: ./packaging/urunc-deploy/${{ matrix.dockerfile }}
+          file: ./deployment/urunc-deploy/${{ matrix.dockerfile }}
           build-args: |
             BRANCH=fix_ns_net
           #build-contexts: |

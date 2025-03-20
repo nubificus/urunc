@@ -3,7 +3,7 @@ name: 🍜 Build/publish urunc-deploy
 on:
   push:
     paths:
-      - 'packaging/urunc-deploy/Dockerfile'
+      - 'deployment/urunc-deploy/Dockerfile'
             #- 'images/rootless-ubuntu-jammy-go.Dockerfile'
             #- 'images/rootless-ubuntu-numbat-go.Dockerfile'
 
@@ -33,7 +33,7 @@ jobs:
           base: 'main'
           filters: |
             deploy:
-              - 'packaging/urunc-deploy/Dockerfile'
+              - 'deployment/urunc-deploy/Dockerfile'
 
       - name: Show Changed Files
         run: |
