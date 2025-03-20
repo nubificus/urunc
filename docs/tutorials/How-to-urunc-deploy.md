@@ -1,6 +1,6 @@
-# `urunc-deploy`
+# Installing `urunc` using `urunc-deploy`
 
-[`urunc-deploy`](.) provides a Dockerfile, which contains all of the binaries
+[`urunc-deploy`](../../deployment/urunc-deploy/) provides a Dockerfile, which contains all of the binaries
 and artifacts required to run `urunc`, as well as reference DaemonSets, which can
 be utilized to install `urunc` runtime  on a running Kubernetes cluster.
 
