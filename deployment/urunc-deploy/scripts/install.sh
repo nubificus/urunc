@@ -179,7 +179,7 @@ function is_containerd_capable_of_using_drop_in_files() {
     local version_major=$(kubectl get node $NODE_NAME -o jsonpath='{.status.nodeInfo.containerRuntimeVersion}' | grep -oE '[0-9]+\.[0-9]+' | cut -d'.' -f1)
     if [ $version_major -lt 2 ]; then
         # Only containerd 2.0 does the merge of the plugins section from different snippets,
-        # instead of overwritting the whole section, which makes things considerably more
+        # instead of overwriting the whole section, which makes things considerably more
         # complicated for us to deal with.
         #
         # It's been discussed with containerd community, and the patch needed will **NOT** be
@@ -414,7 +414,6 @@ function main() {
         ;;
     esac
     sleep infinity
-
 }
 
 main "$@"
