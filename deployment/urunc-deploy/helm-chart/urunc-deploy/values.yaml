@@ -1,0 +1,11 @@
+imagePullPolicy: Always
+imagePullSecrets: []
+image:
+  reference: harbor.nbfc.io/nubificus/urunc/urunc-deploy
+  tag: "generic"
+# k8s-dist can be k8s, k3s, rke2, k0s
+k8sDistribution: "k8s"
+env:
+  debug: "false"
+  hypervisors: "firecracker qemu solo5-hvt solo5-spt"
+  hostOS: ""

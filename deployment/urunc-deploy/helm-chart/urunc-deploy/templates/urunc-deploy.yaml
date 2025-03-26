@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      name: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        name: {{ .Chart.Name }}
+    spec:
+{{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{- toYaml . | nindent 6 }}
+{{- end }}
+      serviceAccountName: {{ .Chart.Name }}-sa
+      hostPID: true
+      containers:
+      - name: kube-urunc
+        image: {{ .Values.image.reference }}:{{ default .Chart.AppVersion .Values.image.tag }} # TODO: Verify if this is correct, else change tag to `generic`
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        command: ["bash", "-c", "/urunc-artifacts/scripts/install.sh install"]
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: DEBUG
+          value: {{ .Values.env.debug | quote }}
+        - name: HYPERVISORS
+{{- with .Values.env.hostOS }}
+        - name: HOST_OS
+          value: {{ . | quote }}
+{{- end }}
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: crio-conf
+          mountPath: /etc/crio/
+        - name: containerd-conf
+          mountPath: /etc/containerd/
+        - name: host
+          mountPath: /host/
+      volumes:
+      - name: crio-conf
+        hostPath:
+          path: /etc/crio/
+      - name: containerd-conf
+        hostPath:
+          path: '{{- template "containerdConfPath" .Values }}'
+      - name: host
+        hostPath:
+          path: /
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
