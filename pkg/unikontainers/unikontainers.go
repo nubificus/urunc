@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -213,7 +214,7 @@ func (u *Unikontainer) Exec() error {
 	if err != nil {
 		return err
 	}
-	networkInfo, err := netManager.NetworkSetup()
+	networkInfo, err := netManager.NetworkSetup(u.Spec.Process.User.UID, u.Spec.Process.User.GID)
 	if err != nil {
 		Log.Errorf("Failed to setup network :%v. Possibly due to ctr", err)
 	}
@@ -327,8 +328,57 @@ func (u *Unikontainer) Exec() error {
 	Log.Info("calling vmm execve")
 	metrics.Capture(u.State.ID, "TS18")
 
+	// We might not have write access to the container's rootfs if we switch
+	// to a non-root user. Hence, create a file for FC's configuration
+	// and change its permissions according to the new user.
+	// TODO: We have to remove this then we chroot
+	if vmmType == "firecracker" {
+		fcf, err := os.Create(hypervisors.FCJsonFilename)
+		if err != nil {
+			return err
+		}
+		err = fcf.Chmod(0666)
+		if err != nil {
+			return err
+		}
+		err = fcf.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup uid, gid and additional groups for the monitor process
+	err = setupUser(u.Spec.Process.User)
+	if err != nil {
+		return err
+	}
+
 	// metrics.Wait()
 	return vmm.Execve(vmmArgs, unikernel)
+}
+
+func setupUser(user specs.User) error {
+	runtime.LockOSThread()
+	// Set the user for the current go routine to exec the Monitor
+	AddGidsLen := len(user.AdditionalGids)
+	if AddGidsLen > 0 {
+		err := unix.Setgroups(convertUint32ToIntSlice(user.AdditionalGids, AddGidsLen))
+		if err != nil {
+			return fmt.Errorf("could not set Additional groups %v : %v", user.AdditionalGids, err)
+		}
+	}
+
+	err := unix.Setgid(int(user.GID))
+	if err != nil {
+		return fmt.Errorf("could not set gid %d: %v", user.GID, err)
+	}
+
+	err = unix.Setuid(int(user.UID))
+	if err != nil {
+		return fmt.Errorf("could not set uid %d: %v", user.UID, err)
+	}
+
+	return nil
 }
 
 // Kill stops the VMM process, first by asking the VMM struct to stop
