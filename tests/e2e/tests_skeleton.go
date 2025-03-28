@@ -29,6 +29,9 @@ type containerTestArgs struct {
 	Image          string
 	Devmapper      bool
 	Seccomp        bool
+	UID            int
+	GID            int
+	Groups         []int64
 	StaticNet      bool
 	SideContainers []string
 	Skippable      bool

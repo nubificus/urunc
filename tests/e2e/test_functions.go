@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -31,6 +32,73 @@ import (
 )
 
 var matchTest testMethod
+
+func userGroupTest(tool testTool) error {
+	args := tool.getTestArgs()
+	var unikernelPID string
+	var err error
+	if tool.Name() == "crictl" {
+		unikernelPID, err = tool.inspectCAndGet("pid")
+	} else {
+		unikernelPID, err = tool.inspectCAndGet("Pid")
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to extract unikernel PID: %v", err)
+	}
+	procPath := "/proc/" + unikernelPID + "/status"
+	uidLine, err := findLineInFile(procPath, "Uid")
+	if err != nil {
+		return err
+	}
+	uid, err := getAndCheckUGid(uidLine)
+	if err != nil {
+		return err
+	}
+
+	gidLine, err := findLineInFile(procPath, "Gid")
+	if err != nil {
+		return err
+	}
+	gid, err := getAndCheckUGid(gidLine)
+	if err != nil {
+		return err
+	}
+
+	groupsLine, err := findLineInFile(procPath, "Groups")
+	if err != nil {
+		return err
+	}
+	groupString := strings.Split(groupsLine, ":")
+	if len(groupString) != 2 {
+		return fmt.Errorf("Invalid line format. Expected <string>:<string>")
+	}
+	groups := strings.Split(strings.TrimSpace(groupString[1]), " ")
+
+	if uid != args.UID {
+		return fmt.Errorf("Mismmatch in uid. Got: %d should be %d", uid, args.UID)
+	}
+
+	if gid != args.GID {
+		return fmt.Errorf("Mismmatch in gid. Got: %d should be %d", gid, args.GID)
+	}
+
+	lenag := len(args.Groups)
+	if lenag > 0 {
+		lenpg := len(groups)
+		if lenpg != (lenag + 1) {
+			return fmt.Errorf("Mismmatch in groups length. Got: %d should be %d",
+				lenpg, lenag+1)
+		}
+		for _, groupid := range args.Groups {
+			sgid := strconv.FormatInt(groupid, 10)
+			if !slices.Contains(groups, sgid) {
+				return fmt.Errorf("Found groups %s should not be part of", sgid)
+			}
+		}
+	}
+
+	return nil
+}
 
 func seccompTest(tool testTool) error {
 	args := tool.getTestArgs()
@@ -44,6 +112,9 @@ func seccompTest(tool testTool) error {
 		return err
 	}
 	wordsInLine := strings.Split(seccompLine, ":")
+	if len(wordsInLine) != 2 {
+		return fmt.Errorf("Invalid format of line. Expecting 2 values, got %d", len(wordsInLine))
+	}
 	if strings.TrimSpace(wordsInLine[1]) == "2" {
 		if !args.Seccomp {
 			return fmt.Errorf("Seccomp should not be enabled")
