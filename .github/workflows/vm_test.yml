@@ -18,7 +18,10 @@ on:
   workflow_dispatch:
   
 env:
-  vm_profile: ubuntufat
+  SSH_USER: 'incus-ci'
+  SSH_KEY: '${{ secrets.INCUS_ID_ED25519 }}'
+  INCUS_CLUSTER: 'nbfc'
+  VM_NAME: 'test-vm'
 
 jobs:
   prepare:
@@ -29,200 +32,98 @@ jobs:
         archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+    - name: Setup Incus remote
+      uses: nubificus/incus-remote-setup-action@v1
+      with:
+        ssh_user: ${{ env.SSH_USER }}
+        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
+        remote_host: ${{ secrets.INCUS_IP_ADDR }}
+        friendly_name: ${{ env.INCUS_CLUSTER }}
+    
+    - name: Generate Names
+      id: generate-names
+      uses: boonya/gh-action-name-generator@v1
+      with:
+        separator: '-'
+        length: 2
+        style: 'lowerCase'
 
-    - name: get & install kcli & ssh
-      id: kcli-install
+    - name: Set VM name
+      id: set-vm-name
       run: |
-        curl -s https://raw.githubusercontent.com/karmab/kcli/main/install.sh | bash
-        sudo apt update && sudo apt install -y ssh genisoimage
+        echo "VM_NAME=${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
 
-    - name: 'Setup yq'
-      uses: dcarbone/install-yq-action@v1.1.1
-      #with:
-      #  version: '${{ inputs.version }}'
-      #  download-compressed: '${{ inputs.download-compressed }}'
-      #  force: '${{ inputs.force }}'
-
-    - name: 'Check yq'
-      run: |
-          which yq
-          yq --version
-
-    - name:  pre-spawn preparatory actions
-      id: prespawn-prep-actions
-      run: |
-        mkdir ~/.kcli
-        cp ${{ github.workspace}}/.github/resources/profiles.yml ~/.kcli
-        cp ${{ github.workspace}}/.github/resources/config.yml ~/.kcli
-        ssh-keygen -N "" -f ~/.ssh/${{ github.run_id }}_ubuntu
-        yq -i e '.ubuntuthin.keys |= ["~/.ssh/${{ github.run_id }}_ubuntu.pub"]' ~/.kcli/profiles.yml
-        yq -i e '.ubuntuurunc.keys |= ["~/.ssh/${{ github.run_id }}_ubuntu.pub"]' ~/.kcli/profiles.yml
-        yq -i e '.ubuntufat.keys |= ["~/.ssh/${{ github.run_id }}_ubuntu.pub"]' ~/.kcli/profiles.yml
-        echo "${{ secrets.KCLI_ID_RSA }}" > /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
-        chmod 600 /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
-        echo "starting agent...."
-        ssh_agent_eval=$(eval `ssh-agent -a /tmp/${{ github.run_id }}.sock` && ssh-add /home/runner/.ssh/${{ github.run_id }}_ubuntu && ssh-add /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }} )
-        ssh_agent_pid=$(echo $ssh_agent_eval | awk '{print $3;}')
-        echo "SSH_AGENT_PID=$ssh_agent_pid" >> $GITHUB_ENV
-
-    - name: spawn VM
-      id: spawn-vm
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
-      run: |
-        vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
-        kcli -c $vm_client create vm -p ${{ env.vm_profile }} ${{ env.vm_profile }}_${{ github.run_id }}
-        echo "get spanwed vm info"
-        output="fail"
-        result="fail"
-        count=1
-        while [[ $result != "success" ]]
-        do
-          echo "inside while loop"
-          echo "output: " $output
-          echo "result: " $result
-          sleep $(($count * 10))
-          echo "count:" $count
-          output=$(kcli -c $vm_client list vm | grep  ${{ env.vm_profile }}_${{ github.run_id }} | cut -d '|' -f '4' | sed 's/ //g')
-          if [[ "$output" =~ ^[0-9]{1,3}\.[0-9]{1,3}.* ]]; then result="success"; fi
-          if (( count == 5 )); then echo "max VM spawner polling iterations reached, exiting with failure" && exit 1; fi
-          (( count++ ))
-          echo "============================="
-          echo "output: " $output
-          echo "result: " $result
-          echo "count:" $count
-        done
-        echo "vm_spawn_result=$result" >> $GITHUB_ENV
-        echo "vm_spawn_ip=$output" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Execute script in vm
-      id: script-execute-vm
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
-      run: |
-        if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip uname -a;
-          uname_output=$(ssh -oStrictHostKeyChecking=no ubuntu@$vm_spawn_ip uname -a)
-          echo "vm_uname=$uname_output" >> $GITHUB_ENV
-        else
-          exit 1
-        fi
+    - name: Launch VM
+      id: launch-vm
+      uses: nubificus/incus-launch-vm-action@00e5e2f420e7377f1be706c4546aeb9365169dd7
+      with:
+        vm_name: '${{ env.VM_NAME }}'
+        vm_description: 'CI VM for ${{ github.event.repository.name }} for PR ${{ github.event.pull_request.number }} end-to-end testing'
+        incus_remote: ${{ env.INCUS_CLUSTER }}
+        incus_image: '${{ env.INCUS_CLUSTER }}:jammy-urunc-ci-template'
+        cpu_cores: '3'
+        memory: '3' # size in GiB
+        disk_size: '20' # size in GiB
+        incus_profile: 'urunc-ci'
+        incus_project: 'default'
+        incus_target: '@amd64'
+        cleanup: 'true'
+        snapshot: 'false'
   
     - name: Install urunc
       id: install-urunc
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
-        if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip rm -f /usr/local/bin/urunc
-          # ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip ls -la $GITHUB_WORKSPACE
-          # scp -r -oStrictHostKeyChecking=no $GITHUB_WORKSPACE root@$vm_spawn_ip:/root/develop/urunc
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip git clone https://github.com/nubificus/urunc.git /root/develop/urunc
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && git reset --hard ${{github.event.pull_request.head.sha}}'
-          # cmd_output=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip rm -fr /root/develop/urunc && mkdir -p /root/develop && git clone -b $GITHUB_REF_NAME https://github.com/nubificus/urunc.git /root/develop/urunc)
-          cmd_output2=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip PATH=$PATH:/usr/local/go/bin make -C /root/develop/urunc)
-          cmd_output3=$(ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip make -C /root/develop/urunc install)
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'urunc --version'
-          #ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'sleep 20'
-        else
-          exit 1
-        fi
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        incus exec $VM_NAME -- sh -c "rm -f /usr/local/bin/urunc"
+        incus exec $VM_NAME -- sh -c "git clone https://github.com/nubificus/urunc.git /root/develop/urunc"
+        incus exec $VM_NAME -- sh -c "cd /root/develop/urunc && git reset --hard ${{github.event.pull_request.head.sha}}"
+        incus exec $VM_NAME -- sh -c "PATH=/usr/local/go/bin:$PATH make -C /root/develop/urunc"
+        incus exec $VM_NAME -- sh -c "make -C /root/develop/urunc install"
+        incus exec $VM_NAME -- sh -c "urunc --version"
 
     - name: Run ctr tests
       id: test-ctr
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
-        if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_ctr'
-        else
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_ctr"
+        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+          echo "Test failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
         fi
 
     - name: Run nerdctl tests
       id: test-nerdctl
       if: ${{ !cancelled() }}
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
-        if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_nerdctl'
-        else
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_nerdctl"
+        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+          echo "Test failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
         fi
 
     - name: Run crictl tests
       id: test-crictl
       if: ${{ !cancelled() }}
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
-        if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_crictl'
-        else
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_crictl"
+        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+          echo "Test failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
         fi
 
     - name: Run docker tests
       id: test-docker
       if: ${{ !cancelled() }}
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
       run: |
-        if [[ $vm_spawn_result == "success" ]]; then
-          ssh -oStrictHostKeyChecking=no root@$vm_spawn_ip 'cd /root/develop/urunc && PATH=$PATH:/usr/local/go/bin make test_docker'
-        else
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_docker"
+        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+          echo "Test failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
         fi
-
-    - name: Post execution cleanup
-      if: ${{ !cancelled() }}
-      id: post-cleanup
-      env:
-        SSH_AUTH_SOCK: /tmp/${{ github.run_id }}.sock
-      run: |
-        echo "get vm shutdown flag from profile"
-        shutdown_flag=$(yq '.${{ env.vm_profile}}.shutdown_flag'  ~/.kcli/profiles.yml)
-        vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
-        echo "shutdown flag:" $shutdown_flag
-        echo "vm client: " $vm_client
-        if [[ $shutdown_flag == "true" ]]; then
-          echo "cleaning up VM"
-          yes | kcli -c $vm_client delete vm ${{ env.vm_profile }}_${{ github.run_id }}
-        else
-          echo "will leave VM running, check job artifacts"
-        fi
-        echo "clean ssh-agent"
-        echo "ssh agent pid: " $SSH_AGENT_PID
-        ssh-agent -k
-        echo "clean kcli ssh keys"
-        sudo rm -rf /home/runner/.ssh/id_rsa_kcli_${{ github.run_id }}
-
-    - name: prepare artifacts
-      id: prepare_artifacts
-      if: ${{ !cancelled() }}
-      run: |
-        echo "get vm shutdown flag from profile"
-        shutdown_flag=$(yq '.${{ env.vm_profile}}.shutdown_flag'  ~/.kcli/profiles.yml)
-        vm_client=$(yq '.${{ env.vm_profile}}.client'  ~/.kcli/profiles.yml)
-        echo "shutdown flag:" $shutdown_flag
-        echo "vm client: " $vm_client
-        if [[ $shutdown_flag == "false" ]]; then
-          echo "prepare artifacts"
-          tar -cf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar -C /home/runner/.ssh ${{ github.run_id }}_ubuntu
-          echo $vm_uname >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
-          echo "=========================" >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
-          echo $vm_spawn_ip >> ${{ github.workspace }}/${{ github.run_id }}_vm_info
-          tar -rf ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar -C ${{ github.workspace }} ${{ github.run_id }}_vm_info
-        fi
-        sudo rm -rf /home/runner/.ssh/${{ github.run_id }}_ubuntu*
-
-    - name: upload artifacts
-      uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
-      with:
-        name: ${{ github.run_id }}_artifacts
-        path: ${{ github.workspace }}/${{ github.run_id }}_artifacts.tar
