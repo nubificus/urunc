@@ -18,7 +18,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -136,6 +138,32 @@ func verifyNoStaleFiles(containerID string) error {
 	}
 
 	return nil
+}
+
+func getKVMGroupID() (int64, error) {
+	kvmGroup, err := user.LookupGroup("kvm")
+	if err != nil {
+		return 0, err
+	}
+	kvmGid, err := strconv.Atoi(kvmGroup.Gid)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(kvmGid), nil
+}
+
+func getAndCheckUGid(line string) (int, error) {
+	vals := strings.Split(line, ":")
+	ids := strings.Split(strings.TrimSpace(vals[1]), "\t")
+	if len(ids) != 4 {
+		return 0, fmt.Errorf("Invalid format of line. Expecting 4 values, got %d", len(ids))
+	}
+	if (ids[0] != ids[1]) || (ids[1] != ids[2]) || (ids[0] != ids[3]) {
+		return 0, fmt.Errorf("ids in line do not match")
+	}
+
+	return strconv.Atoi(ids[0])
 }
 
 func findLineInFile(filePath string, pattern string) (string, error) {

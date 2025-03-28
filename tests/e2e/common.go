@@ -57,6 +57,12 @@ func commonNewContainerCmd(a containerTestArgs) string {
 	if !a.Seccomp {
 		cmdBase += "--security-opt seccomp=unconfined "
 	}
+	if a.UID != 0 && a.GID != 0 {
+		cmdBase += fmt.Sprintf("-u %d:%d ", a.UID, a.GID)
+	}
+	for _, groupID := range a.Groups {
+		cmdBase += fmt.Sprintf("--group-add %d ", groupID)
+	}
 	cmdBase += "--name "
 	cmdBase += a.Name + " "
 	cmdBase += a.Image
