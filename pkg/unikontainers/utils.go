@@ -197,6 +197,15 @@ func checkValidNsPath(path string) error {
 	return nil
 }
 
+func convertUint32ToIntSlice(valSlice []uint32, size int) []int {
+	retSlice := make([]int, size)
+	for i, val := range valSlice {
+		retSlice[i] = int(val)
+	}
+
+	return retSlice
+}
+
 // TODO: Use it when we enable user namespaces
 // func encodeIDMapping(idMap []specs.LinuxIDMapping) ([]byte, error) {
 // 	data := bytes.NewBuffer(nil)
