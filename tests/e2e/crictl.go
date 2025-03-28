@@ -15,9 +15,12 @@
 package urunce2etesting
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	criruntimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 const crictlName = "crictl"
@@ -52,19 +55,20 @@ func writeToFile(filename string, content string) error {
 }
 
 func crictlNewPodConfig(path string, name string) (string, error) {
-	podConfig := fmt.Sprintf(`{
-		"metadata": {
-			"name": "%s",
-			"namespace": "default",
-			"attempt": 1,
-			"uid": "abcshd83djaidwnduwk28bcsb"
+	podConfig := criruntimeapi.PodSandboxConfig{
+		Metadata: &criruntimeapi.PodSandboxMetadata{
+			Name:      name,
+			Uid:       "abcshd83djaidwnduwk28bcsb",
+			Namespace: "default",
+			Attempt:   1,
 		},
-		"linux": {
-		}
 	}
-	`, name)
+	podConfigJSON, err := json.MarshalIndent(podConfig, "", "    ")
+	if err != nil {
+		return "", fmt.Errorf("Failed to marshal container config: %v", err)
+	}
 	absPodConf := filepath.Join(path, podConfigFilename)
-	err := writeToFile(absPodConf, podConfig)
+	err = writeToFile(absPodConf, string(podConfigJSON))
 	if err != nil {
 		return "", fmt.Errorf("Failed to write pod config: %v", err)
 	}
@@ -79,22 +83,31 @@ func crictlNewContainerConfig(path string, a containerTestArgs) (string, error) 
 	} else {
 		name = a.Name
 	}
-	containerConfig := fmt.Sprintf(`{
-		"metadata": {
-			"name": "%s"
+	containerConfig := criruntimeapi.ContainerConfig{
+		Metadata: &criruntimeapi.ContainerMetadata{
+			Name: name,
 		},
-		"image":{
-			"image": "%s"
+		Image: &criruntimeapi.ImageSpec{
+			Image: a.Image,
 		},
-		"command": [
-			"/unikernel"
-		],
-		"linux": {
-		}
-	  }
-	`, name, a.Image)
+		Command: []string{"/test"},
+		Linux: &criruntimeapi.LinuxContainerConfig{
+			SecurityContext: &criruntimeapi.LinuxContainerSecurityContext{},
+		},
+	}
+	if a.UID != 0 && a.GID != 0 {
+		containerConfig.Linux.SecurityContext.RunAsUser = &criruntimeapi.Int64Value{Value: int64(a.UID)}
+		containerConfig.Linux.SecurityContext.RunAsGroup = &criruntimeapi.Int64Value{Value: int64(a.GID)}
+	}
+	if len(a.Groups) != 0 {
+		containerConfig.Linux.SecurityContext.SupplementalGroups = a.Groups
+	}
+	cc, err := json.MarshalIndent(containerConfig, "", "    ")
+	if err != nil {
+		return "", fmt.Errorf("Failed to marshal container config: %v", err)
+	}
 	absContConf := filepath.Join(path, cntrConfigFilename)
-	err := writeToFile(absContConf, containerConfig)
+	err = writeToFile(absContConf, string(cc))
 	if err != nil {
 		return "", fmt.Errorf("Failed to write container config: %v", err)
 	}
