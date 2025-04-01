@@ -4,3 +4,4 @@ In this section we include some end-to-end tutorials on deploying
 - [`urunc` in Kubernetes](../tutorials/How-to-urunc-on-k8s)
 - [`urunc` in EKS](../tutorials/eks-tutorial)
 - [Knative integration](../tutorials/knative)
+- [Non root monitor execution](../tutorials/Non-root-monitor-execution)
