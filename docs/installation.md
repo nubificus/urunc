@@ -230,7 +230,7 @@ $ rm -f go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz
 After installing Go, we can clone and build `urunc`:
 
 ```bash
-$ git clone git@github.com:nubificus/urunc.git
+$ git clone https://github.com/nubificus/urunc.git
 $ cd urunc
 $ make && sudo make install
 $ cd ..
