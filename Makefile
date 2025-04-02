@@ -48,15 +48,17 @@ SHIM_BIN       := $(BUILD_DIR)/containerd-shim-urunc-v2
 #? GO go binary to use (default: go)
 GO             ?= go
 GO_FLAGS       := GOOS=linux
-CGO            ?= CGO_ENABLED=1 # Required for static building
+CGO            := CGO_ENABLED=1
+NOCGO          := CGO_ENABLED=0
 TEST_FLAGS     := "-count=1"
 TEST_OPTS      += -timeout 3m
 BUILD_TAGS     ?= netgo osusergo
 
 # Linking variables
-LDFLAGS_COMMON := -X main.version=$(VERSION)
-LDFLAGS_STATIC := -linkmode external -extldflags -static
-LDFLAGS_OPT    := -s -w
+LDFLAGS_COMMON   := -X main.version=$(VERSION)
+LDFLAGS_EXTERNAL := -linkmode external
+LDFLAGS_STATIC   := -extldflags -static
+LDFLAGS_OPT      := -s -w
 
 # Source files variables
 #
@@ -94,6 +96,12 @@ INSTALL_DEPS   =  $(shell test -e $(URUNC_BIN)_static_$(ARCH) \
                              && echo $(URUNC_BIN)_dynamic_$(ARCH) \
                              || echo $(URUNC_BIN)_static_$(ARCH))
 
+INSTALL_DEPS   += $(shell test -e $(SHIM_BIN)_static_$(ARCH) \
+                          && echo $(SHIM_BIN)_static_$(ARCH) && exit \
+                          || test -e $(SHIM_BIN)_dynamic_$(ARCH) \
+                             && echo $(SHIM_BIN)_dynamic_$(ARCH) \
+                             || echo $(SHIM_BIN)_static_$(ARCH))
+
 # Main Building rules
 #
 # By default we opt to build static binaries targeting the host archiotecture.
@@ -101,23 +109,39 @@ INSTALL_DEPS   =  $(shell test -e $(URUNC_BIN)_static_$(ARCH) \
 
 ## default Build shim and urunc statically for host arch.(default).
 .PHONY: default
-default: static shim
+default: static
 
-## shim Build only the shim for host arch..
-.PHONY: shim
-shim:  $(SHIM_BIN)_$(ARCH)
-
-## static Build urunc statically for host arch.
+## static Build urunc and containerd shim statically for host arch.
 .PHONY: static
-static: $(URUNC_BIN)_static_$(ARCH)
+static: urunc_static shim_static
 
-## dynamic Build urunc as dynamically-linked binary for host arch.
+## dynamic Build urunc and containerd shim dynamically-linked for host arch.
 .PHONY: dynamic
-dynamic: $(URUNC_BIN)_dynamic_$(ARCH)
+dynamic: urunc_dynamic shim_dynamic
+
+## urunc_static Build urunc and containerd shim statically for host arch.
+.PHONY: urunc_static
+urunc_static: $(URUNC_BIN)_static_$(ARCH)
+
+## shim_static Build containerd shim statically for host arch.
+.PHONY: shim_static
+shim_static: $(SHIM_BIN)_static_$(ARCH)
+
+## urunc_dynamic Build urunc and containerd shim dynamically for host arch.
+.PHONY: urunc_dynamic
+urunc_dynamic: $(URUNC_BIN)_dynamic_$(ARCH)
+
+## shim_dynamic Build containerd shim dynamically for host arch.
+.PHONY: shim_dynamic
+shim_dynamic: $(SHIM_BIN)_dynamic_$(ARCH)
+
+## dynamic Build urunc and containerd shim dynamically-linked for host arch.
+.PHONY: dynamic
+dynamic: $(URUNC_BIN)_dynamic_$(ARCH) $(SHIM_BIN)_dynamic_$(ARCH)
 
 ## all Build shim and urunc statically for all amd64 and aarch64
 .PHONY: all
-all: $(SHIM_BIN)_arm64 $(SHIM_BIN)_amd64 $(URUNC_BIN)_static_amd64 $(URUNC_BIN)_static_arm64
+all: $(SHIM_BIN)_static_arm64 $(SHIM_BIN)_static_amd64 $(URUNC_BIN)_static_amd64 $(URUNC_BIN)_static_arm64
 
 # Just an alias for $(VENDOR_DIR) for easie invocation
 ## prepare Run go mod vendor and veridy.
@@ -138,7 +162,7 @@ $(VENDOR_DIR):
 $(URUNC_BIN)_static_%: $(URUNC_SRC) | prepare
 	$(GO_FLAGS) GOARCH=$* $(CGO) $(GO) build \
 		-tags "$(BUILD_TAGS)" \
-		-ldflags "$(LDFLAGS_COMMON) $(LDFLAGS_STATIC) $(LDFLAGS_OPT)" \
+		-ldflags "$(LDFLAGS_COMMON) $(LDFLAGS_EXTERNAL) $(LDFLAGS_STATIC) $(LDFLAGS_OPT)" \
 		-o $(URUNC_BIN)_static_$* $(CURDIR)/cmd/urunc
 
 $(URUNC_BIN)_dynamic_%: $(URUNC_SRC) | prepare
@@ -146,17 +170,24 @@ $(URUNC_BIN)_dynamic_%: $(URUNC_SRC) | prepare
 		-ldflags "$(LDFLAGS_COMMON) $(LDFLAGS_OPT)" \
 		-o $(URUNC_BIN)_dynamic_$* $(CURDIR)/cmd/urunc
 
-$(SHIM_BIN)_%: $(SHIM_SRC) | prepare
+$(SHIM_BIN)_static_%: $(SHIM_SRC) | prepare
+	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' \
+		$(VENDOR_DIR)/github.com/containerd/go-runc/runc.go
+	GOARCH=$* $(NOCGO) $(GO) build \
+		-ldflags "$(LDFLAGS_STATIC) $(LDFLAGS_OPT)" \
+		-o $(SHIM_BIN)_static_$* $(CURDIR)/cmd/containerd-shim-urunc-v2
+
+$(SHIM_BIN)_dynamic_%: $(SHIM_SRC) | prepare
 	@sed -i 's/DefaultCommand = "runc"/DefaultCommand = "urunc"/g' \
 		$(VENDOR_DIR)/github.com/containerd/go-runc/runc.go
 	GOARCH=$* $(GO) build \
-		-o $(SHIM_BIN)_$* $(CURDIR)/cmd/containerd-shim-urunc-v2
+		-o $(SHIM_BIN)_dynamic_$* $(CURDIR)/cmd/containerd-shim-urunc-v2
 
 ## install Install urunc and shim in PREFIX
 .PHONY: install
-install: $(SHIM_BIN)_$(ARCH) $(INSTALL_DEPS)
-	install -D -m0755 $(word 2,$^) $(PREFIX)/urunc
-	install -D -m0755 $< $(PREFIX)/containerd-shim-urunc-v2
+install: $(INSTALL_DEPS)
+	install -D -m0755 $(word 1,$^) $(PREFIX)/urunc
+	install -D -m0755 $(word 2,$^) $(PREFIX)/containerd-shim-urunc-v2
 
 ## uninstall Remove urunc and shim from PREFIX
 .PHONY: uninstall

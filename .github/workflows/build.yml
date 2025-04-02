@@ -51,6 +51,7 @@ jobs:
         fi
 
     - name: Build urunc binaries
+      id: build-urunc-binaries
       run: |
         make
 
@@ -83,7 +84,7 @@ jobs:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/containerd-shim-urunc-v2_arm64
+        local-path: dist/containerd-shim-urunc-v2_static_arm64
         remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
         policy: 1
 
@@ -94,6 +95,6 @@ jobs:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/containerd-shim-urunc-v2_amd64
+        local-path: dist/containerd-shim-urunc-v2_static_amd64
         remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
         policy: 1
