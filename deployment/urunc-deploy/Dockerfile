@@ -79,7 +79,7 @@ RUN apk update && \
     mv /urunc-artifacts/hypervisors/qemu-system /urunc-artifacts/hypervisors/qemu-system-${ARCH}  && \
     if [ "${ARCH}" = "x86_64" ]; then ARCH=amd64; fi && \
     if [ "${ARCH}" = "aarch64" ]; then ARCH=arm64; fi && \
-    mv /urunc-artifacts/containerd-shim-urunc-v2_${ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
+    mv /urunc-artifacts/containerd-shim-urunc-v2_static_${ARCH} /urunc-artifacts/containerd-shim-urunc-v2 && \
     mv /urunc-artifacts/urunc_static_${ARCH} /urunc-artifacts/urunc && \
     KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt) && \
     curl -fL --progress-bar -o /usr/bin/kubectl https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl && \
