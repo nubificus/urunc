@@ -21,6 +21,7 @@ env:
   SSH_USER: 'incus-ci'
   SSH_KEY: '${{ secrets.INCUS_ID_ED25519 }}'
   INCUS_CLUSTER: 'nbfc'
+  INCUS_PROJECT: 'nbfc-ci'
   VM_NAME: 'test-vm'
 
 jobs:
@@ -65,7 +66,7 @@ jobs:
         memory: '3' # size in GiB
         disk_size: '20' # size in GiB
         incus_profile: 'urunc-ci'
-        incus_project: 'default'
+        incus_project: ${{ env.INCUS_PROJECT }}
         incus_target: '@amd64'
         cleanup: 'true'
         snapshot: 'false'
@@ -73,20 +74,21 @@ jobs:
     - name: Install urunc
       id: install-urunc
       run: |
-        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
-        incus exec $VM_NAME -- sh -c "rm -f /usr/local/bin/urunc"
-        incus exec $VM_NAME -- sh -c "git clone https://github.com/nubificus/urunc.git /root/develop/urunc"
-        incus exec $VM_NAME -- sh -c "cd /root/develop/urunc && git reset --hard ${{github.event.pull_request.head.sha}}"
-        incus exec $VM_NAME -- sh -c "PATH=/usr/local/go/bin:$PATH make -C /root/develop/urunc"
-        incus exec $VM_NAME -- sh -c "make -C /root/develop/urunc install"
-        incus exec $VM_NAME -- sh -c "urunc --version"
+        export VM_NAME="${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}"
+        export INCUS_RUN="incus exec $VM_NAME --project ${{ env.INCUS_PROJECT }} -- sh -c "
+        $INCUS_RUN "rm -f /usr/local/bin/urunc"
+        $INCUS_RUN "git clone https://github.com/nubificus/urunc.git /root/develop/urunc"
+        $INCUS_RUN "cd /root/develop/urunc && git reset --hard ${{github.event.pull_request.head.sha}}"
+        $INCUS_RUN "PATH=/usr/local/go/bin:$PATH make -C /root/develop/urunc"
+        $INCUS_RUN "make -C /root/develop/urunc install"
+        $INCUS_RUN "urunc --version"
 
     - name: Run ctr tests
       id: test-ctr
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_ctr"
-        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
@@ -98,7 +100,7 @@ jobs:
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_nerdctl"
-        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
@@ -110,7 +112,7 @@ jobs:
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_crictl"
-        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
@@ -122,7 +124,7 @@ jobs:
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_docker"
-        if ! incus exec "$VM_NAME" -- sh -c "$TEST_CMD"; then
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
           exit 1
