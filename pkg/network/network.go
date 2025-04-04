@@ -18,8 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os/user"
-	"strconv"
 	"strings"
 
 	"github.com/jackpal/gateway"
@@ -40,7 +38,7 @@ type UnikernelNetworkInfo struct {
 	EthDevice Interface
 }
 type Manager interface {
-	NetworkSetup() (*UnikernelNetworkInfo, error)
+	NetworkSetup(uid uint32, gid uint32) (*UnikernelNetworkInfo, error)
 }
 
 type Interface struct {
@@ -80,7 +78,7 @@ func getTapIndex() (int, error) {
 	return tapCount, nil
 }
 
-func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link, error) {
+func createTapDevice(name string, mtu int, ownerUID, ownerGID uint32) (netlink.Link, error) {
 	tapLinkAttrs := netlink.NewLinkAttrs()
 	tapLinkAttrs.Name = name
 	tapLink := &netlink.Tuntap{
@@ -103,12 +101,12 @@ func createTapDevice(name string, mtu int, ownerUID, ownerGID int) (netlink.Link
 	}
 
 	for _, tapFd := range tapLink.Fds {
-		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETOWNER, ownerUID)
+		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETOWNER, int(ownerUID))
 		if err != nil {
 			return nil, fmt.Errorf("failed to set tap %s owner to uid %d: %w", name, ownerUID, err)
 		}
 
-		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETGROUP, ownerGID)
+		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETGROUP, int(ownerGID))
 		if err != nil {
 			return nil, fmt.Errorf("failed to set tap %s group to gid %d: %w", name, ownerGID, err)
 		}
@@ -218,24 +216,12 @@ func addRedirectFilter(source netlink.Link, target netlink.Link) error {
 	})
 }
 
-func networkSetup(tapName string, ipAddress string, redirectLink netlink.Link, addTCRules bool) (netlink.Link, error) {
+func networkSetup(tapName string, ipAddress string, redirectLink netlink.Link, addTCRules bool, uid uint32, gid uint32) (netlink.Link, error) {
 	err := ensureEth0Exists()
 	// if eth0 does not exist in the namespace, the unikernel was spawned using ctr, so we skip the network setup
 	if err != nil {
 		netlog.Info("eth0 interface not found, assuming unikernel was spawned using ctr")
 		return nil, nil
-	}
-	currentUser, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-	uid, err := strconv.Atoi(currentUser.Uid)
-	if err != nil {
-		return nil, err
-	}
-	gid, err := strconv.Atoi(currentUser.Gid)
-	if err != nil {
-		return nil, err
 	}
 	newTapDevice, err := createTapDevice(tapName, redirectLink.Attrs().MTU, uid, gid)
 	if err != nil {

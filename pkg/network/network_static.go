@@ -89,7 +89,7 @@ func setNATRule(iface string, sourceIP string) error {
 	return nil
 }
 
-func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
+func (n StaticNetwork) NetworkSetup(uid uint32, gid uint32) (*UnikernelNetworkInfo, error) {
 	newTapName := strings.ReplaceAll(DefaultTap, "X", "0")
 	addTCRules := false
 	redirectLink, err := netlink.LinkByName(DefaultInterface)
@@ -97,7 +97,7 @@ func (n StaticNetwork) NetworkSetup() (*UnikernelNetworkInfo, error) {
 		netlog.Errorf("failed to find %s interface", DefaultInterface)
 		return nil, err
 	}
-	newTapDevice, err := networkSetup(newTapName, StaticIPAddr, redirectLink, addTCRules)
+	newTapDevice, err := networkSetup(newTapName, StaticIPAddr, redirectLink, addTCRules, uid, gid)
 	if err != nil {
 		return nil, err
 	}
