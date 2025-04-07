@@ -4,4 +4,4 @@ In this section we include some end-to-end tutorials on deploying
 - [`urunc` in k8s](../tutorials/How-to-urunc-on-k8s)
 - [`urunc` in EKS](../tutorials/eks-tutorial)
 - `urunc` in k3s [WiP]
-- knative integration [WiP]
+- [knative integration](../tutorials/knative)
