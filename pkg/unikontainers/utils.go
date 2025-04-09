@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -141,15 +142,16 @@ func writePidFile(path string, pid int) error {
 // Then, the container is identified as a non-bima container
 // is spawned using runc.
 func handleQueueProxy(spec specs.Spec, configFile string) error {
+	var readinessProbeEnv string
 	for i, envVar := range spec.Process.Env {
 		if strings.HasPrefix(envVar, "SERVING_READINESS_PROBE") {
 			spec.Process.Env = remove(spec.Process.Env, i)
+			re := regexp.MustCompile(`"host"\s*:\s*"[^"]+"`)
+			readinessProbeEnv = re.ReplaceAllString(envVar, `"host":"`+constants.QueueProxyRedirectIP+`"`)
 			break
 		}
 	}
 
-	// Set new environment variables for Queue Proxy container
-	readinessProbeEnv := fmt.Sprintf("SERVING_READINESS_PROBE={\"tcpSocket\":{\"port\":8080,\"host\":\"%s\"},\"successThreshold\":1}", constants.QueueProxyRedirectIP)
 	redirectIPEnv := fmt.Sprintf("REDIRECT_IP=%s", constants.QueueProxyRedirectIP)
 	envs := []string{readinessProbeEnv, redirectIPEnv}
 	spec.Process.Env = append(spec.Process.Env, envs...)
