@@ -42,6 +42,7 @@ jobs:
         remote_host: ${{ secrets.INCUS_IP_ADDR }}
         friendly_name: ${{ env.INCUS_CLUSTER }}
         incus_client_name: '${{ env.INCUS_NAME }}'
+        cleanup: false
     
     - name: Generate Names
       id: generate-names
