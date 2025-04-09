@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
     steps:
     - name: Setup Incus remote
-      uses: nubificus/incus-remote-setup-action@a6eab5a6fcd48f80daea157968d73a3e2a898ac4
+      uses: nubificus/incus-remote-setup-action@v2
       with:
         ssh_user: ${{ env.SSH_USER }}
         ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
