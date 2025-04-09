@@ -46,11 +46,14 @@ jobs:
           filters: |
             deploy:
               - 'deployment/urunc-deploy/Dockerfile'
+            version:
+              - 'VERSION'
 
       - name: Show Changed Files
         run: |
           echo "Files in deploy: ${{ steps.filter.outputs.deploy_files }}"
           echo "Files changed: ${{ steps.filter.outputs.changes }}"
+          echo "version: ${{ steps.filter.outputs.version}}"
 
       - name: Replace file paths in deploy_files
         id: replace_files_deploy
@@ -98,3 +101,4 @@ jobs:
       runner: '["base", "dind", "2204"]'
       runner-archs: '["amd64", "arm64"]'
       dockerfiles: ${{ needs.get-changed-files.outputs.files_deploy }}
+      version-tag: ${{ needs.get-changed-files.outputs.version == 'true' }}

@@ -18,6 +18,9 @@ on:
       registry:
         type: string
         default: 'harbor.nbfc.io'
+      version-tag:
+        type: boolean
+        default: false
     secrets:
       GIT_CLONE_PAT:
         required: false
@@ -144,14 +147,31 @@ jobs:
         dockerfile: ["${{ fromJSON(inputs.dockerfiles) }}"] 
     env:
       REGISTRY: ${{ inputs.registry }}
-      TAG: generic
 
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v4
 
-      - name: Set short SHA
-        run: echo "SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
+      - name: Set SHA and Docker tag based on branch or PR
+        id: tag
+        run: |
+          # Set SHA_SHORT to be used for the manifest
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "SHA_SHORT=${SHORT_SHA}" >> $GITHUB_ENV
+
+          # Determine the manifests' TAG
+          if [[ ${{ inputs.version-tag }} == true ]]; then
+            echo "Version change detected. Using version: $( cat VERSION )."
+            echo "TAG=$( cat VERSION ) " >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF##*/}" == "main" ]]; then
+            echo "Change in main branch detected. Using latest tag."
+            echo "TAG=latest" >> $GITHUB_ENV
+          else
+            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+            echo "Using tag: ${SHORT_SHA}."
+            echo "TAG=${SHORT_SHA}" >> $GITHUB_ENV
+          fi
+
 
       - name: Log into registry ${{ inputs.REGISTRY }}
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
@@ -177,8 +197,6 @@ jobs:
           # Create the docker manifest with the amend command
           docker manifest create ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy:${{ env.TAG }} $amend_command
 
-          # Optionally push the manifest (comment out if not needed)
-          #          docker manifest push ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.dockerfile }}:${{ env.TAG }}
           VAR=`docker manifest push ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy:${{ env.TAG }} | tail -1`
           echo "manifest_sha=$VAR" >> "$GITHUB_OUTPUT"
 
@@ -189,9 +207,7 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "true"
           DIGEST: ${{steps.create-manifest.outputs.manifest_sha }}
-        # run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
         run: |
-          #cosign sign --yes harbor.nbfc.io/nubificus/${{ github.repository }}/${{ matrix.dockerfile }}:${{ env.ARCH }}-${{ env.SHA_SHORT }}@$DIGEST \
           cosign sign --yes ${{ env.REGISTRY }}/${{ github.repository }}/urunc-deploy@$DIGEST \
           -a "repo=${{github.repository}}" \
           -a "workflow=${{github.workflow}}" \
