@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
     steps:
     - name: Setup Incus remote
-      uses: nubificus/incus-remote-setup-action@v2
+      uses: nubificus/incus-remote-setup-action@5580bf31df021cd6cf3266c4383a8ccb448ed7f9
       with:
         ssh_user: ${{ env.SSH_USER }}
         ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
@@ -73,7 +73,14 @@ jobs:
         incus_target: 'base01'
         cleanup: 'true'
         snapshot: 'false'
-  
+
+    - name: Prepare VM
+      id: prepare-vm
+      run: |
+        export VM_NAME="${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}"
+        export INCUS_RUN="incus exec $VM_NAME --project ${{ env.INCUS_PROJECT }} -- sh -c "
+        $INCUS_RUN 'timeout=30; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for lock..."; sleep 1; timeout=$((timeout - 1)); if [ "$timeout" -le 0 ]; then break; fi; done; sudo apt-get update'
+        $INCUS_RUN "apt-get install -y curl wget"
     - name: Install urunc
       id: setup-urunc
       run: |
