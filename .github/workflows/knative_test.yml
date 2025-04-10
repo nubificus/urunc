@@ -23,7 +23,7 @@ env:
   INCUS_CLUSTER: 'nbfc'
   INCUS_PROJECT: 'nbfc-ci'
   VM_NAME: 'test-vm'
-  INCUS_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}'
+  INCUS_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 
 jobs:
   prepare:
@@ -55,7 +55,7 @@ jobs:
     - name: Set VM name
       id: set-vm-name
       run: |
-        echo "VM_NAME=${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
+        echo "VM_NAME=${{ github.event.repository.name }}-knative-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
 
     - name: Launch VM
       id: launch-vm
@@ -64,7 +64,7 @@ jobs:
         vm_name: '${{ env.VM_NAME }}'
         vm_description: 'CI VM for ${{ github.event.repository.name }} for PR ${{ github.event.pull_request.number }} end-to-end testing'
         incus_remote: ${{ env.INCUS_CLUSTER }}
-        incus_image: 'images:f4e9e1e4859e'
+        incus_image: 'nbfc:f4e9e1e4859e'
         cpu_cores: '4'
         memory: '4' # size in GiB
         disk_size: '20' # size in GiB
