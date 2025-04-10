@@ -1,0 +1,68 @@
+name: Nightly
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [synchronize, labeled, unlabeled]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+#  validate-files-and-commits:
+#    name: Lint Files & commits 
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-lint')
+#    uses: ./.github/workflows/validate-files-and-commits.yml
+#    secrets: inherit
+#
+#  lint:
+#    name: Lint code
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-lint')
+#    uses: ./.github/workflows/lint.yml
+#    secrets: inherit
+#
+#  build:
+#    #needs: [validate-files-and-commits, lint]
+#    name: Build
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-build')
+#    uses: ./.github/workflows/build.yml
+#    secrets: inherit
+#
+#  unit_test:
+#    #needs: [validate-files-and-commits, lint]
+#    name: Unit tests
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-build')
+#    uses: ./.github/workflows/unit_test.yml
+#    secrets: inherit
+#
+#  #FIXME: run for arm64
+#  vm_test:
+#    needs: [build,unit_test]
+#    name: E2E test
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-build')
+#    uses: ./.github/workflows/vm_test.yml
+#    secrets: inherit
+#
+
+  #FIXME: run for arm64
+  knative_test:
+    #needs: [build,unit_test]
+    name: E2E test
+    if: | 
+      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-test')
+    uses: ./.github/workflows/knative_test.yml
+    secrets: inherit
+
