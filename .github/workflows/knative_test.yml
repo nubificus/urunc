@@ -81,7 +81,8 @@ jobs:
         export INCUS_RUN="incus exec $VM_NAME --project ${{ env.INCUS_PROJECT }} -- sh -c "
         $INCUS_RUN 'timeout=30; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for lock..."; sleep 1; timeout=$((timeout - 1)); if [ "$timeout" -le 0 ]; then break; fi; done; sudo apt-get update'
         $INCUS_RUN "apt-get install -y curl wget"
-    - name: Install urunc
+
+    - name: Install k3s, knative, urunc
       id: setup-urunc
       run: |
         export VM_NAME="${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}"
@@ -90,7 +91,8 @@ jobs:
         $INCUS_RUN "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--flannel-backend=none ' sh -s -   --disable-network-policy   --disable \"servicelb\"      --disable \"metrics-server\" --cluster-cidr \"10.244.32.0/19\" --service-cidr \"10.244.0.0/19\""
         $INCUS_RUN "kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml"
         $INCUS_RUN "wget https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/custom-resources.yaml"
-        $INCUS_RUN "sed -i.bak \"s|192\.168\.0\.0/16|${POD_CIDR}|g\" custom-resources.yaml"
+        $INCUS_RUN "sed -i.bak \"s|192\.168\.0\.0/16|10\.244\.32\.0/19|g\" custom-resources.yaml"
+        $INCUS_RUN "cat custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml"
         $INCUS_RUN "kubectl apply -k https://github.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-deploy/overlays/k3s"
