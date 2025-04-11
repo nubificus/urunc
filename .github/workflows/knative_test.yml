@@ -96,11 +96,18 @@ jobs:
         $INCUS_RUN "kubectl apply -f custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml"
         $INCUS_RUN "kubectl apply -k https://github.com/nubificus/urunc//deployment/urunc-deploy/urunc-deploy/overlays/k3s?ref=main"
-        $INCUS_RUN "kubectl apply -f https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml"
+        $INCUS_RUN "wget https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml"
+        $INCUS_RUN "kubectl create -f knative-v1.17.0-urunc-5220308.yaml || true"
+        $INCUS_RUN "kubectl create -f knative-v1.17.0-urunc-5220308.yaml || true"
         $INCUS_RUN "kubectl apply -f https://github.com/knative/net-kourier/releases/latest/download/kourier.yaml"
-        $INCUS_RUN "kubectl patch configmap/config-network -n knative-serving --type merge -p '{\"data\":{\"ingress.class\":\"kourier.ingress.networking.knative.dev\"}}' kubectl patch configmap/config-domain -n knative-serving --type merge -p '{\"data\":{\"127.0.0.1.nip.io\":\"\"}}'"
+        $INCUS_RUN "kubectl wait --for=condition=Ready pods --all -n knative-serving --timeout=300s"
+        $INCUS_RUN "kubectl wait --for=condition=Ready pods --all -n kourier-system --timeout=300s"
+        $INCUS_RUN "kubectl patch configmap/config-network -n knative-serving --type merge -p '{\"data\":{\"ingress.class\":\"kourier.ingress.networking.knative.dev\"}}'" 
+        $INCUS_RUN "kubectl patch configmap/config-domain -n knative-serving --type merge -p '{\"data\":{\"127.0.0.1.nip.io\":\"\"}}'"
         $INCUS_RUN "kubectl patch configmap/config-features --namespace knative-serving --type merge --patch '{\"data\":{ \"kubernetes.podspec-affinity\":\"enabled\", \"kubernetes.podspec-runtimeclassname\":\"enabled\", \"kubernetes.podspec-nodeselector\":\"enabled\" }}'"
-        $INCUS_RUN "kubectl get svc -n kourier-system | grep kourier-internal |awk '{print $3}' > /tmp/kourier-host"
+
+        $INCUS_RUN "kubectl get svc kourier-internal -n kourier-system -o=jsonpath='{.spec.clusterIP}' > /tmp/kourier-host"
+        $INCUS_RUN "kubectl create ns openinfra"
 
     - name: Deploy knative function
       id: test-function
@@ -117,7 +124,7 @@ jobs:
       id: check-function
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
-        export TEST_CMD="kubectl get ksvc -A -o wide"
+        export TEST_CMD="kubectl get ksvc -A -o wide && kubectl wait --for=condition=Ready ksvc hellocontainer -n openinfra --timeout=40s"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "service query failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
@@ -130,7 +137,7 @@ jobs:
       if: ${{ !cancelled() }}
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
-        export TEST_CMD="cat /tmp/kourier-host | curl -v -H \"Host: hellocontainer.default.127.0.0.1.nip.io\" "
+        export TEST_CMD="cat /tmp/kourier-host | xargs curl -v -H \"Host: hellocontainer.openinfra.127.0.0.1.nip.io\" "
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
