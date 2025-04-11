@@ -95,7 +95,7 @@ jobs:
         $INCUS_RUN "cat custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml"
-        $INCUS_RUN "kubectl apply -k https://github.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-deploy/overlays/k3s"
+        $INCUS_RUN "kubectl apply -k https://github.com/nubificus/urunc//deployment/urunc-deploy/urunc-deploy/overlays/k3s?ref=main"
         $INCUS_RUN "kubectl apply -f https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml"
         $INCUS_RUN "kubectl apply -f https://github.com/knative/net-kourier/releases/latest/download/kourier.yaml"
         $INCUS_RUN "kubectl patch configmap/config-network -n knative-serving --type merge -p '{\"data\":{\"ingress.class\":\"kourier.ingress.networking.knative.dev\"}}' kubectl patch configmap/config-domain -n knative-serving --type merge -p '{\"data\":{\"127.0.0.1.nip.io\":\"\"}}'"
