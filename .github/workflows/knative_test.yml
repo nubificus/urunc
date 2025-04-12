@@ -7,6 +7,10 @@ on:
         default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
+        #default: '["amd64","arm64"]'
+        # FIXME: disabling arm as there is no nested support
+        # we need to add a solo5-spt example, just to test the 
+        # arm64 functionality of the workflow.
         default: '["amd64"]'
       runner-arch-map:
         type: string
@@ -57,6 +61,24 @@ jobs:
       run: |
         echo "VM_NAME=${{ github.event.repository.name }}-knative-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
 
+    - name: Set VM image
+      id: set-vm-image
+      run: |
+        ARCHITECTURE=$(uname -m)
+        echo "Current architecture: $ARCHITECTURE"
+          
+        if [[ "$ARCHITECTURE" == "x86_64" ]]; then
+          IMAGE='nbfc:f4e9e1e4859e'
+          TARGET='@amd64'
+        elif [[ "$ARCHITECTURE" == "aarch64" ]]; then
+          IMAGE='nbfc:71b1bb3aa205'
+          TARGET='@arm64'
+        else
+          echo "Unknown architecture: $ARCHITECTURE"
+        fi
+        echo "INCUS_IMAGE=${IMAGE}" >> $GITHUB_ENV
+        echo "INCUS_TARGET=${TARGET}" >> $GITHUB_ENV
+
     - name: Launch VM
       id: launch-vm
       uses: nubificus/incus-launch-vm-action@00e5e2f420e7377f1be706c4546aeb9365169dd7
@@ -64,13 +86,13 @@ jobs:
         vm_name: '${{ env.VM_NAME }}'
         vm_description: 'CI VM for ${{ github.event.repository.name }} for PR ${{ github.event.pull_request.number }} end-to-end testing'
         incus_remote: ${{ env.INCUS_CLUSTER }}
-        incus_image: 'nbfc:f4e9e1e4859e'
+        incus_image: ${{ env.INCUS_IMAGE }} 
         cpu_cores: '4'
         memory: '4' # size in GiB
         disk_size: '20' # size in GiB
         incus_profile: 'urunc-ci'
         incus_project: ${{ env.INCUS_PROJECT }}
-        incus_target: 'base01'
+        incus_target: ${{ env.INCUS_TARGET }}
         cleanup: 'true'
         snapshot: 'false'
 
@@ -80,7 +102,7 @@ jobs:
         export VM_NAME="${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}"
         export INCUS_RUN="incus exec $VM_NAME --project ${{ env.INCUS_PROJECT }} -- sh -c "
         $INCUS_RUN 'timeout=30; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for lock..."; sleep 1; timeout=$((timeout - 1)); if [ "$timeout" -le 0 ]; then break; fi; done; sudo apt-get update'
-        $INCUS_RUN "apt-get install -y curl wget"
+        $INCUS_RUN 'timeout=30; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for lock..."; sleep 1; timeout=$((timeout - 1)); if [ "$timeout" -le 0 ]; then break; fi; done; sudo apt-get install -y curl wget'
 
     - name: Install k3s, knative, urunc
       id: setup-urunc
@@ -94,8 +116,10 @@ jobs:
         $INCUS_RUN "sed -i.bak \"s|192\.168\.0\.0/16|10\.244\.32\.0/19|g\" custom-resources.yaml"
         $INCUS_RUN "cat custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f custom-resources.yaml"
+        $INCUS_RUN "sleep 10" # && kubectl -n calico-system wait --timeout=5m --for=condition=Ready -l k8s-app=calico-node pod"
         $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml"
         $INCUS_RUN "kubectl apply -k https://github.com/nubificus/urunc//deployment/urunc-deploy/urunc-deploy/overlays/k3s?ref=main"
+        $INCUS_RUN "sleep 10" # && kubectl -n kube-system wait --timeout=10m --for=condition=Ready -l name=urunc-deploy pod"
         $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/deployment/urunc-deploy/runtimeclasses/runtimeclass.yaml"
         $INCUS_RUN "wget https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml"
         $INCUS_RUN "kubectl create -f knative-v1.17.0-urunc-5220308.yaml || true"
