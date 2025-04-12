@@ -1,4 +1,4 @@
-name: Knative urunc test
+name: Test urunc deploy
 on:
   workflow_call:
     inputs:
@@ -7,11 +7,7 @@ on:
         default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
-        #default: '["amd64","arm64"]'
-        # FIXME: disabling arm as there is no nested support
-        # we need to add a solo5-spt example, just to test the 
-        # arm64 functionality of the workflow.
-        default: '["amd64"]'
+        default: '["amd64", "arm64"]'
       runner-arch-map:
         type: string
         default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
@@ -30,24 +26,14 @@ env:
   INCUS_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 
 jobs:
-  prepare:
-    name: Knative test
+  test:
+    name: urunc-deploy
     runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
     strategy:
       matrix:
         archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
     steps:
-    - name: Setup Incus remote
-      uses: nubificus/incus-remote-setup-action@5580bf31df021cd6cf3266c4383a8ccb448ed7f9
-      with:
-        ssh_user: ${{ env.SSH_USER }}
-        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
-        remote_host: ${{ secrets.INCUS_IP_ADDR }}
-        friendly_name: ${{ env.INCUS_CLUSTER }}
-        incus_client_name: '${{ env.INCUS_NAME }}-${{ github.action }}'
-        cleanup: false
-    
     - name: Generate Names
       id: generate-names
       uses: boonya/gh-action-name-generator@v1
@@ -56,17 +42,15 @@ jobs:
         length: 2
         style: 'lowerCase'
 
-    - name: Set VM name
-      id: set-vm-name
-      run: |
-        echo "VM_NAME=${{ github.event.repository.name }}-knative-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
-
     - name: Set VM image
       id: set-vm-image
       run: |
         ARCHITECTURE=$(uname -m)
         echo "Current architecture: $ARCHITECTURE"
-          
+
+        ID=$(date +%s%N | sha256sum | head -c 12)
+        echo "UNIQ_ID=$ID" >> $GITHUB_ENV
+
         if [[ "$ARCHITECTURE" == "x86_64" ]]; then
           IMAGE='nbfc:f4e9e1e4859e'
           TARGET='@amd64'
@@ -78,7 +62,18 @@ jobs:
         fi
         echo "INCUS_IMAGE=${IMAGE}" >> $GITHUB_ENV
         echo "INCUS_TARGET=${TARGET}" >> $GITHUB_ENV
+        echo "VM_NAME=${{ github.event.repository.name }}-urunc-deploy-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
 
+    - name: Setup Incus remote
+      uses: nubificus/incus-remote-setup-action@5580bf31df021cd6cf3266c4383a8ccb448ed7f9
+      with:
+        ssh_user: ${{ env.SSH_USER }}
+        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
+        remote_host: ${{ secrets.INCUS_IP_ADDR }}
+        friendly_name: ${{ env.INCUS_CLUSTER }}
+        incus_client_name: '${{ env.INCUS_NAME }}-${{ env.UNIQ_ID }}'
+        cleanup: false
+    
     - name: Launch VM
       id: launch-vm
       uses: nubificus/incus-launch-vm-action@00e5e2f420e7377f1be706c4546aeb9365169dd7
@@ -86,7 +81,7 @@ jobs:
         vm_name: '${{ env.VM_NAME }}'
         vm_description: 'CI VM for ${{ github.event.repository.name }} for PR ${{ github.event.pull_request.number }} end-to-end testing'
         incus_remote: ${{ env.INCUS_CLUSTER }}
-        incus_image: ${{ env.INCUS_IMAGE }} 
+        incus_image: ${{ env.INCUS_IMAGE }}
         cpu_cores: '4'
         memory: '4' # size in GiB
         disk_size: '20' # size in GiB
@@ -96,8 +91,7 @@ jobs:
         cleanup: 'true'
         snapshot: 'false'
 
-
-    - name: Install and configure k3s with Calico, Knative and urunc
+    - name: Install and configure k3s with Calico and urunc
       run: |
         retry() {
           desc="$1"
@@ -138,26 +132,4 @@ jobs:
 
         retry "Apply urunc runtimeclass" $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/deployment/urunc-deploy/runtimeclasses/runtimeclass.yaml"
 
-        # Get knative manifests
-        $INCUS_RUN "wget https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml"
-        retry "Apply Knative manifests" $INCUS_RUN "kubectl create -f knative-v1.17.0-urunc-5220308.yaml"
-        retry "Apply Kourier manifests" $INCUS_RUN "kubectl apply -f https://github.com/knative/net-kourier/releases/latest/download/kourier.yaml"
-        retry "Wait for Knative setup" $INCUS_RUN "kubectl wait --for=condition=Ready pods --all -n knative-serving --timeout=300s"
-        retry "Wait for Kourier setup" $INCUS_RUN "kubectl wait --for=condition=Ready pods --all -n kourier-system --timeout=300s"
 
-        # Configure knative
-        $INCUS_RUN "kubectl patch configmap/config-network -n knative-serving --type merge -p '{\"data\":{\"ingress.class\":\"kourier.ingress.networking.knative.dev\"}}'" 
-        $INCUS_RUN "kubectl patch configmap/config-domain -n knative-serving --type merge -p '{\"data\":{\"127.0.0.1.nip.io\":\"\"}}'"
-        $INCUS_RUN "kubectl patch configmap/config-features --namespace knative-serving --type merge --patch '{\"data\":{ \"kubernetes.podspec-affinity\":\"enabled\", \"kubernetes.podspec-runtimeclassname\":\"enabled\", \"kubernetes.podspec-nodeselector\":\"enabled\" }}'"
-
-        $INCUS_RUN "kubectl get svc kourier-internal -n kourier-system -o=jsonpath='{.spec.clusterIP}' > /tmp/kourier-host"
-        # Deploy knative function
-        $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/c-httpreply/refs/heads/main/service.yaml"
-        retry "Wait for function" $INCUS_RUN "kubectl wait --for=condition=Ready ksvc hellocontainerc --timeout=60s"
-        # Invoke knative function
-        $INCUS_RUN "cat /tmp/kourier-host | xargs curl -v -H \"Host: hellocontainerc.default.127.0.0.1.nip.io\""
-        # Deploy knative unikernel function
-        $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/app-httpreply/refs/heads/feat_generic/service.yaml"
-        retry "Wait for unikernel function" $INCUS_RUN "kubectl wait --for=condition=Ready ksvc hellounikernelfc --timeout=60s"
-        # Invoke knative unikernel function
-        $INCUS_RUN "cat /tmp/kourier-host | xargs curl -v -H \"Host: hellounikernelfc.default.127.0.0.1.nip.io\""
