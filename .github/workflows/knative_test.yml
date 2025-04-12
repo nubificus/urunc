@@ -96,6 +96,7 @@ jobs:
         $INCUS_RUN "kubectl apply -f custom-resources.yaml"
         $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/main/deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml"
         $INCUS_RUN "kubectl apply -k https://github.com/nubificus/urunc//deployment/urunc-deploy/urunc-deploy/overlays/k3s?ref=main"
+        $INCUS_RUN "kubectl apply -f https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/deployment/urunc-deploy/runtimeclasses/runtimeclass.yaml"
         $INCUS_RUN "wget https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml"
         $INCUS_RUN "kubectl create -f knative-v1.17.0-urunc-5220308.yaml || true"
         $INCUS_RUN "kubectl create -f knative-v1.17.0-urunc-5220308.yaml || true"
@@ -107,13 +108,12 @@ jobs:
         $INCUS_RUN "kubectl patch configmap/config-features --namespace knative-serving --type merge --patch '{\"data\":{ \"kubernetes.podspec-affinity\":\"enabled\", \"kubernetes.podspec-runtimeclassname\":\"enabled\", \"kubernetes.podspec-nodeselector\":\"enabled\" }}'"
 
         $INCUS_RUN "kubectl get svc kourier-internal -n kourier-system -o=jsonpath='{.spec.clusterIP}' > /tmp/kourier-host"
-        $INCUS_RUN "kubectl create ns openinfra"
 
     - name: Deploy knative function
-      id: test-function
+      id: test-generic-function
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
-        export TEST_CMD="kubectl apply -f https://raw.githubusercontent.com/nubificus/openinfradayshu-demos/main/serverless-sandboxes/service-container-hello.yaml"
+        export TEST_CMD="kubectl apply -f https://raw.githubusercontent.com/nubificus/c-httpreply/refs/heads/main/service.yaml"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "service creation failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
@@ -121,10 +121,10 @@ jobs:
         fi
 
     - name: Query function
-      id: check-function
+      id: check-generic-function
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
-        export TEST_CMD="kubectl get ksvc -A -o wide && kubectl wait --for=condition=Ready ksvc hellocontainer -n openinfra --timeout=40s"
+        export TEST_CMD="kubectl get ksvc -A -o wide && kubectl wait --for=condition=Ready ksvc hellocontainerc --timeout=40s"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "service query failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
@@ -133,11 +133,46 @@ jobs:
 
 
     - name: Run function invocation
-      id: test-actual-function
+      id: test-generic-function-invocation
       if: ${{ !cancelled() }}
       run: |
         export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
-        export TEST_CMD="cat /tmp/kourier-host | xargs curl -v -H \"Host: hellocontainer.openinfra.127.0.0.1.nip.io\" "
+        export TEST_CMD="cat /tmp/kourier-host | xargs curl -v -H \"Host: hellocontainerc.default.127.0.0.1.nip.io\" "
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
+          echo "Test failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
+          exit 1
+        fi    
+
+    - name: Deploy urunc knative function
+      id: test-urunc-function
+      run: |
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="kubectl apply -f https://raw.githubusercontent.com/nubificus/app-httpreply/refs/heads/feat_generic/service.yaml"
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
+          echo "service creation failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
+          exit 1
+        fi
+
+    - name: Query function
+      id: check-urunc-function
+      run: |
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="kubectl get ksvc -A -o wide && kubectl wait --for=condition=Ready ksvc hellounikernelfc --timeout=40s"
+        if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
+          echo "service query failed"
+          echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
+          exit 1
+        fi
+
+
+    - name: Run function invocation
+      id: test-urunc-function-invocation
+      if: ${{ !cancelled() }}
+      run: |
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export TEST_CMD="cat /tmp/kourier-host | xargs curl -v -H \"Host: hellounikernelfc.default.127.0.0.1.nip.io\" "
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
           echo "CLEANUP_OVERRIDE=false" >> $GITHUB_ENV
