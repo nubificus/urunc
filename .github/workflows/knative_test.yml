@@ -45,7 +45,7 @@ jobs:
         ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
         remote_host: ${{ secrets.INCUS_IP_ADDR }}
         friendly_name: ${{ env.INCUS_CLUSTER }}
-        incus_client_name: '${{ env.INCUS_NAME }}'
+        incus_client_name: '${{ env.INCUS_NAME }}-${{ github.action }}'
         cleanup: false
     
     - name: Generate Names
