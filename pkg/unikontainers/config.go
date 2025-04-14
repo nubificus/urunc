@@ -36,15 +36,16 @@ var ErrEmptyAnnotations = errors.New("spec annotations are empty")
 // Urunc specific annotations
 // ALways keep it in sync with the struct UnikernelConfig struct
 const (
-	annotType          = "com.urunc.unikernel.unikernelType"
-	annotVersion       = "com.urunc.unikernel.unikernelVersion"
-	annotBinary        = "com.urunc.unikernel.binary"
-	annotCmdLine       = "com.urunc.unikernel.cmdline"
-	annotHypervisor    = "com.urunc.unikernel.hypervisor"
-	annotInitrd        = "com.urunc.unikernel.initrd"
-	annotBlock         = "com.urunc.unikernel.block"
-	annotBlockMntPoint = "com.urunc.unikernel.blkMntPoint"
-	annotUseDMBlock    = "com.urunc.unikernel.useDMBlock"
+	annotType            = "com.urunc.unikernel.unikernelType"
+	annotVersion         = "com.urunc.unikernel.unikernelVersion"
+	annotBinary          = "com.urunc.unikernel.binary"
+	annotCmdLine         = "com.urunc.unikernel.cmdline"
+	annotHypervisor      = "com.urunc.unikernel.hypervisor"
+	annotInitrd          = "com.urunc.unikernel.initrd"
+	annotBlock           = "com.urunc.unikernel.block"
+	annotBlockMntPoint   = "com.urunc.unikernel.blkMntPoint"
+	annotUseDMBlock      = "com.urunc.unikernel.useDMBlock"
+	annotNinePFSMntPoint = "com.urunc.unikernel.ninePFSMntPoint"
 )
 
 // A UnikernelConfig struct holds the info provided by bima image on how to execute our unikernel
@@ -58,6 +59,7 @@ type UnikernelConfig struct {
 	Block            string `json:"com.urunc.unikernel.block,omitempty"`
 	BlkMntPoint      string `json:"com.urunc.unikernel.blkMntPoint,omitempty"`
 	UseDMBlock       string `json:"com.urunc.unikernel.useDMBlock"`
+	NinePFSMntPoint  string `json:"com.urunc.unikernel.ninePFSMntPoint,omitempty"`
 }
 
 // GetUnikernelConfig tries to get the Unikernel config from the bundle annotations.
@@ -104,6 +106,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	block := spec.Annotations[annotBlock]
 	blkMntPoint := spec.Annotations[annotBlockMntPoint]
 	useDMBlock := spec.Annotations[annotUseDMBlock]
+	ninePFSMntPoint := spec.Annotations[annotNinePFSMntPoint]
 
 	Log.WithFields(logrus.Fields{
 		"unikernelType":    unikernelType,
@@ -115,6 +118,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		"block":            block,
 		"blkMntPoint":      blkMntPoint,
 		"useDMBlock":       useDMBlock,
+		"ninePFSMntPoint":  ninePFSMntPoint,
 	}).Info("urunc annotations")
 
 	// TODO: We need to use a better check to see if annotations were empty
@@ -132,6 +136,7 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 		Block:            block,
 		BlkMntPoint:      blkMntPoint,
 		UseDMBlock:       useDMBlock,
+		NinePFSMntPoint:  ninePFSMntPoint,
 	}, nil
 }
 
@@ -171,6 +176,7 @@ func getConfigFromJSON(jsonFilePath string) (*UnikernelConfig, error) {
 		"block":            conf.Block,
 		"blkMntPoint":      conf.BlkMntPoint,
 		"useDMBlock":       conf.UseDMBlock,
+		"ninePFSMntPoint":  conf.NinePFSMntPoint,
 	}).Info(uruncJSONFilename + " annotations")
 	return &conf, nil
 }
@@ -230,6 +236,12 @@ func (c *UnikernelConfig) decode() error {
 		return fmt.Errorf("failed to decode UseDMBlock: %v", err)
 	}
 	c.UseDMBlock = string(decoded)
+
+	decoded, err = base64.StdEncoding.DecodeString(c.NinePFSMntPoint)
+	if err != nil {
+		return fmt.Errorf("failed to decode ninePFSMntPoint: %v", err)
+	}
+	c.NinePFSMntPoint = string(decoded)
 
 	return nil
 }
