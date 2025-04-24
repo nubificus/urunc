@@ -13,16 +13,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  urunc-deploy:
-    name: Test urunc-deploy
-    if: | 
-      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-test')
-    uses: ./.github/workflows/urunc-deploy.yml
-    secrets: inherit
+#  urunc-deploy:
+#    name: Test urunc-deploy
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-test')
+#    uses: ./.github/workflows/urunc-deploy.yml
+#    secrets: inherit
+#
+#  knative_test:
+#    needs: [urunc-deploy]
+#    name: Test Knative
+#    if: | 
+#      contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
+#      !contains(github.event.pull_request.labels.*.name, 'skip-test')
+#    uses: ./.github/workflows/knative_test.yml
+#    secrets: inherit
 
   knative_test:
-    needs: [urunc-deploy]
+    #needs: [urunc-deploy]
     name: Test Knative
     if: | 
       contains(github.event.pull_request.labels.*.name, 'ok-to-test') &&
