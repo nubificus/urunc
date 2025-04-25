@@ -91,7 +91,7 @@ func crictlNewContainerConfig(path string, a containerTestArgs) (string, error) 
 		Image: &criruntimeapi.ImageSpec{
 			Image: a.Image,
 		},
-		Command: []string{"/test"},
+		Command: []string{""},
 		Linux: &criruntimeapi.LinuxContainerConfig{
 			SecurityContext: &criruntimeapi.LinuxContainerSecurityContext{},
 			Resources:       &criruntimeapi.LinuxContainerResources{},
