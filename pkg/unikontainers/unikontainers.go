@@ -204,7 +204,10 @@ func (u *Unikontainer) Exec() error {
 
 	// populate unikernel params
 	unikernelParams := unikernels.UnikernelParams{
-		CmdLine: u.State.Annotations[annotCmdLine],
+		CmdLine: strings.Join(u.Spec.Process.Args, " "),
+	}
+	if unikernelParams.CmdLine == "" {
+		 unikernelParams.CmdLine = u.State.Annotations[annotCmdLine]
 	}
 
 	// handle network
