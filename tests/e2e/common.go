@@ -68,7 +68,8 @@ func commonNewContainerCmd(a containerTestArgs) string {
 	}
 	cmdBase += "--name "
 	cmdBase += a.Name + " "
-	cmdBase += a.Image
+	cmdBase += a.Image + " "
+	cmdBase += a.Cli
 	return cmdBase
 }
 

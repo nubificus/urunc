@@ -33,6 +33,7 @@ type containerTestArgs struct {
 	GID            int
 	Groups         []int64
 	Memory         string
+	Cli            string
 	StaticNet      bool
 	SideContainers []string
 	Skippable      bool
