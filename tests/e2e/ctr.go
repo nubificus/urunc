@@ -51,7 +51,8 @@ func ctrNewContainerCmd(a containerTestArgs) string {
 		cmdBase += fmt.Sprintf("-u %d:%d ", a.UID, a.GID)
 	}
 	cmdBase += a.Image + " "
-	cmdBase += a.Name
+	cmdBase += a.Name + " "
+	cmdBase += a.Cli
 	return cmdBase
 }
 

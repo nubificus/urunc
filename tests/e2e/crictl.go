@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	criruntimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
@@ -91,7 +92,7 @@ func crictlNewContainerConfig(path string, a containerTestArgs) (string, error) 
 		Image: &criruntimeapi.ImageSpec{
 			Image: a.Image,
 		},
-		Command: []string{""},
+		Command: strings.Fields(a.Cli),
 		Linux: &criruntimeapi.LinuxContainerConfig{
 			SecurityContext: &criruntimeapi.LinuxContainerSecurityContext{},
 			Resources:       &criruntimeapi.LinuxContainerResources{},
