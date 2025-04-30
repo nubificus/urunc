@@ -31,6 +31,7 @@ var ErrVersionParsing = errors.New("failed to parse provided version, using defa
 type Unikraft struct {
 	AppName string
 	Command string
+	Env     []string
 	Net     UnikraftNet
 	VFS     UnikraftVFS
 	Version string
@@ -47,7 +48,19 @@ type UnikraftVFS struct {
 }
 
 func (u *Unikraft) CommandString() (string, error) {
-	return fmt.Sprintf("%s %s %s %s %s -- %s", u.AppName,
+	hasEnv := false
+	envVarString := ""
+	allEnvs := ""
+
+	for _, eVar := range u.Env {
+		allEnvs += " " + eVar
+		hasEnv = true
+	}
+	if hasEnv {
+		envVarString = "env.vars=[" + allEnvs + " ]"
+	}
+	return fmt.Sprintf("%s %s %s %s %s %s -- %s", u.AppName,
+		envVarString,
 		u.Net.Address,
 		u.Net.Gateway,
 		u.Net.Mask,
@@ -83,6 +96,7 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 	// we assume that there was one word (appname) in the command line
 	// Otherwise, we use the first word as the name of the app
 	u.Command = strings.TrimSpace(data.CmdLine)
+	u.Env = data.EnvVars
 	firstSpace := strings.Index(u.Command, " ")
 	if firstSpace > 0 {
 		u.AppName = u.Command[:firstSpace]
