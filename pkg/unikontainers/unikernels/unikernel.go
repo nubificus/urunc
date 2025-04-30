@@ -30,13 +30,14 @@ type Unikernel interface {
 
 // UnikernelParams holds the data required to build the unikernels commandline
 type UnikernelParams struct {
-	CmdLine          string // The cmdline provided by the image
-	EthDeviceIP      string // The eth device IP
-	EthDeviceMask    string // The eth device mask
-	EthDeviceGateway string // The eth device gateway
-	RootFSType       string // The rootfs type of the Unikernel
-	BlockMntPoint    string // The mount point for the block device
-	Version          string // The version of the unikernel
+	CmdLine          string   // The cmdline provided by the image
+	EnvVars          []string // The environment variables provided by the image
+	EthDeviceIP      string   // The eth device IP
+	EthDeviceMask    string   // The eth device mask
+	EthDeviceGateway string   // The eth device gateway
+	RootFSType       string   // The rootfs type of the Unikernel
+	BlockMntPoint    string   // The mount point for the block device
+	Version          string   // The version of the unikernel
 }
 
 var ErrNotSupportedUnikernel = errors.New("unikernel is not supported")
