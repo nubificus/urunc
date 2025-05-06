@@ -49,7 +49,7 @@ this.
 
 [Unikraft](https://unikraft.org/) maintains a
 [catalog](https://github.com/unikraft/catalog) with available applications as
-unikernel images. Check out our [packaging](../image-building) page on how to
+unikernel images. Check out our [packaging](../package) page on how to
 get these images and run them on top of `urunc`.
 
 An example of [Unikraft](https://unikraft.org/) on top of Qemu with `urunc`:
@@ -116,7 +116,7 @@ execution should be placed inside the container image.
 
 For more information on packaging
 [MirageOS](https://github.com/mirage/mirage) unikernels for `urunc` take
-a look at our [packaging](../image-building/) page.
+a look at our [packaging](../package/) page.
 
 An example of [MirageOS](https://github.com/mirage/mirage) on top of
 Solo5-hvt using a block image inside the container's rootfs with 'urunc':
@@ -187,7 +187,7 @@ inside the container image and attaching it to
 
 For more information on packaging
 [Rumprun](https://github.com/cloudkernels/rumprun) unikernels for `urunc` take
-a look at our [packaging](../image-building/) page.
+a look at our [packaging](../package/) page.
 
 An example of [Rumprun](https://github.com/cloudkernels/rumprun) on top of
 Solo5-hvt using a block image inside the container's rootfs with 'urunc':
@@ -246,7 +246,7 @@ network access to [Mewz](https://github.com/Mewz-project/Mewz) unikernels.
 
 For more information on packaging
 [Mewz](https://github.com/Mewz-project/Mewz) unikernels for `urunc` take
-a look at our [packaging](../image-building/) page.
+a look at our [packaging](../package/) page.
 
 An example of [Mewz](https://github.com/Mewz-project/Mewz) on top of
 Qemu using with 'urunc':
