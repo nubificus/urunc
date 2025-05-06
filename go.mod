@@ -66,7 +66,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
