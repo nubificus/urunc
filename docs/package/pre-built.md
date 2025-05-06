@@ -31,7 +31,7 @@ In order to package an existing pre-built unikernel image with [bunny](https://g
 `bunnyfile` we can define the `bunnyfile` as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
 platforms:
@@ -67,7 +67,7 @@ In order to package an existing pre-built unikernel image with
 we can define the `Containerfile` as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 FROM scratch
 
 COPY network.hvt /unikernel/network.hvt

@@ -178,7 +178,7 @@ If we want to package a locally built Nginx Unikraft unikernel, we
 can define the a Dockerfile-like syntax file as:
 
 ```Dockerfile
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 FROM scratch
 
 COPY nginx-qemu-x86_64-initrd_qemu-x86_64 /unikernel/kernel
@@ -197,7 +197,7 @@ If we want to package the same unikernel, using `bunnyfile`, we have to
 define the file as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
 platforms:

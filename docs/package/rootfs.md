@@ -45,7 +45,7 @@ Let's take a look at it using a Redis [Unikraft](https://unikraft.org) unikernel
 [Qemu](https://qemu.org). We will define the `bunnyfile` as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
 platforms:
@@ -114,7 +114,7 @@ In order to package an existing pre-built unikernel image and any other files
 with [bunny](https://github.com/nubificus/bunny) and a `bunnyfile` we can define the `bunnyfile` as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
 platforms:
@@ -261,7 +261,7 @@ In order to package an existing pre-built unikernel and its rootfs
 with [bunny](https://github.com/nubificus/bunny) and a `bunnyfile` we can define the `bunnyfile` as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
 platforms:
@@ -301,7 +301,7 @@ docker build -f bunnyfile -t urunc/prebuilt/chttp-unikraft-qemu:test .
 We can do all the above using a Dockerfile-like syntax file as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 FROM scratch
 
 COPY app-elfloader-qemu-x86_64-initrd_qemu-x86_64 /unikernel/kernel
