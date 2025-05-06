@@ -24,7 +24,7 @@ In order to append `urunc` annotations in an existing [Unikraft](https://unikraf
 we can define the `bunnyfile` as:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
 platforms:
@@ -61,7 +61,7 @@ In the case of the Dockerfile-like syntax file, we need to manually specify the
 above `bunnyfile` to the equivalent `Containerfile`:
 
 ```
-#syntax=harbor.nbfc.io/nubificus/bunny:0.0.2
+#syntax=harbor.nbfc.io/nubificus/bunny:latest
 FROM unikraft.org/nginx:1.15
 
 LABEL com.urunc.unikernel.binary="/unikraft/bin/kernel"

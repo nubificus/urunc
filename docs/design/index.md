@@ -62,7 +62,7 @@ should be run. The metadata can be passed to `urunc` either in the form of
 [annotations](https://github.com/opencontainers/runtime-spec/blob/main/config.md#annotations)
 or as a specific file in the container's rootfs. For a detailed explanation and
 an up-to-date list of the currently supported annotations take alook at the
-[packaging unikernels page](../image-building#annotations).
+[packaging unikernels page](../package/#annotations).
 
 Although `urunc`-formatted unikernel images are not designed to be executed by
 other container runtimes, they can still be stored and distributed via generic
