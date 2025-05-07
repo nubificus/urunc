@@ -80,13 +80,16 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 		}
 		netcli += args.TapDevice
 		cmdString += netcli
+	} else {
+		cmdString += " -nic none"
 	}
 	if args.BlockDevice != "" {
 		blockCli := ukernel.MonitorBlockCli(qemuString)
 		if blockCli == "" {
 			blockCli += " -device virtio-blk-pci,id=blk0,drive=hd0,scsi=off"
-			blockCli += " -drive format=raw,if=none,id=hd0,file=" + args.BlockDevice
+			blockCli += " -drive format=raw,if=none,id=hd0,file="
 		}
+		blockCli += args.BlockDevice
 		cmdString += blockCli
 	}
 	if args.InitrdPath != "" {
