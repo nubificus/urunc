@@ -205,6 +205,7 @@ func (u *Unikontainer) Exec() error {
 	// populate unikernel params
 	unikernelParams := unikernels.UnikernelParams{
 		CmdLine: strings.Join(u.Spec.Process.Args, " "),
+		EnvVars: u.Spec.Process.Env,
 	}
 	if unikernelParams.CmdLine == "" {
 		unikernelParams.CmdLine = u.State.Annotations[annotCmdLine]
