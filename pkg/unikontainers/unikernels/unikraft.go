@@ -31,6 +31,7 @@ var ErrVersionParsing = errors.New("failed to parse provided version, using defa
 type Unikraft struct {
 	AppName string
 	Command string
+	Env     []string
 	Net     UnikraftNet
 	VFS     UnikraftVFS
 	Version string
@@ -47,7 +48,19 @@ type UnikraftVFS struct {
 }
 
 func (u *Unikraft) CommandString() (string, error) {
-	return fmt.Sprintf("%s %s %s %s %s -- %s", u.AppName,
+	hasEnv := false
+	envVarString := ""
+	allEnvs := ""
+
+	for _, eVar := range u.Env {
+		allEnvs += " " + eVar
+		hasEnv = true
+	}
+	if hasEnv {
+		envVarString = "env.vars=[" + allEnvs + " ]"
+	}
+	return fmt.Sprintf("%s %s %s %s %s %s -- %s", u.AppName,
+		envVarString,
 		u.Net.Address,
 		u.Net.Gateway,
 		u.Net.Mask,
@@ -79,18 +92,20 @@ func (u *Unikraft) MonitorCli(_ string) string {
 }
 
 func (u *Unikraft) Init(data UnikernelParams) error {
-	// if there are no spaces in the command line, then
-	// we assume that there was one word (appname) in the command line
-	// Otherwise, we use the first word as the name of the app
-	u.Command = strings.TrimSpace(data.CmdLine)
-	firstSpace := strings.Index(u.Command, " ")
-	if firstSpace > 0 {
-		u.AppName = u.Command[:firstSpace]
-		u.Command = strings.TrimLeft(u.Command, u.AppName)
-	} else {
-		u.AppName = u.Command
-	}
+	u.Env = data.EnvVars
 	u.Version = data.Version
+	// We use the first argument in the CLI args as the app name and the
+	// rest as its arguments.
+	if len(data.CmdLine) == 0 {
+		u.AppName = ""
+		u.Command = ""
+	} else if len(data.CmdLine) == 1 {
+		u.AppName = data.CmdLine[0]
+		u.Command = ""
+	} else {
+		u.AppName = data.CmdLine[0]
+		u.Command = strings.Join(data.CmdLine[1:], " ")
+	}
 
 	return u.configureUnikraftArgs(data.RootFSType, data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
 }
