@@ -35,9 +35,14 @@ type LinuxNet struct {
 }
 
 func (l *Linux) CommandString() (string, error) {
+	rdinit := ""
 	bootParams := "panic=-1 console=ttyS0 nokaslr loglevel=15"
 	if l.RootFsType == "block" {
 		rootParams := "root=/dev/vda rw"
+		bootParams += " " + rootParams
+	} else if l.RootFsType == "initrd" {
+		rootParams := "root=/dev/ram0 rw"
+		rdinit = "rd"
 		bootParams += " " + rootParams
 	}
 	if l.Net.Address != "" {
@@ -48,7 +53,7 @@ func (l *Linux) CommandString() (string, error) {
 		bootParams += " " + netParams
 	}
 	if l.App != "" {
-		initParams := "init=" + l.App + " -- " + l.Command
+		initParams := rdinit + "init=" + l.App + " -- " + l.Command
 		bootParams += " " + initParams
 	}
 
