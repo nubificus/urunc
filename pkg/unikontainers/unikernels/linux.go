@@ -16,27 +16,43 @@ package unikernels
 
 import (
 	"fmt"
+	"strings"
 )
 
 const LinuxUnikernel string = "linux"
 
 type Linux struct {
-	Command string
-	Net     LinuxNet
+	App          string
+	Command      string
+	Net          LinuxNet
+	RootFsType   string
 }
 
 type LinuxNet struct {
 	Address string
 	Gateway string
-	Mask string
+	Mask    string
 }
 
 func (l *Linux) CommandString() (string, error) {
-	return fmt.Sprintf("panic=-1 console=ttyS0 root=/dev/vda rw loglevel=15 nokaslr ip=%s::%s:%s:urunc:eth0:off init=%s",
-		l.Net.Address,
-		l.Net.Gateway,
-		l.Net.Mask,
-		l.Command), nil
+	bootParams := "panic=-1 console=ttyS0 nokaslr loglevel=15"
+	if l.RootFsType == "block" {
+		rootParams := "root=/dev/vda rw"
+		bootParams += " " + rootParams
+	}
+	if l.Net.Address != "" {
+		netParams := fmt.Sprintf("ip=%s::%s:%s:urunc:eth0:off",
+			l.Net.Address,
+			l.Net.Gateway,
+			l.Net.Mask)
+		bootParams += " " + netParams
+	}
+	if l.App != "" {
+		initParams := "init=" + l.App + " -- " + l.Command
+		bootParams += " " + initParams
+	}
+
+	return bootParams, nil
 }
 
 func (l *Linux) SupportsBlock() bool {
@@ -55,7 +71,7 @@ func (l *Linux) MonitorNetCli(_ string) string {
 func (l *Linux) MonitorBlockCli(monitor string) string {
 	switch monitor {
 	case "qemu":
-		bcli := " -device virtio-blk-pci,id=blk0,drive=hd0,scsi=off"
+		bcli := " -device virtio-blk-pci,id=blk0,drive=hd0"
 		bcli += " -drive format=raw,if=none,id=hd0,file="
 		return bcli
 	default:
@@ -74,12 +90,13 @@ func (l *Linux) MonitorCli(monitor string) string {
 }
 
 func (l *Linux) Init(data UnikernelParams) error {
-	l.Command = data.CmdLine
+	l.App, l.Command, _ = strings.Cut(data.CmdLine, " ")
 
 	l.Net.Address = data.EthDeviceIP
 	l.Net.Gateway = data.EthDeviceGateway
 	l.Net.Mask = data.EthDeviceMask
 
+	l.RootFsType = data.RootFSType
 	return nil
 }
 
