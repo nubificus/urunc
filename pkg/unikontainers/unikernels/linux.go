@@ -90,7 +90,17 @@ func (l *Linux) MonitorCli(monitor string) string {
 }
 
 func (l *Linux) Init(data UnikernelParams) error {
-	l.App, l.Command, _ = strings.Cut(data.CmdLine, " ")
+	// we use the first argument in the cli args as the app name and the
+	// rest as its arguments.
+	if len(data.CmdLine) == 0 {
+		return fmt.Errorf("No init was specified")
+	} else if len(data.CmdLine) == 1 {
+		l.App = data.CmdLine[0]
+		l.Command = ""
+	} else {
+		l.App = data.CmdLine[0]
+		l.Command = strings.Join(data.CmdLine[1:], " ")
+	}
 
 	l.Net.Address = data.EthDeviceIP
 	l.Net.Gateway = data.EthDeviceGateway
