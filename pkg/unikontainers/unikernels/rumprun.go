@@ -17,6 +17,7 @@ package unikernels
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 const RumprunUnikernel string = "rumprun"
@@ -137,7 +138,7 @@ func (r *Rumprun) Init(data UnikernelParams) error {
 	r.Blk.FsType = "blk"
 	r.Blk.Mountpoint = "/data"
 
-	r.Command = data.CmdLine
+	r.Command = strings.Join(data.CmdLine, " ")
 
 	return nil
 }

@@ -204,11 +204,11 @@ func (u *Unikontainer) Exec() error {
 
 	// populate unikernel params
 	unikernelParams := unikernels.UnikernelParams{
-		CmdLine: strings.Join(u.Spec.Process.Args, " "),
+		CmdLine: u.Spec.Process.Args,
 		EnvVars: u.Spec.Process.Env,
 	}
-	if unikernelParams.CmdLine == "" {
-		unikernelParams.CmdLine = u.State.Annotations[annotCmdLine]
+	if len(unikernelParams.CmdLine) == 0 {
+		unikernelParams.CmdLine = strings.Fields(u.State.Annotations[annotCmdLine])
 	}
 
 	// handle network
@@ -244,8 +244,6 @@ func (u *Unikontainer) Exec() error {
 
 	if initrdPath != "" {
 		unikernelParams.RootFSType = "initrd"
-	} else {
-		unikernelParams.RootFSType = ""
 	}
 
 	unikernelParams.Version = unikernelVersion
@@ -272,6 +270,7 @@ func (u *Unikontainer) Exec() error {
 	if u.State.Annotations[annotBlock] != "" && unikernel.SupportsBlock() {
 		// TODO: Remove this when we chroot
 		vmmArgs.BlockDevice, err = filepath.Rel("/", u.State.Annotations[annotBlock])
+		unikernelParams.RootFSType = "block"
 		if err != nil {
 			return err
 		}
@@ -288,6 +287,7 @@ func (u *Unikontainer) Exec() error {
 				return err
 			}
 			vmmArgs.BlockDevice = rootFsDevice.Device
+			unikernelParams.RootFSType = "block"
 		}
 	}
 	metrics.Capture(u.State.ID, "TS17")
