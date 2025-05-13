@@ -16,6 +16,7 @@ package unikernels
 
 import (
 	"fmt"
+	"strings"
 )
 
 const MirageUnikernel string = "mirage"
@@ -78,7 +79,7 @@ func (m *Mirage) Init(data UnikernelParams) error {
 		m.Net.Gateway = "--ipv4-gateway=" + data.EthDeviceGateway
 	}
 
-	m.Command = data.CmdLine
+	m.Command = strings.Join(data.CmdLine, " ")
 
 	return nil
 }

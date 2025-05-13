@@ -82,7 +82,7 @@ func (m *Mewz) Init(data UnikernelParams) error {
 	} else {
 		mask = 24
 	}
-	m.Command = strings.TrimSpace(data.CmdLine)
+	m.Command = strings.Join(data.CmdLine, " ")
 	m.Net.Address = data.EthDeviceIP
 	m.Net.Gateway = data.EthDeviceGateway
 	m.Net.Mask = mask
