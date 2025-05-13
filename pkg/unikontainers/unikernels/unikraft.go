@@ -87,19 +87,21 @@ func (u *Unikraft) MonitorCli(_ string) string {
 }
 
 func (u *Unikraft) Init(data UnikernelParams) error {
-	// if there are no spaces in the command line, then
-	// we assume that there was one word (appname) in the command line
-	// Otherwise, we use the first word as the name of the app
-	u.Command = strings.TrimSpace(data.CmdLine)
 	u.Env = data.EnvVars
-	firstSpace := strings.Index(u.Command, " ")
-	if firstSpace > 0 {
-		u.AppName = u.Command[:firstSpace]
-		u.Command = strings.TrimLeft(u.Command, u.AppName)
-	} else {
-		u.AppName = u.Command
-	}
 	u.Version = data.Version
+	// We use the first argument in the CLI args as the app name and the
+	// rest as its arguments.
+	switch len(data.CmdLine) {
+	case 0:
+		u.AppName = ""
+		u.Command = ""
+	case 1:
+		u.AppName = data.CmdLine[0]
+		u.Command = ""
+	default:
+		u.AppName = data.CmdLine[0]
+		u.Command = strings.Join(data.CmdLine[1:], " ")
+	}
 
 	return u.configureUnikraftArgs(data.RootFSType, data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
 }
