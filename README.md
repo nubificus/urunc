@@ -11,8 +11,9 @@ Welcome to `urunc`, the "runc for unikernels".
 5. [Supported platforms](#supported-platforms)
 6. [Publications and talks](#publications-and-talks)
 7. [Contributing](#Contributing)
-8. [License](#Introduction)
-9. [Contact](#Introduction)
+8. [Security Policy](#security-policy)
+9. [License](#Introduction)
+10. [Contact](#Introduction)
 
 ## Introduction
 
@@ -171,6 +172,12 @@ such as:
 We will be very happy to receive any feedback and any kind of contributions for
 `urunc`. For more details please take a look in [`urunc`'s contributing
 document](https://nubificus.github.io/urunc/developer-guide/contribute/).
+
+## Security policy
+
+In acse of a security vulnerability, please refer to the
+[Security Policy document](https://urunc.io/developer-guide/security/).
+for guidelines on how to report it responsibly.
 
 ## License
 
