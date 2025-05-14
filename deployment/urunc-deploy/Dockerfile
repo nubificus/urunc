@@ -38,7 +38,7 @@ WORKDIR /artifacts
 RUN cp /app/tenders/hvt/solo5-hvt /artifacts/ && \
     cp /app/tenders/spt/solo5-spt /artifacts/
 
-FROM docker.io/library/golang:1.24.1-alpine3.21 AS urunc-builder
+FROM harbor.nbfc.io/proxy_cache/library/golang:1.24.1-alpine3.21 AS urunc-builder
 RUN apk update && \
     apk add --no-cache git make build-base linux-headers
 WORKDIR /app
@@ -48,7 +48,7 @@ RUN git clone --depth 1 --branch ${BRANCH} https://github.com/nubificus/urunc.gi
 WORKDIR /artifacts
 RUN cp -r /app/dist .
 
-FROM docker.io/library/alpine:3.21 AS firecracker-builder
+FROM harbor.nbfc.io/proxy_cache/library/alpine:3.21 AS firecracker-builder
 RUN apk update && apk add --no-cache curl tar
 RUN ARCH=$(uname -m) && \
     VERSION="v1.7.0" && \
@@ -65,7 +65,7 @@ RUN ARCH=$(uname -m) && \
     cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} ./qemu-system
 
 
-FROM docker.io/library/alpine:3.21 AS intermediate
+FROM harbor.nbfc.io/proxy_cache/library/alpine:3.21 AS intermediate
 
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
@@ -88,7 +88,7 @@ RUN apk update && \
     chmod +x /usr/bin/jq
 
 # Final image
-FROM docker.io/library/alpine:3.21
+FROM harbor.nbfc.io/proxy_cache/library/alpine:3.21
 COPY --from=intermediate /urunc-artifacts /urunc-artifacts
 COPY --from=intermediate /usr/bin/jq /usr/bin/jq
 COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl
