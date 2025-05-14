@@ -41,24 +41,27 @@ initrd and therefore an initial RamFS.
 ### Unikraft and `urunc`
 
 In the case of [Unikraft](https://unikraft.org/), `urunc` supports both network
-and storage I/O over both Qemu and Firecracker VMMs. However, for the time
-being, `urunc` only offers support for the initrd option of
-[Unikraft](https://unikraft.org/) and not for shared-fs. On the other hand, the
-shared-fs option is Work-In-Progress and we will soon provide an update about
-this.
+and storage I/O over both [Qemu](https://qemu.org) and
+[Firecracker](https://github.com/firecracker-microvm/firecracker) VMMs.
+However, for the time being, `urunc` only offers support for the initrd option
+of [Unikraft](https://unikraft.org/) and not for shared-fs. On the other hand,
+the shared-fs option is Work-In-Progress and we will soon provide an update
+about this.
 
 [Unikraft](https://unikraft.org/) maintains a
 [catalog](https://github.com/unikraft/catalog) with available applications as
 unikernel images. Check out our [packaging](../package) page on how to
 get these images and run them on top of `urunc`.
 
-An example of [Unikraft](https://unikraft.org/) on top of Qemu with `urunc`:
+An example of [Unikraft](https://unikraft.org/) on top of
+[Qemu](https://qemu.org) with `urunc`:
 
 ```bash
 $ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
 ```
 
-Another example of [Unikraft](https://unikraft.org/) on top of Firecracker with `urunc`:
+Another example of [Unikraft](https://unikraft.org/) on top of
+[Firecracker](https://github.com/firecracker-microvm/firecracker) with `urunc`:
 
 ```bash
 $ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
@@ -87,28 +90,35 @@ as it is completely written in OCaml.
 [MirageOS](https://github.com/mirage/mirage), as one of the first unikernel
 frameworks, provides support for a variety of hypervisors and platforms. In
 particular, [MirageOS](https://github.com/mirage/mirage) makes use of
-[Solo5](https://github.com/Solo5/solo5) and can execute as a VM over KVM/Xen and
-other OSes, such as BSD OSes (FreeBSD, OpenBSD) or even Muen. Especially for
-KVM, [MirageOS](https://github.com/mirage/mirage) supports
-[Qemu](https://www.qemu.org/) and [Solo5-hvt](https://github.com/Solo5/solo5).
-It can access the network through virtio-net in the case of Qemu and using
-Solo5's I/O interface in the case of Solo5. For storage,
+[Solo5](https://github.com/Solo5/solo5) and can execute as a VM over KVM/Xen
+and other OSes, such as BSD OSes (FreeBSD, OpenBSD) or even Muen. Especially
+for KVM, [MirageOS](https://github.com/mirage/mirage) supports
+[Qemu](https://www.qemu.org/) and
+[Solo5-hvt](https://github.com/Solo5/solo5).  It can access the network
+through virtio-net in the case of [Qemu](https://qemu.org) and using
+[Solo5](https://github.com/Solo5/solo5)'s I/O interface in the case of
+[Solo5](https://github.com/Solo5/solo5). For storage,
 [MirageOS](https://github.com/mirage/mirage) supports block-based storage
-through virtio-block and Solo5's I/O in Qemu and Solo5 respectively.
+through virtio-block and [Solo5](https://github.com/Solo5/solo5)'s I/O in
+[Qemu](https://qemu.org) and [Solo5](https://github.com/Solo5/solo5)
+respectively.
 
-Furthermore, [MirageOS](https://github.com/mirage/mirage) is also
-possible to execute on top of [Solo5-spt](https://github.com/Solo5/solo5) a
-sandbox monitor of Solo5 project that does not use hardware-assisted
-virtualization. In that context,
+Furthermore, [MirageOS](https://github.com/mirage/mirage) is also possible to
+execute on top of [Solo5-spt](https://github.com/Solo5/solo5) a sandbox monitor
+of [Solo5](https://github.com/Solo5/solo5) project that does not use
+hardware-assisted virtualization. In that context,
 [MirageOS](https://github.com/mirage/mirage) can access network and block
-storage through Solo5's I/O interface.
+storage through [Solo5](https://github.com/Solo5/solo5)'s I/O interface.
 
 ### MirageOS and `urunc`
 
-In the case of [MirageOS](https://github.com/mirage/mirage) `urunc`
-provides support for Solo5-spt, Solo5-hvt and Qemu. For all
-monitors of Solo5 `urunc` allows the access of both network and block storage
-through Solo5's I/O interface and for Qemu through virtio-net and virtio-block.
+In the case of [MirageOS](https://github.com/mirage/mirage) `urunc` provides
+support for [Solo5](https://github.com/Solo5/solo5),
+[Solo5](https://github.com/Solo5/solo5) and [Qemu](https://qemu.org). For all
+monitors of [Solo5](https://github.com/Solo5/solo5) `urunc` allows the access
+of both network and block storage through
+[Solo5](https://github.com/Solo5/solo5)'s I/O interface and for
+[Qemu](https://qemu.org) through virtio-net and virtio-block.
 
 For the time being, the block image that the
 [MirageOS](https://github.com/mirage/mirage) unikernel access during its
@@ -119,14 +129,15 @@ For more information on packaging
 a look at our [packaging](../package/) page.
 
 An example of [MirageOS](https://github.com/mirage/mirage) on top of
-Solo5-hvt using a block image inside the container's rootfs with 'urunc':
+[Solo5](https://github.com/Solo5/solo5) using a block image inside the
+container's rootfs with 'urunc':
 
 ```bash
 $ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/net-mirage-hvt:latest unikernel
 ```
 
 An example of [MirageOS](https://github.com/mirage/mirage) on top of
-Solo5-spt with 'urunc':
+[Solo5](https://github.com/Solo5/solo5) with 'urunc':
 
 ```bash
 $ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/net-mirage-spt:latest unikernel
@@ -156,30 +167,36 @@ unikernel frameworks, provides support for both Xen and KVM hypervisors.
 Especially in the case of KVM,
 [Rumprun](https://github.com/cloudkernels/rumprun) supports
 [Qemu](https://www.qemu.org/) and [Solo5-hvt](https://github.com/Solo5/solo5).
-It can access the network through virtio-net in the case of Qemu and using
-Solo5's I/O interface in the case of Solo5. As far as we concern,
-[Rumprun](https://github.com/cloudkernels/rumprun) only supports block
-storage through virtio-block and Solo5's I/O in Qemu and Solo5
-respectively.
+It can access the network through virtio-net in the case of
+[Qemu](https://qemu.org) and using [Solo5](https://github.com/Solo5/solo5)'s
+I/O interface in the case of [Solo5](https://github.com/Solo5/solo5).  As far
+as we concern, [Rumprun](https://github.com/cloudkernels/rumprun) only supports
+block storage through virtio-block and
+[Solo5](https://github.com/Solo5/solo5)'s I/O in [Qemu](https://qemu.org) and
+[Solo5](https://github.com/Solo5/solo5) respectively.
 
 Furthermore, [Rumprun](https://github.com/cloudkernels/rumprun) is also
 possible to execute on top of [Solo5-spt](https://github.com/Solo5/solo5) a
-sandbox monitor of Solo5 project that does not use hardware-assisted
-virtualization. In that context,
+sandbox monitor of [Solo5](https://github.com/Solo5/solo5) project that does
+not use hardware-assisted virtualization. In that context,
 [Rumprun](https://github.com/cloudkernels/rumprun) can access network and block
-storage through Solo5's I/O interface.
+storage through [Solo5](https://github.com/Solo5/solo5)'s I/O interface.
 
 ### Rumprun and `urunc`
 
 In the case of [Rumprun](https://github.com/cloudkernels/rumprun), `urunc`
-provides support for Solo5-spt and Solo5-hvt, but not yet for Qemu. For all
-monitors of Solo5 `urunc` allows the access of both network and block storage
-through Solo5's I/O interface. In particular, `urunc` takes advantage of
+provides support for [Solo5](https://github.com/Solo5/solo5) and
+[Solo5](https://github.com/Solo5/solo5), but not yet for
+[Qemu](https://qemu.org). For all monitors of
+[Solo5](https://github.com/Solo5/solo5) `urunc` allows the access of both
+network and block storage through [Solo5](https://github.com/Solo5/solo5)'s I/O
+interface. In particular, `urunc` takes advantage of
 [Rumprun](https://github.com/cloudkernels/rumprun) block storage and ext2
 filesystem support and allows the mounting of the containerd's snapshot
 directly in the unikernel. This is only possible using devmapper as a
 snapshotter in containerd. For more information on setting up devmapper, please
-take a look on our [installation guide](../installation#setup-thinpool-devmapper).
+take a look on our [installation
+guide](../installation#setup-thinpool-devmapper).
 
 Except for devmapper, `urunc` also supports the option of adding a block image
 inside the container image and attaching it to
@@ -190,14 +207,15 @@ For more information on packaging
 a look at our [packaging](../package/) page.
 
 An example of [Rumprun](https://github.com/cloudkernels/rumprun) on top of
-Solo5-hvt using a block image inside the container's rootfs with 'urunc':
+[Solo5](https://github.com/Solo5/solo5) using a block image inside the
+container's rootfs with 'urunc':
 
 ```bash
 $ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest unikernel
 ```
 
 An example of [Rumprun](https://github.com/cloudkernels/rumprun) on top of
-Solo5-spt using devmapper with 'urunc':
+[Solo5](https://github.com/Solo5/solo5) using devmapper with 'urunc':
 
 ```bash
 $ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
@@ -249,7 +267,7 @@ For more information on packaging
 a look at our [packaging](../package/) page.
 
 An example of [Mewz](https://github.com/Mewz-project/Mewz) on top of
-Qemu using with 'urunc':
+[Qemu](https://qemu.org) with 'urunc':
 
 ```bash
 $ sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-server-qemu-mewz:latest
@@ -257,13 +275,76 @@ $ sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc
 
 > Note: As far as we understand, Mewz requires at least 512M of memory to properly boot.
 
+## Linux
+
+[Linux](https://github.com/torvalds/linux) is maybe the most widely used kernel
+and the vast majority of servers in the cloud use an OS based on
+[Linux](https://github.com/torvalds/linux) kernel. As a result, most
+applications and services we run on the cloud are built targeting
+[Linux](https://github.com/torvalds/linux). Of course,
+[Linux](https://github.com/torvalds/linux) is not a unikernel framework.
+However, thanks to its highly configurable build-system we can create very
+small, tailored [Linux](https://github.com/torvalds/linux) kernels for a single
+application. The concept was introduced by the Lupine project, which examined
+how we can turn the [Linux](https://github.com/torvalds/linux) kernel into a
+unikernel.
+
+Using [Linux](https://github.com/torvalds/linux), we can execute the vast
+majority of the existing containers on top of `urunc`. However, the rational is
+to target single application containers and not fully-blown distro containers.
+Focusing on a single application, we can further minimize the
+[Linux](https://github.com/torvalds/linux) kernel and keep only the necessary
+components for a specific application. Such a design allows the creation of
+minimal and fast single-application kernels that we can execute on top of
+`urunc`.
+
+### VMMs and other sandbox monitors
+
+[Linux](https://github.com/torvalds/linux) has wide support for different
+hardware and virtualization targets. It can execute on top of
+[Qemu](https://qemu.org) and
+[Firecracker](https://github.com/firecracker-microvm/firecracker). It can
+access the network and storage through various ways (e.g. paravirtualization,
+emulated devices etc.).
+
+### Linux and `urunc`
+
+Focusing on the single-application notion of using the
+[Linux](https://github.com/torvalds/linux) kernel, `urunc` provides support for
+both [Qemu](https://qemu.org) and
+[Firecracker](https://github.com/firecracker-microvm/firecracker). For network,
+`urunc` will make use of virtio-net either through PCI or MMIO, depending on
+the monitor. In the case of storage, `urunc` uses virtio-block and initrd. In
+particular, `urunc` takes advantage of the extensive filesystem support of
+[Linux](https://github.com/torvalds/linux) and can directly mount containerd's
+snapshot directly to a [Linux](https://github.com/torvalds/linux) VM. This is
+only possible using devmapper as a snapshotter in containerd. For more
+information on setting up devmapper, please take a look on our [installation
+guide](../installation#setup-thinpool-devmapper).
+
+For more information on packaging applications and executing them on top of
+[Linux](https://github.com/torvalds/linux) with `urunc` take a look at our
+[running existing containers tutorial.](../tutorials/exisitng-containers-linux)
+
+An example of a Nginx alpine image on top of [Qemu](https://qemu.org) and
+[Linux](https://github.com/torvalds/linux) with 'urunc' and devmapper as a
+snapshotter:
+
+```bash
+$ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-linux:latest
+```
+
+An example of a Redis alpine image transformed to a block file on top of
+[Firecracker](https://github.com/firecracker-microvm/firecracker) and
+[Linux](https://github.com/torvalds/linux) with 'urunc':
+
+```bash
+$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-firecracker-linux-block:latest
+```
+
 ## Future unikernels and frameworks:
 
 In the near future, we plan to add support for the following frameworks:
-
-[Linux](https://github.com/mewz-project/mewz): The widely known kernel that runs
-almost everywhere. In the case of `urunc` we will support minimal Linux
-configurations where the init process is the application.
 
 [OSv](https://github.com/cloudius-systems/osv): An OS designed specifically to
 run as a single application on top of a hypervisor. OSv is known for its
