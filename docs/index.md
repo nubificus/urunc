@@ -59,6 +59,7 @@ Sandbox monitors, along with the unikernels that can run on top of them.
 | [Unikraft](./unikernel-support#unikraft)| [Qemu](./hypervisor-support#qemu), [Firecracker](./hypervisor-support#aws-firecracker) | x86          | Initrd     |
 | [MirageOS](./unikernel-support#mirage)| [Qemu](./hypervisor-support#qemu), [Solo5-hvt](./hypervisor-support#solo5-hvt), [Solo5-spt](./hypervisor-support#solo5-spt) | x86, aarch64          | Block/Devmapper |
 | [Mewz](./unikernel-support#mewz)| [Qemu](./hypervisor-support#qemu) | x86 | In-memory |
+| [Linux](./unikernel-support#linux)| [Qemu](./hypervisor-support#qemu), [Firecracker](./hypervisor-support#aws-firecracker) | x86, aarch64 | Initrd, Block/Devmapper |
 
 ## Quick links
 
