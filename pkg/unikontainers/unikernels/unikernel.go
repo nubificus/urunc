@@ -30,7 +30,7 @@ type Unikernel interface {
 
 // UnikernelParams holds the data required to build the unikernels commandline
 type UnikernelParams struct {
-	CmdLine          string   // The cmdline provided by the image
+	CmdLine          []string // The cmdline provided by the image
 	EnvVars          []string // The environment variables provided by the image
 	EthDeviceIP      string   // The eth device IP
 	EthDeviceMask    string   // The eth device mask
@@ -55,6 +55,9 @@ func New(unikernelType string) (Unikernel, error) {
 		return unikernel, nil
 	case MewzUnikernel:
 		unikernel := newMewz()
+		return unikernel, nil
+	case LinuxUnikernel:
+		unikernel := newLinux()
 		return unikernel, nil
 	default:
 		return nil, ErrNotSupportedUnikernel

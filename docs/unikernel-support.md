@@ -249,7 +249,7 @@ For more information on packaging
 a look at our [packaging](../package/) page.
 
 An example of [Mewz](https://github.com/Mewz-project/Mewz) on top of
-Qemu using with 'urunc':
+Qemu with 'urunc':
 
 ```bash
 $ sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-server-qemu-mewz:latest
@@ -257,13 +257,61 @@ $ sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc
 
 > Note: As far as we understand, Mewz requires at least 512M of memory to properly boot.
 
+## Linux
+
+Linux is maybe the most widely used kernel and the vast majority of servers in
+the cloud use an OS based on Linux kernel. As a result, most applications and
+services we run on the cloud are built targetting Linux. Of course, Linux is not
+a unikernel framework. However, thanks to its highly configurable build-system
+we can create very small, tailored Linux kernels for a single application. The
+concept was introduced by the Lupine project, which examined how we can turn the
+Linux kernel into a unikernel.
+
+Using Linux, we can execute the vast majority of the existing containers on top
+of `urunc`. However, the rational is to target single application containers and
+not fully-blown distro containers. Focusing on a single application, we can
+further minimize the Linux kernel and keep only the necessary components for a
+specific application. Such a design allows the creation of minimal and fast
+single-application kernels that we can execute on top of `urunc`.
+
+### VMMs and other sandbox monitors
+
+Linux has wide support for different hardware and virtualization targets. It can
+execute on top of Qemu and Firecracker. It can access the network and storage through
+various ways (e.g. paravirtualization, emulated devices etc.).
+### Mewz and `urunc`
+
+Focusing on the single-application notion of using the Linux kernel, `urunc`
+provides support for both Qemu and Firecracker. For network, `urunc` will make
+use of virtio-net either through PCI or MMIO, depending on the monitor. In the
+case of storage, `urunc` uses virtio-block and initrd. In particular, `urunc`
+takes advantage of the extensive filesystem support of Linux and can directly
+mount containerd's snapshot directly to a Linux VM. This is
+only possible using devmapper as a snapshotter in containerd. For more
+information on setting up devmapper, please
+take a look on our [installation guide](../installation#setup-thinpool-devmapper).
+guide.
+
+For more information on packaging applications and executing them on top of
+Linux with `urunc` take a look at our [running existing containers tutorial.](../tutorials/exisitng-containers-linux)
+
+An example of a Nginx alpine image on top of Qemu and Linux with 'urunc' and
+devmapper as a snapshotter:
+
+```bash
+$ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-linux:latest
+```
+
+An example of a Redis alpine image transformed to a block file on top of Firecracker
+and Linux with 'urunc':
+
+```bash
+$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-firecracker-linux-block:latest
+```
+
 ## Future unikernels and frameworks:
 
 In the near future, we plan to add support for the following frameworks:
-
-[Linux](https://github.com/mewz-project/mewz): The widely known kernel that runs
-almost everywhere. In the case of `urunc` we will support minimal Linux
-configurations where the init process is the application.
 
 [OSv](https://github.com/cloudius-systems/osv): An OS designed specifically to
 run as a single application on top of a hypervisor. OSv is known for its

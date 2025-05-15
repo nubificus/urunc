@@ -63,6 +63,7 @@ Supported unikernel frameworks with `urunc`:
 - [Unikraft](../unikernel-support#unikraft)
 - [MirageOS](../unikernel-support#mirage)
 - [Mewz](../unikernel-support#mewz)
+- [Linux](../unikernel-support#linux)
 
 An example unikernel:
 
@@ -129,6 +130,7 @@ Initramfs is supported for the time being.
 Supported unikernel frameworks with `urunc`:
 
 - [Unikraft](../unikernel-support#unikraft)
+- [Linux](../unikernel-support#linux)
 
 An example unikernel:
 
