@@ -55,8 +55,8 @@ jobs:
       run: |
         make
 
-    - name: Upload urunc_aarch64 to S3
-      if: matrix.archconfig == 'aarch64'
+    - name: Upload urunc_arm64 to S3
+      if: matrix.archconfig == 'arm64'
       uses: cloudkernels/minio-upload@v3
       with:
         url: https://s3.nbfc.io
@@ -77,8 +77,8 @@ jobs:
         remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
         policy: 1
 
-    - name: Upload containerd-shim-urunc-v2_aarch64 to S3
-      if: matrix.archconfig == 'aarch64'
+    - name: Upload containerd-shim-urunc-v2_arm64 to S3
+      if: matrix.archconfig == 'arm64'
       uses: cloudkernels/minio-upload@v3
       with:
         url: https://s3.nbfc.io
