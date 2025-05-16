@@ -24,10 +24,10 @@ the private vulnerability reporting of the `urunc`'s Github repository. In
 particular, in `urunc`'s repository page, navigate to the [Security
 tab](https://github.com/nubificus/urunc/security), click
 [`Advisories`](https://github.com/nubificus/urunc/security/advisories) and then
-[`Report a vulnerability`]
-(https://github.com/nubificus/urunc/security/advisories/new). Alternatively, the
-report can be filed via email at `security@urunc.io`. This address delivers
-your message securely to all maintainers.
+[`Report a
+vulnerability`](https://github.com/nubificus/urunc/security/advisories/new).
+Alternatively, the report can be filed via email at `security@urunc.io`. This
+address delivers your message securely to all maintainers.
 
 ### Vulnerability handling process
 
