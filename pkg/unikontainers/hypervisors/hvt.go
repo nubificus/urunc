@@ -124,6 +124,11 @@ func (h *HVT) Stop(_ string) error {
 	return nil
 }
 
+// UsesKVM returns a bool value depending on if the monitor uses KVM
+func (h *HVT) UsesKVM() bool {
+	return true
+}
+
 // Path returns the path to the hvt binary.
 func (h *HVT) Path() string {
 	return h.binaryPath

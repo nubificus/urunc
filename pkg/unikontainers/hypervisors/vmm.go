@@ -50,6 +50,7 @@ type VMM interface {
 	Execve(args ExecArgs, ukernel unikernels.Unikernel) error
 	Stop(t string) error
 	Path() string
+	UsesKVM() bool
 	Ok() error
 }
 
