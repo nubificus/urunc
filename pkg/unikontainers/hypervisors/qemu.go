@@ -39,6 +39,12 @@ func (q *Qemu) Stop(_ string) error {
 func (q *Qemu) Ok() error {
 	return nil
 }
+
+// UsesKVM returns a bool value depending on if the monitor uses KVM
+func (q *Qemu) UsesKVM() bool {
+	return true
+}
+
 func (q *Qemu) Path() string {
 	return q.binaryPath
 }

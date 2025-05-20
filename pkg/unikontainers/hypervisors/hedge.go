@@ -37,6 +37,10 @@ func (h *Hedge) Stop(_ string) error {
 	return fmt.Errorf("hedge not implemented yet")
 }
 
+func (h *Hedge) UsesKVM() bool {
+	return true
+}
+
 func (h *Hedge) Path() string {
 	return ""
 }

@@ -76,6 +76,11 @@ func (fc *Firecracker) Stop(_ string) error {
 func (fc *Firecracker) Ok() error {
 	return nil
 }
+
+func (fc *Firecracker) UsesKVM() bool {
+	return true
+}
+
 func (fc *Firecracker) Path() string {
 	return fc.binaryPath
 }

@@ -38,6 +38,11 @@ func (s *SPT) Stop(_ string) error {
 	return nil
 }
 
+// UsesKVM returns a bool value depending on if the monitor uses KVM
+func (s *SPT) UsesKVM() bool {
+	return false
+}
+
 // Path returns the path to the spt binary.
 func (s *SPT) Path() string {
 	return s.binaryPath
