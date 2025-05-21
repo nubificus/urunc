@@ -173,7 +173,15 @@ func (u *Unikontainer) Exec() error {
 	bundleDir := filepath.Clean(u.State.Bundle)
 	rootfsDir := filepath.Clean(u.Spec.Root.Path)
 	if !filepath.IsAbs(rootfsDir) {
-		rootfsDir = filepath.Join(bundleDir, rootfsDir)
+		if filepath.IsAbs(bundleDir) {
+			rootfsDir = filepath.Join(bundleDir, rootfsDir)
+		} else {
+			bundleAbsDir, err := filepath.Abs(bundleDir)
+			if err != nil {
+				return err
+			}
+			rootfsDir = filepath.Join(bundleAbsDir, rootfsDir)
+		}
 	}
 
 	// populate vmm args
@@ -206,9 +214,17 @@ func (u *Unikontainer) Exec() error {
 	unikernelParams := unikernels.UnikernelParams{
 		CmdLine: u.Spec.Process.Args,
 		EnvVars: u.Spec.Process.Env,
+		Version: unikernelVersion,
 	}
 	if len(unikernelParams.CmdLine) == 0 {
 		unikernelParams.CmdLine = strings.Fields(u.State.Annotations[annotCmdLine])
+
+	}
+
+	if initrdPath != "" {
+		unikernelParams.RootFSType = "initrd"
+	} else {
+		unikernelParams.RootFSType = ""
 	}
 
 	// handle network
@@ -224,8 +240,10 @@ func (u *Unikontainer) Exec() error {
 	}
 	metrics.Capture(u.State.ID, "TS16")
 
+	withTUNTAP := false
 	// if network info is nil, we didn't find eth0, so we are running with ctr
 	if networkInfo != nil {
+		withTUNTAP = true
 		vmmArgs.TapDevice = networkInfo.TapDevice
 		vmmArgs.IPAddress = networkInfo.EthDevice.IP
 		// The MAC address for the guest network device is the same as the
@@ -276,6 +294,7 @@ func (u *Unikontainer) Exec() error {
 		}
 	}
 
+	var dmPath = ""
 	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
 		rootFsDevice, err := getBlockDevice(rootfsDir)
 		if err != nil {
@@ -288,15 +307,10 @@ func (u *Unikontainer) Exec() error {
 			}
 			vmmArgs.BlockDevice = rootFsDevice.Device
 			unikernelParams.RootFSType = "block"
+			dmPath = rootFsDevice.Device
 		}
 	}
 	metrics.Capture(u.State.ID, "TS17")
-
-	// Set CWD the rootfs of the container
-	err = os.Chdir(rootfsDir)
-	if err != nil {
-		return err
-	}
 
 	// get a new vmm
 	vmm, err := hypervisors.NewVMM(hypervisors.VmmType(vmmType))
@@ -310,6 +324,7 @@ func (u *Unikontainer) Exec() error {
 	} else if err != nil {
 		return err
 	}
+
 	// build the unikernel command
 	unikernelCmd, err := unikernel.CommandString()
 	if err != nil {
@@ -318,6 +333,10 @@ func (u *Unikontainer) Exec() error {
 	vmmArgs.Command = unikernelCmd
 
 	// update urunc.json state
+	// TODO: Move this somewhere else. We are not yet running and
+	// maybe we need to make sure the monitor started correctly before
+	// setting this to running.
+	// For example, we can move it to the Start command.
 	u.State.Status = "running"
 	err = u.saveContainerState()
 	if err != nil {
@@ -325,12 +344,32 @@ func (u *Unikontainer) Exec() error {
 	}
 
 	// execute hooks
+	// TODO: Check when to run this hook. For sure we need to run it in the
+	// container's namespace, but after/before pivot, user setup, etc.?
 	err = u.ExecuteHooks("StartContainer")
 	if err != nil {
 		return err
 	}
-	Log.Info("calling vmm execve")
-	metrics.Capture(u.State.ID, "TS18")
+
+	// Make sure that rootfs is mounted with the correct propagation
+	// flags so we can later pivot if needed.
+	err = prepareRoot(rootfsDir, u.Spec.Linux.RootfsPropagation)
+	if err != nil {
+		return err
+	}
+
+	// Setup the rootfs for the the monitor execution, creating necessary
+	// devices and the monitor's binary.
+	err = prepareMonRootfs(rootfsDir, vmm.Path(), dmPath, vmm.UsesKVM(), withTUNTAP)
+	if err != nil {
+		return err
+	}
+
+	withPivot := containsNS(u.Spec.Linux.Namespaces, specs.MountNamespace)
+	err = changeRoot(rootfsDir, withPivot)
+	if err != nil {
+		return err
+	}
 
 	// We might not have write access to the container's rootfs if we switch
 	// to a non-root user. Hence, create a file for FC's configuration
@@ -357,6 +396,8 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 
+	Log.Debug("calling vmm execve")
+	metrics.Capture(u.State.ID, "TS18")
 	// metrics.Wait()
 	return vmm.Execve(vmmArgs, unikernel)
 }
@@ -429,7 +470,7 @@ func (u *Unikontainer) Delete() error {
 	unikernelType := u.State.Annotations[annotType]
 	unikernel, err := unikernels.New(unikernelType)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot retrieve unikernel %s: %v", unikernelType, err)
 	}
 	useDevmapper := false
 	useDevmapper, err = strconv.ParseBool(u.State.Annotations[annotUseDMBlock])
@@ -437,17 +478,40 @@ func (u *Unikontainer) Delete() error {
 		useDevmapper = true
 	}
 	annotBlock := u.State.Annotations[annotBlock]
+	// Make sure paths are clean
+	bundleDir := filepath.Clean(u.State.Bundle)
+	rootfsDir := filepath.Clean(u.Spec.Root.Path)
+	if !filepath.IsAbs(rootfsDir) {
+		rootfsDir = filepath.Join(bundleDir, rootfsDir)
+	}
 	if unikernel.SupportsBlock() && annotBlock == "" && useDevmapper {
-		// Make sure paths are clean
-		bundleDir := filepath.Clean(u.State.Bundle)
-		rootfsDir := filepath.Clean(u.Spec.Root.Path)
-		if !filepath.IsAbs(rootfsDir) {
-			rootfsDir = filepath.Join(bundleDir, rootfsDir)
-		}
 		err := cleanupExtractedFiles(rootfsDir)
 		if err != nil {
 			return fmt.Errorf("cannot delete rootfs %s: %v", rootfsDir, err)
 		}
+	}
+	cntrDev := filepath.Join(rootfsDir, "/dev")
+	err = os.RemoveAll(cntrDev)
+	if err != nil {
+		return fmt.Errorf("cannot remove /dev: %v", err)
+	}
+	cntrLib := filepath.Join(rootfsDir, "/lib")
+	err = os.RemoveAll(cntrLib)
+	if err != nil {
+		return fmt.Errorf("cannot remove /lib: %v", err)
+	}
+	cntrLib64 := filepath.Join(rootfsDir, "/lib64")
+	err = os.RemoveAll(cntrLib64)
+	if err != nil {
+		return fmt.Errorf("cannot remove /lib64: %v", err)
+	}
+	// We do not need to unmount anything here, since we rely on Linux
+	// to do the cleanup for us. This will happen automatically,
+	// when the mount namespace gets destroyed
+	cntrUsr := filepath.Join(rootfsDir, "/usr")
+	err = os.RemoveAll(cntrUsr)
+	if err != nil {
+		return fmt.Errorf("cannot remove /usr: %v", err)
 	}
 	return os.RemoveAll(u.BaseDir)
 }
