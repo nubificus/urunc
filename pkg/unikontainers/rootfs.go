@@ -1,0 +1,406 @@
+// Copyright (c) 2023-2025, Nubificus LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Parts of this file have been taken from
+// https://github.com/opencontainers/runc/blob/8eb2f43047ce24f06a4cbfd9af4aaedab1062bfb/libcontainer/rootfs_linux.go
+// which comes with an Apache 2.0 license. For more information check runc's
+// licence.
+
+package unikontainers
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/opencontainers/runtime-spec/specs-go"
+)
+
+// pivotRootfs changes rootfs with pivot
+// It should be called with CWD being the new rootfs
+func pivotRootfs(newRoot string) error {
+	// Set up directory of previous rootfs
+	oldRoot := filepath.Join(newRoot, "/old_root")
+	err := os.MkdirAll(oldRoot, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", oldRoot, err)
+	}
+
+	err = unix.PivotRoot(".", "old_root")
+	if err != nil {
+		return fmt.Errorf("failed to pivot root: %w", err)
+	}
+
+	// Make sure we are in the new rootfs
+	err = os.Chdir("/")
+	if err != nil {
+		return fmt.Errorf("failed to set CWD as /: %w", err)
+	}
+
+	// Make oldroot rslave to make sure our unmounts don't propagate to the
+	// host (and thus bork the machine). We don't use rprivate because this is
+	// known to cause issues due to races where we still have a reference to a
+	// mount while a process in the host namespace are trying to operate on
+	// something they think has no mounts (devicemapper in particular).
+	err = unix.Mount("", "old_root", "", unix.MS_SLAVE|unix.MS_REC, "")
+	if err != nil {
+		return fmt.Errorf("failed to make old_root rslave: %w", err)
+	}
+
+	// Perform the unmount. MNT_DETACH allows us to unmount /proc/self/cwd.
+	err = unix.Unmount("old_root", unix.MNT_DETACH)
+	if err != nil {
+		return fmt.Errorf("failed to unmount old_root: %w", err)
+	}
+
+	// We no longer need the old rootfs
+	err = os.RemoveAll("old_root")
+	if err != nil {
+		return fmt.Errorf("failed to remobe old_root: %w", err)
+	}
+
+	return nil
+}
+
+// changeRoot changes the rootfs to rootfsDir. If pivot is true, then we will
+// use pivot (requires mount namespaces), otherwise we will use chroot
+func changeRoot(rootfsDir string, pivot bool) error {
+	// Set CWD the rootfs of the container
+	err := os.Chdir(rootfsDir)
+	if err != nil {
+		return err
+	}
+
+	if pivot {
+		err = pivotRootfs(rootfsDir)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = unix.Chroot(".")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Set CWD the rootfs of the container to ensure we are in the new rootfs
+	err = os.Chdir("/")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// prepareMonRootfs prepares the rootfs where the monitor will execute. It
+// essentially sets up the devices (KVM, snapshotter block device) that are required
+// for the guest execution and any other files (e.g. binaries).
+func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needsKVM bool, needsTAP bool) error {
+	err := fileFromHost(monRootfs, monitorPath, false)
+	if err != nil {
+		return err
+	}
+
+	err = mountDevtmpfs(monRootfs)
+	if err != nil {
+		return err
+	}
+
+	err = setupDev(monRootfs, "/dev/null")
+	if err != nil {
+		return err
+	}
+
+	err = setupDev(monRootfs, "/dev/urandom")
+	if err != nil {
+		return err
+	}
+
+	if needsTAP || monitorName == "firecracker" {
+		err = setupDev(monRootfs, "/dev/net/tun")
+		if err != nil {
+			return err
+		}
+	}
+
+	if dmPath != "" {
+		err = setupDev(monRootfs, dmPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	if needsKVM {
+		err = setupDev(monRootfs, "/dev/kvm")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// mountDevtmpfs mounts /dev as a tmpfs in the container's rootfs
+// This is necessary to create the required devices for the monitor execution,
+// such as KVM, null, urandom etc.
+func mountDevtmpfs(monRootfs string) error {
+	dstPath := filepath.Join(monRootfs, "/dev")
+	mountType := "tmpfs"
+	flags := unix.MS_NOSUID | unix.MS_STRICTATIME
+	data := "mode=755,size=65536k"
+
+	err := os.MkdirAll(dstPath, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create /dev dir: %w", err)
+	}
+
+	err = unix.Mount(mountType, dstPath, mountType, uintptr(flags), data)
+	if err != nil {
+		return fmt.Errorf("failed to mount /dev tmpfs: %w", err)
+	}
+
+	// Remove propagation
+	err = unix.Mount("", dstPath, "", unix.MS_PRIVATE, "")
+	if err != nil {
+		return fmt.Errorf("failed to create /dev tmpfs: %w", err)
+	}
+
+	return nil
+}
+
+// SetupDev set ups one new device in the container's rootfs.
+// This function will get the major and minor number of
+// the device from the host's rootfs and it will replicate the device
+// inside the container's rootfs. It also appends rw for other users
+// in the permissions of the original file.
+func setupDev(monRootfs string, devPath string) error {
+	// Get info of the original file
+	var devStat unix.Stat_t
+	err := unix.Stat(devPath, &devStat)
+	if err != nil {
+		return fmt.Errorf("failed to stat dev %s: %w", devPath, err)
+	}
+
+	// mask file's mode
+	mode := devStat.Mode & unix.S_IFMT
+	if mode != unix.S_IFCHR && mode != unix.S_IFBLK {
+		return fmt.Errorf("%s is not a device node", devPath)
+	}
+	// Get minor,major numbers
+	rdev := devStat.Rdev
+	major := unix.Major(uint64(rdev))
+	minor := unix.Minor(uint64(rdev))
+
+	newDev := unix.Mkdev(major, minor)
+
+	// Set the correct target path
+	relHostPath, err := filepath.Rel("/", devPath)
+	if err != nil {
+		return fmt.Errorf("failed to get relative path of %s to /: %w", devPath, err)
+	}
+	dstPath := filepath.Join(monRootfs, relHostPath)
+	// If the device is not at /dev but further down the tree, create
+	// the necessary directories
+	if filepath.Dir(devPath) != "/dev" {
+		dstDir := filepath.Dir(dstPath)
+		err = os.MkdirAll(dstDir, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dstDir, err)
+		}
+	}
+
+	// Create the new device node
+	err = unix.Mknod(dstPath, devStat.Mode, int(newDev)) //nolint: gosec
+	if err != nil {
+		return fmt.Errorf("failed to make device node %s: %w", dstPath, err)
+	}
+
+	// Set up permissions, adding rw for others to ensure that any user can
+	// read/write them. This is helpful for non-root monitor execution and
+	// removes the burdain of getting kvm/block group id
+	permBits := devStat.Mode & 0o777
+	permBits |= 0o006
+	err = unix.Chmod(dstPath, permBits)
+	if err != nil {
+		return fmt.Errorf("failed to chmod %s: %w", dstPath, err)
+	}
+
+	// Set the owner as in the original file
+	err = os.Chown(dstPath, int(devStat.Uid), int(devStat.Gid))
+	if err != nil {
+		return fmt.Errorf("failed to chown %s: %w", dstPath, err)
+	}
+
+	return nil
+}
+
+// fileFromHost set ups a mirror of file from the host's rootfs inside the
+// container's rootfs. Also, it preserves the permissions and ownership of the
+// file in the host's rootfs.
+// if withCopy is set then copy the file, otherwise
+// bind mount it.
+// In the context of monitor binaries a copy is considered safer, since
+// none of the monitor processes will share memory with other processes
+// of the same monitor. On the other hand, a copy is slower and consumes
+// more space.
+func fileFromHost(monRootfs string, hostPath string, withCopy bool) error {
+	// Get the info of the original file
+	var fileInfo unix.Stat_t
+	err := unix.Stat(hostPath, &fileInfo)
+	if err != nil {
+		return fmt.Errorf("failed to stat file %s: %w", hostPath, err)
+	}
+
+	// Set the correct path
+	relHostPath, err := filepath.Rel("/", hostPath)
+	if err != nil {
+		return fmt.Errorf("failed to get relative path of %s to /: %w", hostPath, err)
+	}
+	dstPath := filepath.Join(monRootfs, relHostPath)
+	dstDir := filepath.Dir(dstPath)
+	if withCopy {
+		err = copyFile(hostPath, dstDir)
+		if err != nil {
+			return fmt.Errorf("failed to copy file %s: %w", hostPath, err)
+		}
+	} else {
+		err = bindMountFile(hostPath, dstPath, dstDir, fileInfo.Mode)
+		if err != nil {
+			return fmt.Errorf("failed to bind mount file %s: %w", hostPath, err)
+		}
+	}
+
+	// Set up the permissions and ownership of the original file.
+	err = unix.Chmod(dstPath, fileInfo.Mode)
+	if err != nil {
+		return fmt.Errorf("failed to chmod %s: %w", dstPath, err)
+	}
+
+	err = os.Chown(dstPath, int(fileInfo.Uid), int(fileInfo.Gid))
+	if err != nil {
+		return fmt.Errorf("failed to chown %s: %w", dstPath, err)
+	}
+
+	return nil
+}
+
+// bindMountFile bind mounts a file from one directory to another
+func bindMountFile(hostPath string, dstPath string, dstDir string, perm uint32) error {
+	err := os.MkdirAll(dstDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dstDir, err)
+	}
+
+	dstFile, err := unix.Open(dstPath, unix.O_CREAT, perm)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", dstPath, err)
+	}
+	unix.Close(dstFile)
+
+	err = unix.Mount(hostPath, dstPath, "", unix.MS_BIND|unix.MS_PRIVATE, "")
+	if err != nil {
+		return fmt.Errorf("failed to bind mount %s: %w", dstPath, err)
+	}
+
+	return nil
+}
+
+// mapRootfsPropagationFlag retrieves the propagation flags of the rootfs
+// from the container's configuration
+func mapRootfsPropagationFlag(value string) (int, error) {
+	mountPropagationMapping := map[string]int{
+		"rprivate":    unix.MS_PRIVATE | unix.MS_REC,
+		"private":     unix.MS_PRIVATE,
+		"rslave":      unix.MS_SLAVE | unix.MS_REC,
+		"slave":       unix.MS_SLAVE,
+		"rshared":     unix.MS_SHARED | unix.MS_REC,
+		"shared":      unix.MS_SHARED,
+		"runbindable": unix.MS_UNBINDABLE | unix.MS_REC,
+		"unbindable":  unix.MS_UNBINDABLE,
+	}
+
+	propagation, exists := mountPropagationMapping[value]
+	if !exists {
+		return 0, fmt.Errorf("rootfsPropagation=%s is not supported", value)
+	}
+
+	return propagation, nil
+}
+
+// rootfsParentMountPrivate ensures rootfs parent mount is private.
+// This is needed for two reasons:
+//   - pivot_root() will fail if parent mount is shared;
+//   - when we bind mount rootfs, if its parent is not private, the new mount
+//     will propagate (leak!) to parent namespace and we don't want that.
+//
+// Revisit this: We can remove this if we decide to create our own rootfs for
+// the execution of the monitor, since we can make sure that the mount will be private.
+func rootfsParentMountPrivate(path string) error {
+	var err error
+	// Assuming path is absolute and clean.
+	// Any error other than EINVAL means we failed,
+	// and EINVAL means this is not a mount point, so traverse up until we
+	// find one.
+	for {
+		err = unix.Mount("", path, "", unix.MS_PRIVATE, "")
+		if err == nil {
+			return nil
+		}
+		if err != unix.EINVAL || path == "/" {
+			break
+		}
+		path = filepath.Dir(path)
+	}
+
+	return fmt.Errorf("Could not remount as private the parent mount of %s", path)
+}
+
+// prepareRoot prepares the directory of the container's rootfs to safely pivot
+// chroot to it.
+func prepareRoot(path string, rootfsPropagation string) error {
+	flag := unix.MS_SLAVE | unix.MS_REC
+	if rootfsPropagation != "" {
+		var err error
+
+		flag, err = mapRootfsPropagationFlag(rootfsPropagation)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := unix.Mount("", "/", "", uintptr(flag), "")
+	if err != nil {
+		return err
+	}
+
+	err = rootfsParentMountPrivate(path)
+	if err != nil {
+		return err
+	}
+
+	return unix.Mount(path, path, "bind", unix.MS_BIND|unix.MS_REC, "")
+}
+
+// containsNS checks of the container's configuration contains a specific namespace
+func containsNS(namespaces []specs.LinuxNamespace, nsType specs.LinuxNamespaceType) bool {
+	for _, ns := range namespaces {
+		if ns.Type == nsType {
+			return true
+		}
+	}
+
+	return false
+}
