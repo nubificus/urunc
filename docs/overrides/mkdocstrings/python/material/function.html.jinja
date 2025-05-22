@@ -1,0 +1,23 @@
+{% extends "_base/function.html.jinja" %}
+
+{# Workaround for source paths in `external_repos` #}
+
+{% block source scoped %}
+  {#- Source block.
+
+  This block renders the source code for the function.
+  -#}
+  {% if config.show_source and function.source %}
+    <details class="quote">
+      <summary>{{ lang.t("Source code in") }} <code>
+        {%- if function.relative_filepath.is_absolute() -%}
+          {{ function.relative_package_filepath }}
+        {%- else -%}
+          {% set rel_path = '/'.join(function.relative_filepath.parts[2:]) %}
+          {{ rel_path }}
+        {%- endif -%}
+      </code></summary>
+      {{ function.source|highlight(language="python", linestart=function.lineno or 0, linenums=True) }}
+    </details>
+  {% endif %}
+{% endblock source %}

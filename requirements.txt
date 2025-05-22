@@ -3,3 +3,13 @@ mkdocs-material
 mkdocs-section-index
 mkdocs-literate-nav
 
+mkdocs
+mkdocs-material
+mkdocs-section-index
+mkdocs-awesome-nav
+mkdocs-macros-plugin
+mkdocs-minify-plugin
+pymdown-extensions
+mkdocstrings[python]
+ruff
+mike
