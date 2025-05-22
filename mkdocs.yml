@@ -13,8 +13,17 @@
 # limitations under the License.
 
 site_name: urunc Documentation
+site_name: urunc Documentation
+site_url: https://urunc.io/
+site_author: urunc, a Series of LF Projects, LLC
+
+repo_url: https://github.com/urunc-dev/urunc
+repo_name: urunc-dev/urunc
+
+#not_in_nav: /index.md
+
 nav:
-  - Home: index.md
+  - Overview: index.md
   - Quickstart: quickstart.md
   - Installation: installation.md
   - VMM/Sandbox Support: hypervisor-support.md
@@ -31,24 +40,36 @@ nav:
 
 theme:
   name: material
-  favicon: img/urunc-logo.png
-  logo: img/urunc-logo.png
-  palette: 
+  favicon: assets/images/favicon-32x32.png
+  logo_dark_mode: 'assets/images/urunc-logo-dark.svg'
+  logo_light_mode: 'assets/images/urunc-logo-light.svg'
+
+  custom_dir: docs/overrides
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
 
     # Palette toggle for light mode
-    - scheme: default
-      primary: white
-      accent: indigo
+    - media: "(prefers-color-scheme: light)"
+      scheme: urunc
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/eye
+        icon: material/brightness-7
         name: Switch to dark mode
 
     # Palette toggle for dark mode
-    - scheme: slate
-      primary: black
-      accent: light blue
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      #primary: black
+      #accent: light blue
       toggle:
-        icon: material/eye-outline
+        icon: material/brightness-4
         name: Switch to light mode
 
 features:
@@ -64,12 +85,82 @@ markdown_extensions:
 toc:
   - permalink: true
 
-copyright: Copyright &copy; 2022 - 2025 Nubificus LTD
+copyright: "2022"
 
 extra_css:
-  - stylesheets/extra.css
-gtags:
-  - G-X2S0PFR6ZY
+  - assets/stylesheets/theme.css
+extra_javascript:
+  - assets/javascripts/console-copy.js
+
+extra:
+  version:
+    provider: mike
+    alias: true
+  analytics:
+    provider: google
+    property: G-X2S0PFR6ZY
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: '🔗'
+      toc_depth: 3
+  - pymdownx.blocks.tab:
+      alternate_style: True
+      combine_header_slug: True
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.blocks.caption
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        # exclude '$' from copying
+        - name: console
+          class: console
+          validator: ^.*
+          format: !!python/name:pymdownx.superfences.fence_code_format
+          validator: ^.*
+          format: !!python/name:pymdownx.superfences.fence_code_format
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
 plugins:
+  - search
   - section-index
   - literate-nav
+  - macros:
+      j2_block_start_string: "[%"
+      j2_block_end_string: "%]"
+      j2_variable_start_string: "[["
+      j2_variable_end_string: "]]"
+      j2_comment_start_string: '[#'
+      j2_comment_end_string: '#]'
+  - minify:
+      minify_html: true
+      minify_css: true
+      minify_js: true
+      htmlmin_opts:
+          remove_comments: true
+      cache_safe: true
+      css_files:
+          - assets/stylesheets/theme.css
+      js_files:
+          - assets/javascripts/console-copy.js
+  - autorefs
+
+hooks:
+  - docs/hooks/copyright.py

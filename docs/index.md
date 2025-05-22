@@ -61,8 +61,22 @@ Sandbox monitors, along with the unikernels that can run on top of them.
 | [Mewz](./unikernel-support#mewz)| [Qemu](./hypervisor-support#qemu) | x86 | In-memory |
 | [Linux](./unikernel-support#linux)| [Qemu](./hypervisor-support#qemu), [Firecracker](./hypervisor-support#aws-firecracker) | x86, aarch64 | Initrd, Block/Devmapper |
 
+<!-- ## urunc and the CNCF -->
+
+
 ## Quick links
 
 - [Contributing](developer-guide/contribute/)
 - [Getting metrics from `urunc`](developer-guide/timestamps)
 - [Integration with k8s](tutorials/How-to-urunc-on-k8s/)
+
+<hr>
+
+<p align="center">
+urunc is a <a href="https://cncf.io">Cloud Native Computing Foundation</a> sandbox project.
+</p>
+
+<p align="center">
+<img src="assets/images/cncf-color.svg#only-light" width="500px"/> 
+<img src="assets/images/cncf-white.svg#only-dark" width="500px"/>
+</p>
