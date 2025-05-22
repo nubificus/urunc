@@ -114,6 +114,38 @@ func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needs
 		return err
 	}
 
+	// TODO: Remove these when we switch to static binaries
+	monitorName := filepath.Base(monitorPath)
+	if monitorName != "firecracker" {
+		err = fileFromHost(monRootfs, "/lib", false)
+		if err != nil {
+			return err
+		}
+
+		err = fileFromHost(monRootfs, "/lib64", false)
+		if err != nil {
+			return err
+		}
+
+		err = fileFromHost(monRootfs, "/usr/lib", false)
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO: Remove these when we switch to static binaries
+	if len(monitorName) >= 4 && monitorName[:4] == "qemu" {
+		err = fileFromHost(monRootfs, "/usr/share/qemu", false)
+		if err != nil {
+			return err
+		}
+
+		err = fileFromHost(monRootfs, "/usr/share/seabios", false)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = mountDevtmpfs(monRootfs)
 	if err != nil {
 		return err
@@ -263,6 +295,7 @@ func fileFromHost(monRootfs string, hostPath string, withCopy bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to stat file %s: %w", hostPath, err)
 	}
+	mode := fileInfo.Mode
 
 	// Set the correct path
 	relHostPath, err := filepath.Rel("/", hostPath)
@@ -270,14 +303,22 @@ func fileFromHost(monRootfs string, hostPath string, withCopy bool) error {
 		return fmt.Errorf("failed to get relative path of %s to /: %w", hostPath, err)
 	}
 	dstPath := filepath.Join(monRootfs, relHostPath)
-	dstDir := filepath.Dir(dstPath)
-	if withCopy {
-		err = copyFile(hostPath, dstDir)
-		if err != nil {
-			return fmt.Errorf("failed to copy file %s: %w", hostPath, err)
+
+	if (mode & unix.S_IFMT) != unix.S_IFDIR {
+		dstDir := filepath.Dir(dstPath)
+		if withCopy {
+			err = copyFile(hostPath, dstDir)
+			if err != nil {
+				return fmt.Errorf("failed to copy file %s: %w", hostPath, err)
+			}
+		} else {
+			err = bindMountFile(hostPath, dstDir, dstPath, fileInfo.Mode, false)
+			if err != nil {
+				return fmt.Errorf("failed to bind mount file %s: %w", hostPath, err)
+			}
 		}
 	} else {
-		err = bindMountFile(hostPath, dstPath, dstDir, fileInfo.Mode)
+		err = bindMountFile(hostPath, dstPath, "", 0, true)
 		if err != nil {
 			return fmt.Errorf("failed to bind mount file %s: %w", hostPath, err)
 		}
@@ -297,20 +338,23 @@ func fileFromHost(monRootfs string, hostPath string, withCopy bool) error {
 	return nil
 }
 
-// bindMountFile bind mounts a file from one directory to another
-func bindMountFile(hostPath string, dstPath string, dstDir string, perm uint32) error {
+// bindMountFile bind mounts a file/directory to a new path
+func bindMountFile(hostPath string, dstDir string, dstPath string, perm uint32, isDir bool) error {
 	err := os.MkdirAll(dstDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dstDir, err)
 	}
 
-	dstFile, err := unix.Open(dstPath, unix.O_CREAT, perm)
-	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", dstPath, err)
+	if !isDir {
+		dstFile, err1 := unix.Open(dstPath, unix.O_CREAT, perm)
+		if err1 != nil {
+			return fmt.Errorf("failed to create file %s: %w", dstPath, err)
+		}
+		unix.Close(dstFile)
+		err = unix.Mount(hostPath, dstPath, "", unix.MS_BIND|unix.MS_PRIVATE, "")
+	} else {
+		err = unix.Mount(hostPath, dstDir, "", unix.MS_BIND|unix.MS_PRIVATE, "")
 	}
-	unix.Close(dstFile)
-
-	err = unix.Mount(hostPath, dstPath, "", unix.MS_BIND|unix.MS_PRIVATE, "")
 	if err != nil {
 		return fmt.Errorf("failed to bind mount %s: %w", dstPath, err)
 	}
