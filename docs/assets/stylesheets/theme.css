@@ -1,0 +1,140 @@
+/*
+ * Main theme
+ */
+
+[data-md-color-scheme="urunc"] {
+  --md-primary-fg-color: #FAFAFF;
+  --md-primary-fg-color--light: #001524;
+  --md-primary-fg-color--dark: #001524;
+  --md-primary-bg-color: #001524;
+  --md-primary-bg-color--light: #001524;
+  --md-primary-bg-color--dark: #001524;
+
+  /*--md-accent-fg-color: #f96e3e;*/
+  --md-accent-fg-color: #FF7D00;
+  --md-accent-fg-color--transparent: hsla(15, 94%, 61%, 0.1);
+
+  --md-footer-logo-dark-mode:         none;
+  --md-footer-logo-light-mode:         block;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #001524; /*000c0f;*/
+  --md-primary-fg-color--light: #841a6b;
+  --md-primary-fg-color--dark: #001524;
+  --md-primary-bg-color: #fff3f0; /*000c0f;*/
+
+  /*--md-accent-fg-color: #f96e3e;*/
+  --md-accent-fg-color: #FF7D00;
+  --md-accent-fg-color--transparent: hsla(15, 94%, 61%, 0.1);
+  /*--md-primary-bg-color--light: #fff3f0;
+  --md-primary-bg-color--dark: #fff3f0; */
+
+  /*--md-hue: 311; *//* [0, 360] */
+
+  --md-footer-logo-dark-mode:         block;
+  --md-footer-logo-light-mode:         none;
+}
+
+/*
+@media screen {
+  [data-md-color-scheme="slate"][data-md-color-primary="purple"] {
+    --md-typeset-a-color: #d661be;
+  }
+}
+*/
+
+.md-nav__title .md-nav__button.md-logo img {
+  height: 2rem;
+}
+
+/*
+ * Breadcrumb
+ */
+
+:root {
+  --md-path-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8.59 16.58 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>')
+}
+
+.md-path {
+  font-size:.7rem;
+  margin:0 .8rem;
+  overflow:auto;
+  padding-top:1.2rem
+}
+
+.md-path:not([hidden]) {
+  display:block
+}
+
+@media screen and (min-width:76.25em) {
+  .md-path {
+    margin:0 1.2rem
+  }
+}
+
+.md-path__list {
+  align-items:center;
+  display:flex;
+  gap:.2rem;
+  list-style:none;
+  margin:0;
+  padding:0
+}
+
+.md-path__item:not(:first-child) {
+  display:inline-flex;
+  gap:.2rem;
+  white-space:nowrap
+}
+
+.md-path__item:not(:first-child):before {
+  background-color:var(--md-default-fg-color--lighter);
+  content:"";
+  display:inline;
+  height:.8rem;
+  -webkit-mask-image:var(--md-path-icon);
+  mask-image:var(--md-path-icon);
+  width:.8rem;
+}
+
+.md-path__link {
+  align-items:center;
+  color:var(--md-default-fg-color--light);
+  display:flex
+}
+
+.md-path__link:focus,
+.md-path__link:hover {
+  color:var(--md-accent-fg-color)
+}
+
+/*
+ * Permalink anchor
+ */
+
+/* Replace the default symbol with a GitHub-style link icon */
+.md-typeset .headerlink {
+   font-size: 16px;
+   vertical-align: middle;
+   display: inline-block;
+}
+
+/*
+ * Code blocks: console
+ */
+
+/* Make '$' non-copyable */
+.language-console span.gp {
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+#logo_light_mode {
+    display: var(--md-footer-logo-light-mode);
+}
+
+#logo_dark_mode {
+    display: var(--md-footer-logo-dark-mode);
+}

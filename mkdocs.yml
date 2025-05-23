@@ -31,24 +31,37 @@ nav:
 
 theme:
   name: material
-  favicon: img/urunc-logo.png
-  logo: img/urunc-logo.png
-  palette: 
+  #favicon: assets/images/urunc-logo-dark.svg
+  #logo: assets/images/urunc-logo-dark.svg
+  logo_dark_mode: 'assets/images/urunc-logo-dark.svg'
+  logo_light_mode: 'assets/images/urunc-logo-light.svg'
+
+  custom_dir: docs/overrides
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
 
     # Palette toggle for light mode
-    - scheme: default
-      primary: white
-      accent: indigo
+    - media: "(prefers-color-scheme: light)"
+      scheme: urunc
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/eye
+        icon: material/brightness-7
         name: Switch to dark mode
 
     # Palette toggle for dark mode
-    - scheme: slate
-      primary: black
-      accent: light blue
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      #primary: black
+      #accent: light blue
       toggle:
-        icon: material/eye-outline
+        icon: material/brightness-4
         name: Switch to light mode
 
 features:
@@ -64,12 +77,71 @@ markdown_extensions:
 toc:
   - permalink: true
 
-copyright: Copyright &copy; 2022 - 2025 Nubificus LTD
+copyright: "2018"
 
 extra_css:
-  - stylesheets/extra.css
+  - assets/stylesheets/theme.css
+extra_javascript:
+  - assets/javascripts/console-copy.js
+
+extra:
+  version:
+    provider: mike
+    alias: true
+  analytics:
+    provider: google
+    property: G-X2S0PFR6ZY
+
+
 gtags:
   - G-X2S0PFR6ZY
 plugins:
   - section-index
-  - literate-nav
+  - awesome-nav
+  - macros:
+      include_yaml: [variables/versions.yml]
+      j2_block_start_string: "[%"
+      j2_block_end_string: "%]"
+      j2_variable_start_string: "[["
+      j2_variable_end_string: "]]"
+      j2_comment_start_string: '[#'
+      j2_comment_end_string: '#]'
+  - minify:
+      minify_html: true
+      minify_css: true
+      minify_js: true
+      htmlmin_opts:
+          remove_comments: true
+      cache_safe: true
+      css_files:
+          - assets/stylesheets/theme.css
+      js_files:
+          - assets/javascripts/console-copy.js
+  - autorefs
+  - mkdocstrings:
+      custom_templates: docs/overrides/mkdocstrings
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          paths: [external_repos/vaccel-python]
+          options:
+            docstring_style: "google"
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            filters: ["!^_"]
+            inherited_members: true
+            parameter_headings: true
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            show_docstring_attributes: false
+            signature_crossrefs: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            line_length: 80
+            group_by_category: true
+            heading_level: 1
+
