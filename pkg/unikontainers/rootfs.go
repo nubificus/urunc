@@ -146,7 +146,12 @@ func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needs
 		}
 	}
 
-	err = mountDevtmpfs(monRootfs)
+	err = createTmpfs(monRootfs, "/dev", unix.MS_NOSUID|unix.MS_STRICTATIME, "755")
+	if err != nil {
+		return err
+	}
+
+	err = createTmpfs(monRootfs, "/tmp", unix.MS_NOSUID|unix.MS_NOEXEC|unix.MS_STRICTATIME, "1777")
 	if err != nil {
 		return err
 	}
@@ -185,31 +190,37 @@ func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needs
 	return nil
 }
 
-// mountDevtmpfs mounts /dev as a tmpfs in the container's rootfs
+// createTmpfs creates a new tmpfs at path inside monRootfs
+// In particular, it is used for the creation of /tmp and /dev.
 // This is necessary to create the required devices for the monitor execution,
 // such as KVM, null, urandom etc.
-func mountDevtmpfs(monRootfs string) error {
-	dstPath := filepath.Join(monRootfs, "/dev")
+func createTmpfs(monRootfs string, path string, flags uint64, mode string) error {
+	dstPath := filepath.Join(monRootfs, path)
 	mountType := "tmpfs"
-	flags := unix.MS_NOSUID | unix.MS_STRICTATIME
-	data := "mode=755,size=65536k"
+	data := "mode=" + mode + ",size=65536k"
 
 	err := os.MkdirAll(dstPath, 0755)
 	if err != nil {
-		return fmt.Errorf("failed to create /dev dir: %w", err)
+		return fmt.Errorf("failed to create %s dir: %w", path, err)
 	}
 
 	err = unix.Mount(mountType, dstPath, mountType, uintptr(flags), data)
 	if err != nil {
-		return fmt.Errorf("failed to mount /dev tmpfs: %w", err)
+		return fmt.Errorf("failed to mount %s tmpfs: %w", path, err)
 	}
 
 	// Remove propagation
 	err = unix.Mount("", dstPath, "", unix.MS_PRIVATE, "")
 	if err != nil {
-		return fmt.Errorf("failed to create /dev tmpfs: %w", err)
+		return fmt.Errorf("failed to create %s tmpfs: %w", path, err)
 	}
 
+	if mode == "1777" {
+		err := os.Chmod(path, 01777)
+		if err != nil {
+			return fmt.Errorf("failed to chmod %s: %w", path, err)
+		}
+	}
 	return nil
 }
 
