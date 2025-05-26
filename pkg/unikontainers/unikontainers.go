@@ -153,21 +153,8 @@ func (u *Unikontainer) Exec() error {
 	vmmType := u.State.Annotations[annotHypervisor]
 	unikernelType := u.State.Annotations[annotType]
 	unikernelVersion := u.State.Annotations[annotVersion]
-
-	// TODO: Remove this when we chroot
-	unikernelPath, err := filepath.Rel("/", u.State.Annotations[annotBinary])
-	if err != nil {
-		return err
-	}
-
-	// TODO: Remove this when we chroot
-	var initrdPath string
-	if u.State.Annotations[annotInitrd] != "" {
-		initrdPath, err = filepath.Rel("/", u.State.Annotations[annotInitrd])
-		if err != nil {
-			return err
-		}
-	}
+	unikernelPath := u.State.Annotations[annotBinary]
+	initrdPath := u.State.Annotations[annotInitrd]
 
 	// Make sure paths are clean
 	bundleDir := filepath.Clean(u.State.Bundle)
@@ -286,12 +273,8 @@ func (u *Unikontainer) Exec() error {
 		useDevmapper = true
 	}
 	if u.State.Annotations[annotBlock] != "" && unikernel.SupportsBlock() {
-		// TODO: Remove this when we chroot
-		vmmArgs.BlockDevice, err = filepath.Rel("/", u.State.Annotations[annotBlock])
+		vmmArgs.BlockDevice = u.State.Annotations[annotBlock]
 		unikernelParams.RootFSType = "block"
-		if err != nil {
-			return err
-		}
 	}
 
 	var dmPath = ""
@@ -369,25 +352,6 @@ func (u *Unikontainer) Exec() error {
 	err = changeRoot(rootfsDir, withPivot)
 	if err != nil {
 		return err
-	}
-
-	// We might not have write access to the container's rootfs if we switch
-	// to a non-root user. Hence, create a file for FC's configuration
-	// and change its permissions according to the new user.
-	// TODO: We have to remove this then we chroot
-	if vmmType == "firecracker" {
-		fcf, err := os.Create(hypervisors.FCJsonFilename)
-		if err != nil {
-			return err
-		}
-		err = fcf.Chmod(0666)
-		if err != nil {
-			return err
-		}
-		err = fcf.Close()
-		if err != nil {
-			return err
-		}
 	}
 
 	// Setup uid, gid and additional groups for the monitor process
