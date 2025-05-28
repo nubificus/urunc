@@ -80,11 +80,15 @@ jobs:
         export VM_NAME="${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}"
         export INCUS_RUN="incus exec $VM_NAME --project ${{ env.INCUS_PROJECT }} -- sh -c "
         $INCUS_RUN "rm -f /usr/local/bin/urunc"
-        $INCUS_RUN "git clone https://github.com/${{ github.repository }} /root/develop/urunc"
-        $INCUS_RUN "cd /root/develop/urunc && git reset --hard ${{github.event.pull_request.head.sha}}"
-        $INCUS_RUN "PATH=/usr/local/go/bin:$PATH make -C /root/develop/urunc"
-        $INCUS_RUN "make -C /root/develop/urunc install"
+        $INCUS_RUN "wget https://s3.nbfc.io/nbfc-assets/github/urunc/dist/${{ github.event.pull_request.head.ref }}/amd64/containerd-shim-urunc-v2_static_amd64"
+        $INCUS_RUN "wget https://s3.nbfc.io/nbfc-assets/github/urunc/dist/${{ github.event.pull_request.head.ref }}/amd64/urunc_static_amd64"
+        $INCUS_RUN "chmod +x urunc_static_amd64"
+        $INCUS_RUN "chmod +x containerd-shim-urunc-v2_static_amd64"
+        $INCUS_RUN "mv urunc_static_amd64 /usr/local/bin/urunc"
+        $INCUS_RUN "mv containerd-shim-urunc-v2_static_amd64 /usr/local/bin/containerd-shim-urunc-v2"
         $INCUS_RUN "urunc --version"
+        $INCUS_RUN "git clone https://github.com/${{ github.event.pull_request.head.repo.full_name }} -b ${{ github.event.pull_request.head.ref }} /root/develop/urunc"
+
 
     - name: Run ctr tests
       id: test-ctr
