@@ -1,4 +1,4 @@
-name: 🍜 Build/publish runners
+name: 🍜 Build/publish urunc-deploy image
 
 on:
   workflow_call:
@@ -17,17 +17,10 @@ on:
         default: '[{"amd64":"x86_64", "aarch64":"aarch64", "armv7l":"armv7l"}]'
       registry:
         type: string
-        default: 'harbor.nbfc.io'
+        default: 'ghcr.io'
       version-tag:
         type: boolean
         default: false
-    secrets:
-      GIT_CLONE_PAT:
-        required: false
-      harbor_user:
-        required: false
-      harbor_secret:
-        required: false
 
 jobs:
   build-all:
@@ -63,8 +56,8 @@ jobs:
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.harbor_user }}
-          password: ${{ secrets.harbor_secret }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata
         id: meta
@@ -177,8 +170,8 @@ jobs:
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.harbor_user }}
-          password: ${{ secrets.harbor_secret }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Process runner architectures and create docker manifest
         id: create-manifest
