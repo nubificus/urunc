@@ -33,6 +33,8 @@ jobs:
       matrix:
         archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
+    outputs:
+      vm_name: ${{ steps.set-vm-name.outputs.vm_name }}
     steps:
     - name: Setup Incus remote
       uses: nubificus/incus-remote-setup-action@v2
@@ -56,6 +58,7 @@ jobs:
       id: set-vm-name
       run: |
         echo "VM_NAME=${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
+        echo "vm_name=${{ env.VM_NAME }}" >> $GITHUB_OUTPUT
 
     - name: Launch VM
       id: launch-vm
@@ -89,11 +92,28 @@ jobs:
         $INCUS_RUN "urunc --version"
         $INCUS_RUN "git clone https://github.com/${{ github.event.pull_request.head.repo.full_name }} -b ${{ github.event.pull_request.head.ref }} /root/develop/urunc"
 
-
+  test-ctr:
+    needs: prepare
+    name: Run ctr tests
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    strategy:
+      matrix:
+        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+    - name: Setup Incus remote
+      uses: nubificus/incus-remote-setup-action@v2
+      with:
+        ssh_user: ${{ env.SSH_USER }}
+        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
+        remote_host: ${{ secrets.INCUS_IP_ADDR }}
+        friendly_name: ${{ env.INCUS_CLUSTER }}
+        incus_client_name: '${{ env.INCUS_NAME }}'
+        cleanup: false
     - name: Run ctr tests
       id: test-ctr
       run: |
-        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ job.outputs.vm_name }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_ctr"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
@@ -101,11 +121,29 @@ jobs:
           exit 1
         fi
 
+  test-nerdctl:
+    needs: prepare
+    name: Run nerdctl tests
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    strategy:
+      matrix:
+        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+    - name: Setup Incus remote
+      uses: nubificus/incus-remote-setup-action@v2
+      with:
+        ssh_user: ${{ env.SSH_USER }}
+        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
+        remote_host: ${{ secrets.INCUS_IP_ADDR }}
+        friendly_name: ${{ env.INCUS_CLUSTER }}
+        incus_client_name: '${{ env.INCUS_NAME }}'
+        cleanup: false
     - name: Run nerdctl tests
       id: test-nerdctl
       if: ${{ !cancelled() }}
       run: |
-        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ job.outputs.vm_name }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_nerdctl"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
@@ -113,11 +151,29 @@ jobs:
           exit 1
         fi
 
+  test-crictl:
+    needs: prepare
+    name: Run crictl tests
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    strategy:
+      matrix:
+        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+    - name: Setup Incus remote
+      uses: nubificus/incus-remote-setup-action@v2
+      with:
+        ssh_user: ${{ env.SSH_USER }}
+        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
+        remote_host: ${{ secrets.INCUS_IP_ADDR }}
+        friendly_name: ${{ env.INCUS_CLUSTER }}
+        incus_client_name: '${{ env.INCUS_NAME }}'
+        cleanup: false
     - name: Run crictl tests
       id: test-crictl
       if: ${{ !cancelled() }}
       run: |
-        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ job.outputs.vm_name }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_crictl"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
@@ -125,11 +181,29 @@ jobs:
           exit 1
         fi
 
+  test-docker:
+    needs: prepare
+    name: Run docker tests
+    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    strategy:
+      matrix:
+        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+      fail-fast: false
+    steps:
+    - name: Setup Incus remote
+      uses: nubificus/incus-remote-setup-action@v2
+      with:
+        ssh_user: ${{ env.SSH_USER }}
+        ssh_key: ${{ secrets.INCUS_ID_ED25519 }}
+        remote_host: ${{ secrets.INCUS_IP_ADDR }}
+        friendly_name: ${{ env.INCUS_CLUSTER }}
+        incus_client_name: '${{ env.INCUS_NAME }}'
+        cleanup: false
     - name: Run docker tests
       id: test-docker
       if: ${{ !cancelled() }}
       run: |
-        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}
+        export VM_NAME=${{ env.INCUS_CLUSTER }}:${{ job.outputs.vm_name }}
         export TEST_CMD="cd /root/develop/urunc && PATH=/usr/local/go/bin:$PATH make test_docker"
         if ! incus exec "$VM_NAME" --project ${{ env.INCUS_PROJECT }} -- sh -c "$TEST_CMD"; then
           echo "Test failed"
