@@ -129,7 +129,7 @@ The Admin list is reviewed and updated twice a year and typically contains:
 ## Meetings
 
 Time zones permitting, Maintainers are expected to participate in the public
-developer meeting, which occurs every second Wed of each month at 4pm CET.
+developer meeting, which occurs every second Wed of each month at 5pm CET.
 
 Maintainers will also have closed meetings in order to discuss security reports
 or Code of Conduct violations. Such meetings should be scheduled by any
