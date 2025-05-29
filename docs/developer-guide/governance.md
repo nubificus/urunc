@@ -1,12 +1,11 @@
 # Governance
 
-`urunc` is dedicated to enable the deployment of lightweight applications in
-cloud-native environments. A simple example is a unikernel running in k8s. This
-governance document explains how the project is run.
+`urunc` is dedicated to enable the deployment of unikernels and single
+application kernels in cloud-native environments.. This governance document
+explains how the project is run.
 
 - [Values](#values)
-- [Maintainers](#maintainers)
-- [Becoming a Maintainer](#becoming-a-maintainer)
+- [Roles](#roles)
 - [Meetings](#meetings)
 - [CNCF Resources](#cncf-resources)
 - [Code of Conduct Enforcement](#code-of-conduct)
@@ -36,26 +35,27 @@ governance document explains how the project is run.
   participation, and there is a clear path up the contributor ladder into
   leadership positions.
 
-## Developers
+## Roles
 
-For `urunc` developers, there are several roles relevant to project
-governance:
+There are several roles relevant to `urunc`'s governance:
 
 ### Contributor
 
-A Contributor to `urunc` is someone who has had code merged within the last 12
-months. Contributors have read only access to the `urunc` repos on GitHub.
+A Contributor to `urunc` is someone who has contributed to the project (e.g. code,
+docs, CI) within the last 12 months. Contributors have read only access to the
+urunc repositories on GitHub.
 
 ### Maintainer
 
 `urunc` Maintainers (as defined by the [urunc Maintainers
-team](https://github.com/orgs/urunc-dev/teams/maintainers)) have the ability to
-merge code into the `urunc` project.  Maintainers are active Contributors and
-participants in the project. In order to become a Maintainer, you must be
-nominated by an established Committer and approved by quorum of the active
-Maintainers. Maintainers have write access to the `urunc` repos on GitHub,
-which gives the ability to approve PRs, trigger the CI and merge PRs.
-Maintainers collectively manage the project's resources and contributors.
+team](https://github.com/orgs/urunc-dev/teams/maintainers)) have write access
+to the `urunc` repository on GitHub, which gives the ability to approve / merge /
+close PRs, trigger the CI and manage / classify project issues. All pull
+requests require review by a maintainer other than the one submitting it.
+"Large" changes are encouraged to gather consensus from multiple maintainers and
+interested community members. Maintainers are active Contributors and
+participants in the project, collectively managing the project's resources and
+contributors.
 
 This privilege is granted with some expectation of responsibility: maintainers
 are people who care about `urunc` and want to help it grow and improve. A
@@ -75,21 +75,22 @@ is the governing body for the project.
 To become a Maintainer you need to demonstrate the following:
 
   * commitment to the project:
-    * participate in discussions, contributions, code and documentation reviews
-      for 6 months or more,
+    * actively participate in mettings, discussions, contributions, code and
+      documentation reviews for at least 6 months,
     * perform reviews for at least 3 non-trivial pull requests,
     * contribute 3 non-trivial pull requests and have them merged,
   * ability to write quality code and/or documentation,
   * ability to collaborate with the team,
   * understanding of how the team works (policies, processes for testing and
     code review, etc),
-  * understanding of the project's code base and coding and documentation
+  * understanding of the project's code base and coding / documentation
     style.
 
-A new Maintainer must be proposed by an existing maintainer by sending a message to the
-[developer mailing list](mailto:dev@urunc.io). A simple majority vote of existing Maintainers
-approves the application. Maintainers nominations will be evaluated without prejudice
-to employer or demographics.
+A new Maintainer must be proposed by an established Contributor and/or an
+existing maintainer by sending a message to the [developer mailing
+list](mailto:dev@urunc.io). A simple majority vote of existing Maintainers
+approves the application. Maintainer nominations will be evaluated without
+prejudice to employer or demographics.
 
 Maintainers who are selected will be granted the necessary GitHub rights,
 and invited to the [private maintainer mailing list](mailto:dev-priv@urunc.io).
@@ -125,21 +126,10 @@ The Admin list is reviewed and updated twice a year and typically contains:
 - Optionally, some specific people that the Maintainers agree on adding for a
   specific purpose (e.g. to manage the CI)
 
-### Owner
-
-GitHub organization owners have complete admin access to the organization, and
-therefore this group is limited to a small number of individuals, for security
-reasons.
-The owners list is reviewed and updated twice a year and contains:
-- The Community Manager and one, or more extra people from key maintainers for
-  redundancy and vacation cover
-- Optionally, some specific people that the Maintainers agree on adding for a
-  specific purpose (e.g. to help with repo/CI migration)
-
 ## Meetings
 
 Time zones permitting, Maintainers are expected to participate in the public
-developer meeting, which occurs every second Wed of each month at 5pm CET.
+developer meeting, which occurs every second Wed of each month at 4pm CET.
 
 Maintainers will also have closed meetings in order to discuss security reports
 or Code of Conduct violations. Such meetings should be scheduled by any
