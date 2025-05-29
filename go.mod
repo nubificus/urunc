@@ -9,13 +9,13 @@ require (
 	github.com/containerd/containerd v1.7.27
 	github.com/creack/pty v1.1.24
 	github.com/elastic/go-seccomp-bpf v1.5.0
-	github.com/go-ping/ping v1.2.0
 	github.com/hashicorp/go-version v1.7.0
 	github.com/jackpal/gateway v1.0.16
 	github.com/moby/sys/mount v0.3.4
 	github.com/nubificus/hedge_cli v0.0.3
 	github.com/opencontainers/runc v1.2.6
 	github.com/opencontainers/runtime-spec v1.2.1
+	github.com/prometheus-community/pro-bing v0.7.0
 	github.com/rs/zerolog v1.33.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
@@ -67,7 +67,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
