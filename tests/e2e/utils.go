@@ -24,11 +24,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-ping/ping"
+	probing "github.com/prometheus-community/pro-bing"
 )
 
 func pingUnikernel(ipAddress string) error {
-	pinger, err := ping.NewPinger(ipAddress)
+	pinger, err := probing.NewPinger(ipAddress)
 	if err != nil {
 		return fmt.Errorf("failed to create Pinger: %v", err)
 	}
