@@ -44,6 +44,7 @@ jobs:
           submodules: 'false'
           remote-actions-repo: ${{ inputs.actions-repo }}
           token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Run commitlint
         uses: wagoid/commitlint-github-action@v6
@@ -71,6 +72,7 @@ jobs:
           submodules: 'false'
           remote-actions-repo: ${{ inputs.actions-repo }}
           token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -98,6 +100,7 @@ jobs:
           submodules: 'false'
           remote-actions-repo: ${{ inputs.actions-repo }}
           token: ${{ secrets.GIT_CLONE_PAT || github.token }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Fix paths
         run: |

@@ -38,6 +38,10 @@ header:
     - 'VERSION'
     - 'build*'
     - 'docs/CNAME'
+    - 'docs/overrides/**'
+    - 'docs/assets/stylesheets/**'
+    - 'docs/assets/images/**'
+    - 'docs/hooks/**'
     - 'pkg/unikontainers/ipc_message.go'
 
   language:
