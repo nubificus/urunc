@@ -1,0 +1,30 @@
+name: Deploy documentation website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements.txt'
+
+permissions:
+  contents: write  # Needed for GitHub Pages deployment
+
+jobs:
+  deploy:
+    runs-on: [base-dind-2204-amd64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip3 install -r requirements.txt
+          echo "PATH=$PATH:$HOME/.local/bin" >> "$GITHUB_ENV"
+
+      - name: Build and deploy MkDocs site
+        run: |
+          mkdocs gh-deploy --force
+
