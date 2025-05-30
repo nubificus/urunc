@@ -24,6 +24,7 @@ containerd_conf_tmpl_file=""
 use_containerd_drop_in_conf_file="false"
 containerd_drop_in_conf_file="/etc/containerd/config.d/urunc-deploy.toml"
 
+PREFIX=/opt/urunc
 HYPERVISORS="${HYPERVISORS:-"firecracker qemu solo5-hvt solo5-spt"}"
 IFS=' ' read -a hypervisors <<< "$HYPERVISORS"
 
@@ -44,10 +45,10 @@ function install_artifact() {
 
 function install_artifacts() {
     echo "copying urunc artifacts onto host"
-    mkdir -p /host/usr/local/bin
+    mkdir -p /host/${PREFIX}/bin
 
-    install_artifact /urunc-artifacts/urunc /host/usr/local/bin/urunc
-    install_artifact /urunc-artifacts/containerd-shim-urunc-v2 /host/usr/local/bin/containerd-shim-urunc-v2
+    install_artifact /urunc-artifacts/urunc /host/${PREFIX}/bin/urunc
+    install_artifact /urunc-artifacts/containerd-shim-urunc-v2 /host/${PREFIX}/bin/containerd-shim-urunc-v2
 
     # install only the hypervisors found in the HYPERVISORS environment variable
     echo "Installing hypervisors: ${HYPERVISORS}"
@@ -58,28 +59,22 @@ function install_artifacts() {
             if which "qemu-system-$(uname -m)" >/dev/null 2>&1; then
                 echo "QEMU is already installed."
             else
-                install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-urunc
-                qemu_wrapper="/host/usr/local/bin/qemu-system-$(uname -m)"
-                cat <<EOF > $qemu_wrapper
-#!/bin/bash
-exec qemu-urunc -L /usr/local/share/qemu "\$@"
-EOF
-                chmod +x $qemu_wrapper
-                mkdir -p /host/usr/local/share/qemu/
-                cp -r /urunc-artifacts/opt/kata/share/kata-qemu/qemu /host/usr/local/share
+		install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/${PREFIX}/bin/qemu-system-$(uname -m)
+                mkdir -p /host/${PREFIX}/share/qemu/
+                cp -r /urunc-artifacts/opt/urunc/share/qemu /host/${PREFIX}/share
             fi
             ;;
         firecracker)
             echo "Installing firecracker"
-            install_artifact /urunc-artifacts/hypervisors/firecracker /host/usr/local/bin/firecracker
+            install_artifact /urunc-artifacts/hypervisors/firecracker /host/${PREFIX}/bin/firecracker
             ;;
         solo5-spt)
             echo "Installing solo5-spt"
-            install_artifact /urunc-artifacts/hypervisors/solo5-spt /host/usr/local/bin/solo5-spt
+            install_artifact /urunc-artifacts/hypervisors/solo5-spt /host/${PREFIX}/bin/solo5-spt
             ;;
         solo5-hvt)
             echo "Installing solo5-hvt"
-            install_artifact /urunc-artifacts/hypervisors/solo5-hvt /host/usr/local/bin/solo5-hvt
+            install_artifact /urunc-artifacts/hypervisors/solo5-hvt /host/${PREFIX}/bin/solo5-hvt
             ;;
         *)
             echo "Unsupported hypervisor: $hypervisor"
@@ -89,34 +84,34 @@ EOF
 }
 
 function remove_artifacts() {
-    rm -f /host/usr/local/bin/urunc
-    rm -f /host/usr/local/bin/containerd-shim-urunc-v2
+    rm -f /host/${PREFIX}/bin/urunc
+    rm -f /host/${PREFIX}/bin/containerd-shim-urunc-v2
     local hypervisors="${HYPERVISORS:-"firecracker qemu solo5-hvt solo5-spt"}"
     for hypervisor in $hypervisors; do
         case "$hypervisor" in
         qemu)
-            if [ -e "/host/usr/local/bin/qemu-system-$(uname -m)" ]; then
-                rm -f "/host/usr/local/bin/qemu-system-$(uname -m)"
+            if [ -e "/host/${PREFIX}/bin/qemu-system-$(uname -m)" ]; then
+                rm -f "/host/${PREFIX}/bin/qemu-system-$(uname -m)"
             fi
 
-            if [ -e "/host/usr/local/bin/qemu-urunc" ]; then
-                rm -f /host/usr/local/bin/qemu-urunc
-                rm -rf /host/usr/local/share/qemu
+            if [ -e "/host/${PREFIX}/bin/qemu-urunc" ]; then
+                rm -f /host/${PREFIX}/bin/qemu-urunc
+                rm -rf /host/${PREFIX}/share/qemu
             fi
             ;;
         firecracker)
-            if [ -e "/host/usr/local/bin/firecracker" ]; then
-                rm -f "/host/usr/local/bin/firecracker"
+            if [ -e "/host/${PREFIX}/bin/firecracker" ]; then
+                rm -f "/host/${PREFIX}/bin/firecracker"
             fi
             ;;
         solo5-spt)
-            if [ -e "/host/usr/local/bin/solo5-spt" ]; then
-                rm -f "/host/usr/local/bin/solo5-spt"
+            if [ -e "/host/${PREFIX}/bin/solo5-spt" ]; then
+                rm -f "/host/${PREFIX}/bin/solo5-spt"
             fi
             ;;
         solo5-hvt)
-            if [ -e "/host/usr/local/bin/solo5-hvt" ]; then
-                rm -f "/host/usr/local/bin/solo5-hvt"
+            if [ -e "/host/${PREFIX}/bin/solo5-hvt" ]; then
+                rm -f "/host/${PREFIX}/bin/solo5-hvt"
             fi
             ;;
         *)

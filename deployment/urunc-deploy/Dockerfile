@@ -20,7 +20,9 @@ RUN rm -f /var/lib/dpkg/info/libc-bin.* && \
     apt-get clean && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    libc-bin build-essential libseccomp-dev git pkg-config && \
+    libc-bin build-essential libseccomp-dev git pkg-config \
+    ca-certificates && \                             
+    update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -60,17 +62,25 @@ RUN ARCH=$(uname -m) && \
 WORKDIR /artifacts
 RUN cp /firecracker .
 
-FROM quay.io/kata-containers/kata-deploy:3.15.0 AS qemu-builder
+FROM ubuntu:22.04 AS qemu-builder
+COPY scripts/build_qemu.sh /tmp/build_qemu.sh
+RUN apt-get clean && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    libc-bin build-essential libseccomp-dev git pkg-config python3-venv python3-pip ca-certificates python3-tomli && \
+    update-ca-certificates
+RUN ARCH=$(uname -m) && \
+    bash /tmp/build_qemu.sh
 WORKDIR /artifacts
 RUN ARCH=$(uname -m) && \
-    cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} ./qemu-system
+    cp /opt/urunc/bin/qemu-system-${ARCH} ./qemu-system
 
 
 FROM alpine:3.21 AS intermediate
 
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
-COPY --from=qemu-builder /opt/kata-artifacts/opt/kata/share/kata-qemu/qemu /urunc-artifacts/opt/kata/share/kata-qemu/qemu
+COPY --from=qemu-builder /opt/urunc/share/qemu /urunc-artifacts/opt/urunc/share/qemu
 COPY --from=firecracker-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=urunc-builder /artifacts/dist /urunc-artifacts
 
