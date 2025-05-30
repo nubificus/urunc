@@ -15,6 +15,7 @@ jobs:
     outputs:
       skip_build: ${{ steps.set-vars.outputs.skip_build }}
       skip_lint:  ${{ steps.set-vars.outputs.skip_lint }}
+      ok_to_test: ${{ steps.set-vars.outputs.ok_to_test }}
     steps:
       - name: Fetch PR Labels
         id: get-labels
@@ -47,6 +48,12 @@ jobs:
             echo "skip_lint=no" >> $GITHUB_OUTPUT
           fi
 
+          if [[ "$LABELS" == *"ok-to-test"* ]]; then
+            echo "ok_to_test=yes" >> $GITHUB_OUTPUT
+          else
+            echo "ok_to_test=no" >> $GITHUB_OUTPUT
+          fi
+
   ci-on-push:
     needs: [check-labels]
     permissions:
@@ -55,9 +62,10 @@ jobs:
       id-token: write
       attestations: write
       pull-requests: read
+    if: ${{ needs.check-labels.outputs.ok_to_test == 'yes' }}
     uses: ./.github/workflows/ci.yml
     with:
-      ref: ${{ github.sha }}
+      ref: ${{ github.event.pull_request.head.sha }}
       skip-build: ${{ needs.check-labels.outputs.skip_build }}
       skip-lint: ${{ needs.check-labels.outputs.skip_lint }}
     secrets: inherit
