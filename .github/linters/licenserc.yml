@@ -41,6 +41,7 @@ header:
     - 'docs/overrides/**'
     - 'docs/assets/stylesheets/**'
     - 'docs/assets/images/**'
+    - 'docs/assets/javascripts/**'
     - 'docs/hooks/**'
     - 'pkg/unikontainers/ipc_message.go'
 
