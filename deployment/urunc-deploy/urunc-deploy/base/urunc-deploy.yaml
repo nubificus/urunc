@@ -32,7 +32,7 @@ spec:
       hostPID: true
       containers:
         - name: kube-urunc
-          image: harbor.nbfc.io/nubificus/urunc/urunc-deploy:latest
+          image: ghcr.io/urunc-dev/urunc/urunc-deploy:latest
           imagePullPolicy: Always
           lifecycle:
             preStop:

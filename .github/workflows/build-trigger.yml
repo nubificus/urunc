@@ -1,27 +1,17 @@
 name: 🍜 Build/publish urunc-deploy
 
 on:
-  pull_request:
-    branches: ["main"]
-    paths:
-    - 'deployment/urunc-deploy/Dockerfile'
-    - 'deployment/urunc-deploy/scripts/install.sh'
-    - 'cmd'
-    - 'pkg'
-    - 'internal'
-    - 'Makefile'
   push:
     branches: ["main"]
     paths:
       - 'deployment/urunc-deploy/Dockerfile'
       - 'deployment/urunc-deploy/scripts/install.sh'
-      - 'cmd'
-      - 'pkg'
-      - 'internal'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'internal/**'
       - 'Makefile'
-
-  workflow_dispatch: # build on demand
-
+      - 'VERSION'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -31,117 +21,41 @@ jobs:
   get-changed-files:
     runs-on: ubuntu-latest
     outputs:
-      files_deploy: ${{ steps.replace_dockerfiles.outputs.deploy_files_new }}
-      deploy: ${{ steps.set-build-trigger.outputs.result }}
+      version: ${{ steps.check.outputs.version_changed }}
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Get Changed Files
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          list-files: 'json'
-          base: 'main'
-          filters: |
-            source:
-              - 'cmd/**'
-              - 'pkg/**'
-              - 'internal/**'
-              - 'Makefile'
-            deploy:
-              - 'deployment/urunc-deploy/Dockerfile'
-              - 'deployment/urunc-deploy/scripts/install.sh'
-            version:
-              - 'VERSION'
-
-      - name: Show Changed Files
+      - name: Check if VERSION file changed
+        id: check
         run: |
-          echo "Files in deploy: ${{ steps.filter.outputs.deploy_files }}"
-          echo "Files in source: ${{ steps.filter.outputs.source_files }}"
-          echo "Files in version: ${{ steps.filter.outputs.version_files }}"
-          echo "Files changed: ${{ steps.filter.outputs.changes }}"
-          echo "version changed: ${{ steps.filter.outputs.version}}"
-      
-      - name: Set build trigger flag
-        id: set-build-trigger
-        run: |
-          if [ "${{ steps.filter.outputs.version }}" == "true" ] || \
-              [ "${{ steps.filter.outputs.source }}" == "true" ] || \
-              [ "${{ steps.filter.outputs.deploy }}" == "true" ]; then
-            echo "Buid trigger: true"
-            echo "result=true" >> "$GITHUB_OUTPUT"
+          # Get commit range
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            base_ref="${{ github.event.before }}"
+            head_ref="${{ github.sha }}"
           else
-            echo "Buid trigger: false"
-            echo "result=false" >> "$GITHUB_OUTPUT"
+            base_ref="HEAD~1"
+            head_ref="HEAD"
           fi
-        shell: bash
-        
-      - name: Retrieve Dockerfiles
-        id: retrieve_dockerfiles
-        run: |
-          mapfile -t dockerfiles < <(find ./deployment/urunc-deploy -type f \( \
-            -iname 'dockerfile' -o \
-            -iname 'dockerfile.*' -o \
-            -iname '*.dockerfile' -o \
-            -iname 'containerfile' -o \
-            -iname 'containerfile.*' -o \
-            -iname '*.containerfile' \
-          \))
-          quoted_dockerfiles=$(printf '"%s", ' "${dockerfiles[@]}")
-          dockerfiles_list=${quoted_dockerfiles%, }
-          dockerfiles_list=$(echo "[${dockerfiles_list}]")
-          echo "dockerfiles=${dockerfiles_list}" >> "$GITHUB_OUTPUT"
 
-      - name: Print Dockerfiles
-        run: |
-          echo "Dockerfiles: ${{ steps.retrieve_dockerfiles.outputs.dockerfiles }}"
-        shell: bash
+          git fetch origin $base_ref --depth=1 || true
+          changed=$(git diff --name-only "$base_ref" "$head_ref" | grep -c '^VERSION$' || true)
 
-      - name: Replace file paths in dockerfiles
-        id: replace_dockerfiles
-        run: |
-          # Get the changed Dockerfiles from the paths-filter output
-          FILES="${{ steps.retrieve_dockerfiles.outputs.dockerfiles }}"
-
-          # Remove the brackets and split the string by commas
-          FILES_ARRAY=($(echo "$FILES" | sed 's/[][]//g' | tr ',' '\n'))
-
-          # Initialize a variable to store the new names
-          NEW_FILE_NAMES=()
-
-          # Loop through the files and replace the paths
-          for FILE_PATH in "${FILES_ARRAY[@]}"; do
-            echo "Processing file: $FILE_PATH"
-            # Remove 'images/' and '.Dockerfile' from the filename
-            NEW_NAME=$(basename "$FILE_PATH" | sed 's/^images\///')
-            # Append the new name to the array
-            NEW_FILE_NAMES+=("\"$NEW_NAME\"")
-          done
-
-          # Join the array into a JSON array format
-          JSON_OUTPUT=$(printf "[%s]" "$(IFS=,; echo "${NEW_FILE_NAMES[*]}")")
-
-          # Debugging output
-          echo "Final JSON Output: $JSON_OUTPUT"
-
-          # Set the output for the replaced names in JSON format
-          echo "deploy_files_new=${JSON_OUTPUT}" >> "$GITHUB_OUTPUT"
-
-
-      - name: Use replaced filenames
-        run: |
-          echo "Processed filenames: ${{ steps.replace_dockerfiles.outputs.deploy_files_new}}"
-
+          if [[ "$changed" -gt 0 ]]; then
+            echo "VERSION file changed"
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION not changed"
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+          fi
 
   build-dockerfiles-deploy:
-    needs: [get-changed-files]
-    name: Deploy
-    if: ${{ needs.get-changed-files.outputs.deploy }}
+    name: Build urunc-deploy container image
+    needs: get-changed-files
     uses: ./.github/workflows/build-latest.yml
     secrets: inherit
     with:
       runner: '["base", "dind", "2204"]'
       runner-archs: '["amd64", "arm64"]'
-      dockerfiles: ${{ needs.get-changed-files.outputs.files_deploy }}
+      dockerfiles: 'deployment/urunc-deploy/Dockerfile'
       version-tag: ${{ needs.get-changed-files.outputs.version == 'true' }}

@@ -32,7 +32,7 @@ spec:
         urunc.io/urunc-runtime: cleanup
       containers:
         - name: kube-urunc-cleanup
-          image: harbor.nbfc.io/nubificus/urunc/urunc-deploy:generic
+          image: ghcr.io/urunc-dev/urunc/urunc-deploy:latest
           imagePullPolicy: Always
           command: ["bash", "-c", "/urunc-artifacts/scripts/install.sh reset"]
           env:

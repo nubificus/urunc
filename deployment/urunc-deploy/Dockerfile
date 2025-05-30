@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM harbor.nbfc.io/proxy_cache/library/debian:bullseye AS solo5-builder
+FROM debian:bullseye AS solo5-builder
 
 # Remove libc-bin files to avoid segmentation fault.
 # See more: https://stackoverflow.com/questions/78105004/docker-build-fails-because-unable-to-install-libc-bins
@@ -38,17 +38,18 @@ WORKDIR /artifacts
 RUN cp /app/tenders/hvt/solo5-hvt /artifacts/ && \
     cp /app/tenders/spt/solo5-spt /artifacts/
 
-FROM harbor.nbfc.io/proxy_cache/library/golang:1.24.1-alpine3.21 AS urunc-builder
+FROM golang:1.24.1-alpine3.21 AS urunc-builder
 RUN apk update && \
     apk add --no-cache git make build-base linux-headers
 WORKDIR /app
+ARG REPO=urunc-dev/urunc
 ARG BRANCH=main
-RUN git clone --depth 1 --branch ${BRANCH} https://github.com/nubificus/urunc.git . && \
+RUN git clone --depth 1 --branch ${BRANCH} https://github.com/${REPO} . && \
     make
 WORKDIR /artifacts
 RUN cp -r /app/dist .
 
-FROM harbor.nbfc.io/proxy_cache/library/alpine:3.21 AS firecracker-builder
+FROM alpine:3.21 AS firecracker-builder
 RUN apk update && apk add --no-cache curl tar
 RUN ARCH=$(uname -m) && \
     VERSION="v1.7.0" && \
@@ -65,7 +66,7 @@ RUN ARCH=$(uname -m) && \
     cp /opt/kata-artifacts/opt/kata/bin/qemu-system-${ARCH} ./qemu-system
 
 
-FROM harbor.nbfc.io/proxy_cache/library/alpine:3.21 AS intermediate
+FROM alpine:3.21 AS intermediate
 
 COPY --from=solo5-builder /artifacts /urunc-artifacts/hypervisors
 COPY --from=qemu-builder /artifacts /urunc-artifacts/hypervisors
@@ -88,7 +89,7 @@ RUN apk update && \
     chmod +x /usr/bin/jq
 
 # Final image
-FROM harbor.nbfc.io/proxy_cache/library/alpine:3.21
+FROM alpine:3.21
 COPY --from=intermediate /urunc-artifacts /urunc-artifacts
 COPY --from=intermediate /usr/bin/jq /usr/bin/jq
 COPY --from=intermediate /usr/bin/kubectl /usr/bin/kubectl
