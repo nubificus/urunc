@@ -2,6 +2,10 @@ name: Code linting
 on:
   workflow_call:
     inputs:
+      ref:
+        required: true
+        type: string
+        default: ''
       runner:
         type: string
         default: '["base", "dind", "2204"]'

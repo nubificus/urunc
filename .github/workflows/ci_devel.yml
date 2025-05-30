@@ -1,0 +1,32 @@
+name: urunc CI (manually triggered)
+on:
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip the build job?'
+        required: false
+        default: "no"
+        type: string
+      skip_lint:
+        description: 'Skip the lint job?'
+        required: false
+        default: "no"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ci-on-push:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.sha }}
+      skip-build: ${{ inputs.skip_build }}
+      skip-lint: ${{ inputs.skip_lint }}
+    secrets: inherit
