@@ -2,6 +2,9 @@ name: custom VM spawner
 on:
   workflow_call:
     inputs:
+      ref:
+        type: string
+        default: ''
       runner:
         type: string
         default: '["base", "dind", "2204"]'
@@ -52,10 +55,23 @@ jobs:
         length: 2
         style: 'lowerCase'
 
+    - name: Set ref and repo from PR or dispatch
+      id: set-ref
+      run: |
+        if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
+          echo "ref=${{ github.event.pull_request.head.ref }}" >> "$GITHUB_OUTPUT"
+          echo "repo=${{ github.event.pull_request.head.repo.full_name }}" >> "$GITHUB_OUTPUT"
+          echo "vmnamestr=pr${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
+        else
+          echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "repo=${{ github.repository }}" >> "$GITHUB_OUTPUT"
+          echo "vmnamestr=manual" >> "$GITHUB_ENV"
+        fi
+
     - name: Set VM name
       id: set-vm-name
       run: |
-        echo "VM_NAME=${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
+        echo "VM_NAME=${{ github.event.repository.name }}-${{ env.vmnamestr }}-${{ steps.generate-names.outputs.name }}" >> $GITHUB_ENV
 
     - name: Launch VM
       id: launch-vm
@@ -80,14 +96,14 @@ jobs:
         export VM_NAME="${{ env.INCUS_CLUSTER }}:${{ env.VM_NAME }}"
         export INCUS_RUN="incus exec $VM_NAME --project ${{ env.INCUS_PROJECT }} -- sh -c "
         $INCUS_RUN "rm -f /usr/local/bin/urunc"
-        $INCUS_RUN "wget https://s3.nbfc.io/nbfc-assets/github/urunc/dist/${{ github.event.pull_request.head.ref }}/amd64/containerd-shim-urunc-v2_static_amd64"
-        $INCUS_RUN "wget https://s3.nbfc.io/nbfc-assets/github/urunc/dist/${{ github.event.pull_request.head.ref }}/amd64/urunc_static_amd64"
+        $INCUS_RUN "wget https://s3.nbfc.io/nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/amd64/containerd-shim-urunc-v2_static_amd64"
+        $INCUS_RUN "wget https://s3.nbfc.io/nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/amd64/urunc_static_amd64"
         $INCUS_RUN "chmod +x urunc_static_amd64"
         $INCUS_RUN "chmod +x containerd-shim-urunc-v2_static_amd64"
         $INCUS_RUN "mv urunc_static_amd64 /usr/local/bin/urunc"
         $INCUS_RUN "mv containerd-shim-urunc-v2_static_amd64 /usr/local/bin/containerd-shim-urunc-v2"
         $INCUS_RUN "urunc --version"
-        $INCUS_RUN "git clone https://github.com/${{ github.event.pull_request.head.repo.full_name }} -b ${{ github.event.pull_request.head.ref }} /root/develop/urunc"
+        $INCUS_RUN "git clone https://github.com/${{ steps.set-ref.outputs.repo }} -b ${{ steps.set-ref.outputs.ref }} /root/develop/urunc"
 
 
     - name: Run ctr tests

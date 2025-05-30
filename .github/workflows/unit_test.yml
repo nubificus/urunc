@@ -3,12 +3,16 @@ name: Run unit tests
 on:
   workflow_call:
     inputs:
+      ref:
+        type: string
+        default: ''
+        required: true
       runner:
         type: string
         default: '["base", "dind", "2204"]'
       runner-archs:
         type: string
-        default: '["amd64"]'
+        default: '["amd64", "arm64"]'
       runner-arch-map:
         type: string
         default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
@@ -18,7 +22,6 @@ on:
 
 permissions:
   contents: read
-  # allow read access to pull request. Use with `only-new-issues` option.
   pull-requests: read
 
 jobs:
@@ -30,7 +33,7 @@ jobs:
         archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Run unikontainers pkg unit tests

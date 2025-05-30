@@ -3,12 +3,10 @@ name: Validate Files and Commit Messages
 on:
   workflow_call:
     inputs:
-      actions-repo:
+      ref:
+        required: true
         type: string
-        default: 'nubificus/vaccel'
-      actions-rev:
-        type: string
-        default: 'main'
+        default: ''
       runner:
         type: string
         default: '["base", "dind", "2204"]'
@@ -31,20 +29,8 @@ jobs:
         arch: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
     steps:
-      - name: Checkout .github directory
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          repository: ${{ inputs.actions-repo }}
-          ref: ${{ inputs.actions-rev }}
-
-      - name: Initialize workspace
-        uses: ./.github/actions/initialize-workspace
-        with:
-          submodules: 'false'
-          remote-actions-repo: ${{ inputs.actions-repo }}
-          token: ${{ secrets.GIT_CLONE_PAT || github.token }}
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Run commitlint
         uses: wagoid/commitlint-github-action@v6
@@ -59,20 +45,8 @@ jobs:
         arch: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
     steps:
-      - name: Checkout .github directory
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          repository: ${{ inputs.actions-repo }}
-          ref: ${{ inputs.actions-rev }}
-
-      - name: Initialize workspace
-        uses: ./.github/actions/initialize-workspace
-        with:
-          submodules: 'false'
-          remote-actions-repo: ${{ inputs.actions-repo }}
-          token: ${{ secrets.GIT_CLONE_PAT || github.token }}
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -87,20 +61,8 @@ jobs:
         arch: ["${{ fromJSON(inputs.runner-archs) }}"]
       fail-fast: false
     steps:
-      - name: Checkout .github directory
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          repository: ${{ inputs.actions-repo }}
-          ref: ${{ inputs.actions-rev }}
-
-      - name: Initialize workspace
-        uses: ./.github/actions/initialize-workspace
-        with:
-          submodules: 'false'
-          remote-actions-repo: ${{ inputs.actions-repo }}
-          token: ${{ secrets.GIT_CLONE_PAT || github.token }}
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Fix paths
         run: |

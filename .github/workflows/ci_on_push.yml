@@ -1,0 +1,63 @@
+name: urunc CI
+
+on:
+  pull_request_target:
+    branches: ["main"]
+    types: [synchronize, labeled, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-labels:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_build: ${{ steps.set-vars.outputs.skip_build }}
+      skip_lint:  ${{ steps.set-vars.outputs.skip_lint }}
+    steps:
+      - name: Fetch PR Labels
+        id: get-labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const labels = await github.rest.issues.listLabelsOnIssue({
+              ...context.repo,
+              issue_number: prNumber
+            });
+            const names = labels.data.map(l => l.name);
+            core.setOutput("labels", names.join(','));
+
+      - name: Set skip flags
+        id: set-vars
+        run: |
+          LABELS="${{ steps.get-labels.outputs.labels }}"
+          echo "Labels: $LABELS"
+
+          if [[ "$LABELS" == *"skip-build"* ]]; then
+            echo "skip_build=yes" >> $GITHUB_OUTPUT
+          else
+            echo "skip_build=no" >> $GITHUB_OUTPUT
+          fi
+
+          if [[ "$LABELS" == *"skip-lint"* ]]; then
+            echo "skip_lint=yes" >> $GITHUB_OUTPUT
+          else
+            echo "skip_lint=no" >> $GITHUB_OUTPUT
+          fi
+
+  ci-on-push:
+    needs: [check-labels]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.sha }}
+      skip-build: ${{ needs.check-labels.outputs.skip_build }}
+      skip-lint: ${{ needs.check-labels.outputs.skip_lint }}
+    secrets: inherit

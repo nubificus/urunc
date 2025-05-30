@@ -3,6 +3,10 @@ name: Build
 on:
   workflow_call:
     inputs:
+      ref:
+        required: true
+        type: string
+        default: ''
       runner:
         type: string
         default: '["base", "dind", "2204"]'
@@ -43,13 +47,15 @@ jobs:
       run: |
         go version
 
-    - name: Find SHA
+    - name: Set ref and repo from PR or dispatch
+      id: set-ref
       run: |
-        if [[ "${{github.event.pull_request.head.sha}}" != "" ]]
-        then
-          echo "ARTIFACT_SHA=$(echo ${{github.event.pull_request.head.ref}})" >> $GITHUB_ENV
+        if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
+          echo "ref=${{ github.event.pull_request.head.ref }}" >> "$GITHUB_OUTPUT"
+          echo "repo=${{ github.event.pull_request.head.repo.full_name }}" >> "$GITHUB_OUTPUT"
         else
-          echo "ARTIFACT_SHA=$(echo ${GITHUB_REF##*/})" >> $GITHUB_ENV
+          echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "repo=${{ github.repository }}" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Build urunc binaries
@@ -65,7 +71,7 @@ jobs:
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/urunc_static_arm64
-        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
         policy: 1
 
     - name: Upload urunc_amd64 to S3
@@ -76,7 +82,7 @@ jobs:
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/urunc_static_amd64
-        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
         policy: 1
 
     - name: Upload containerd-shim-urunc-v2_arm64 to S3
@@ -87,7 +93,7 @@ jobs:
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/containerd-shim-urunc-v2_static_arm64
-        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
         policy: 1
 
     - name: Upload containerd-shim-urunc-v2_amd64 to S3
@@ -98,5 +104,5 @@ jobs:
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         local-path: dist/containerd-shim-urunc-v2_static_amd64
-        remote-path: nbfc-assets/github/urunc/dist/${{ env.ARTIFACT_SHA }}/${{ matrix.archconfig }}/
+        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
         policy: 1
