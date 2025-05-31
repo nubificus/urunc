@@ -62,6 +62,8 @@ var version string
 var metrics = m.NewZerologMetrics(constants.TimestampTargetFile)
 
 func main() {
+	runtime.GOMAXPROCS(1)
+	runtime.LockOSThread()
 	root := "/run/urunc"
 	app := cli.NewApp()
 	app.Name = "urunc"
