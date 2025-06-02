@@ -7,41 +7,32 @@ on:
         required: true
         type: string
         default: ''
-      runner:
-        type: string
-        default: '["base", "dind", "2204"]'
-      runner-archs:
-        type: string
-        default: '["amd64", "arm64"]'
-      runner-arch-map:
-        type: string
-        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
-    secrets:
-      GIT_CLONE_PAT:
-        required: false
-
-        #pull_request:
-        #branches: [ "main" ]
-        #types:
-        #- synchronize
-        #- labeled
 
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
-      fail-fast: false
-    
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    continue-on-error: true
+
     steps:
 
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
+
+    - uses: actions/setup-go@v4
+      with:
+        go-version: '1.24.1'
+        cache: false
 
     - name: Display Go version
       run: |
@@ -63,46 +54,22 @@ jobs:
       run: |
         make
 
-    - name: Upload urunc_arm64 to S3
-      if: matrix.archconfig == 'arm64'
+    - name: Upload urunc_${{ matrix.arch }} to S3
       uses: cloudkernels/minio-upload@v3
       with:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/urunc_static_arm64
-        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
+        local-path: dist/urunc_static_${{ matrix.arch }}
+        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.arch }}/
         policy: 1
 
-    - name: Upload urunc_amd64 to S3
-      if: matrix.archconfig == 'amd64'
+    - name: Upload containerd-shim-urunc-v2_${{ matrix.arch }} to S3
       uses: cloudkernels/minio-upload@v3
       with:
         url: https://s3.nbfc.io
         access-key: ${{ secrets.AWS_ACCESS_KEY }}
         secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/urunc_static_amd64
-        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
-        policy: 1
-
-    - name: Upload containerd-shim-urunc-v2_arm64 to S3
-      if: matrix.archconfig == 'arm64'
-      uses: cloudkernels/minio-upload@v3
-      with:
-        url: https://s3.nbfc.io
-        access-key: ${{ secrets.AWS_ACCESS_KEY }}
-        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/containerd-shim-urunc-v2_static_arm64
-        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
-        policy: 1
-
-    - name: Upload containerd-shim-urunc-v2_amd64 to S3
-      if: matrix.archconfig == 'amd64'
-      uses: cloudkernels/minio-upload@v3
-      with:
-        url: https://s3.nbfc.io
-        access-key: ${{ secrets.AWS_ACCESS_KEY }}
-        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        local-path: dist/containerd-shim-urunc-v2_static_amd64
-        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.archconfig }}/
+        local-path: dist/containerd-shim-urunc-v2_static_${{ matrix.arch }}
+        remote-path: nbfc-assets/github/urunc/dist/${{ steps.set-ref.outputs.ref }}/${{ matrix.arch }}/
         policy: 1

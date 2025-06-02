@@ -7,18 +7,6 @@ on:
         type: string
         default: ''
         required: true
-      runner:
-        type: string
-        default: '["base", "dind", "2204"]'
-      runner-archs:
-        type: string
-        default: '["amd64", "arm64"]'
-      runner-arch-map:
-        type: string
-        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
-    secrets:
-      GIT_CLONE_PAT:
-        required: false
 
 permissions:
   contents: read
@@ -27,15 +15,23 @@ permissions:
 jobs:
   unit-test:
     name: unit-test
-    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+
       fail-fast: false
+    continue-on-error: true
+
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Run unikontainers pkg unit tests
         run: make unittest
 

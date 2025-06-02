@@ -11,7 +11,13 @@ on:
 jobs:
   git-trailers:
     name: Add Git Trailers
-    runs-on: [base-dind-2204-amd64]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+    continue-on-error: true
     permissions:
       contents: write
       pull-requests: write

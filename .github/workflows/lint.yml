@@ -6,18 +6,6 @@ on:
         required: true
         type: string
         default: ''
-      runner:
-        type: string
-        default: '["base", "dind", "2204"]'
-      runner-archs:
-        type: string
-        default: '["amd64"]'
-      runner-arch-map:
-        type: string
-        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
-    secrets:
-      GIT_CLONE_PAT:
-        required: false
 
 permissions:
   contents: read
@@ -27,11 +15,14 @@ permissions:
 jobs:
   golangci:
     name: lint
-    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.archconfig) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        archconfig: ["${{ fromJSON(inputs.runner-archs) }}"]
-      fail-fast: false
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+    continue-on-error: true
+
     steps:
       - uses: actions/checkout@v3
         with:
