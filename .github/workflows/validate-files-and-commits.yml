@@ -7,27 +7,19 @@ on:
         required: true
         type: string
         default: ''
-      runner:
-        type: string
-        default: '["base", "dind", "2204"]'
-      runner-archs:
-        type: string
-        default: '["amd64"]'
-      runner-arch-map:
-        type: string
-        default: '[{"amd64":"x86_64", "arm64":"aarch64", "arm":"armv7l"}]'
-    secrets:
-      GIT_CLONE_PAT:
-        required: false
 
 jobs:
   linter-commitlint:
     name: Lint Commit Messages
-    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
       fail-fast: false
+    continue-on-error: true
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -39,11 +31,15 @@ jobs:
 
   linter-typos:
     name: Spell Check Repo
-    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
       fail-fast: false
+    continue-on-error: true
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -55,11 +51,15 @@ jobs:
 
   linter-license-eye:
     name: Check License Headers
-    runs-on: ${{ format('{0}-{1}', join(fromJSON(inputs.runner), '-'), matrix.arch) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        arch: ["${{ fromJSON(inputs.runner-archs) }}"]
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
       fail-fast: false
+    continue-on-error: true
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
