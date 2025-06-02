@@ -34,7 +34,7 @@ nav:
       - design/*.md
   - Developer Guide: 
       - developer-guide/*.md
-      - API Reference: https://pkg.go.dev/github.com/nubificus/urunc@v0.3.0/pkg/unikontainers
+      - API Reference: https://pkg.go.dev/github.com/urunc-dev/urunc/pkg/unikontainers
   - Tutorials:
       - tutorials/*.md
 
