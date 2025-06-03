@@ -140,20 +140,19 @@ accused of a CoC violation.
 ## CNCF Resources
 
 Any Maintainer may suggest a request for CNCF resources, either in the [mailing
-list](mailto:dev@urunc.io), or during a meeting.  A simple majority of Maintainers
-approves the request.  The Maintainers may also choose to delegate working with
-the CNCF to non-Maintainer community members, who will then be added to the
-[CNCF's Maintainer
+list](mailto:cncf-urunc-maintainers@lists.cncf.io), or during a meeting.  A
+simple majority of Maintainers approves the request.  The Maintainers may also
+choose to delegate working with the CNCF to non-Maintainer community members,
+who will then be added to the [CNCF's Maintainer
 List](https://github.com/cncf/foundation/blob/main/project-maintainers.csv) for
 that purpose.
 
 ## Code of Conduct
 
-[Code of Conduct](./Code-of-Conduct.md)
-violations by community members will be discussed and resolved
-on the [private Maintainer mailing list](TODO).  If a Maintainer is directly involved
-in the report, the Maintainers will instead designate two Maintainers to work
-with the CNCF Code of Conduct Committee in resolving it.
+[Code of Conduct](./Code-of-Conduct.md) violations by community members will be
+discussed and resolved by the maintainers privately. If a Maintainer is
+directly involved in the report, the Maintainers will instead designate two
+Maintainers to work with the CNCF Code of Conduct Committee in resolving it.
 
 ## Security Response Team
 
