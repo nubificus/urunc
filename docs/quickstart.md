@@ -38,7 +38,7 @@ Then we need `urunc`:
 
 ```bash
 $ sudo apt install -y git make
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ docker run --rm -ti -v $PWD/urunc:/urunc -w /urunc golang:1.24 bash -c "git config --global --add safe.directory /urunc && make"
 $ sudo make -C urunc install
 ```
@@ -135,11 +135,11 @@ $ rm -f cni-plugins-linux-$(dpkg --print-architecture)-v$CNI_VERSION.tgz
 In order to make use of directly passing the container's snapshot as block
 device in the unikernel, we will need to setup the devmapper snapshotter. We can
 do that by first creating a thinpool, using the respective
-[scripts in `urunc`'s repo](https://github.com/nubificus/urunc/tree/main/script)
+[scripts in `urunc`'s repo](https://github.com/urunc-dev/urunc/tree/main/script)
 
 ```bash
-$ wget -q https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/script/dm_create.sh
-$ wget -q https://raw.githubusercontent.com/nubificus/urunc/refs/heads/main/script/dm_reload.sh
+$ wget -q https://raw.githubusercontent.com/urunc-dev/urunc/refs/heads/main/script/dm_create.sh
+$ wget -q https://raw.githubusercontent.com/urunc-dev/urunc/refs/heads/main/script/dm_reload.sh
 $ sudo mkdir -p /usr/local/bin/scripts
 $ sudo mv dm_create.sh /usr/local/bin/scripts/dm_create.sh
 $ sudo mv dm_reload.sh /usr/local/bin/scripts/dm_reload.sh
@@ -216,8 +216,8 @@ At last, but not least, we will install `urunc` from its latest release. At firs
 will install the `urunc` binary:
 
 ```bash
-$ URUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/nubificus/urunc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/urunc_$(dpkg --print-architecture)
+$ URUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/urunc-dev/urunc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/urunc-dev/urunc/releases/download/v$URUNC_VERSION/urunc_$(dpkg --print-architecture)
 $ chmod +x urunc_$(dpkg --print-architecture)
 $ sudo mv urunc_$(dpkg --print-architecture) /usr/local/bin/urunc
 ```
@@ -225,7 +225,7 @@ $ sudo mv urunc_$(dpkg --print-architecture) /usr/local/bin/urunc
 Secondly, we will install the `containerd-shim-urunc-v2` binary:.
 
 ```bash
-$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/containerd-shim-urunc-v2_$(dpkg --print-architecture)
+$ wget -q https://github.com/urunc-dev/urunc/releases/download/v$URUNC_VERSION/containerd-shim-urunc-v2_$(dpkg --print-architecture)
 $ chmod +x containerd-shim-urunc-v2_$(dpkg --print-architecture)
 $ sudo mv containerd-shim-urunc-v2_$(dpkg --print-architecture) /usr/local/bin/containerd-shim-urunc-v2
 ```

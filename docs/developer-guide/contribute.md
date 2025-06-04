@@ -4,7 +4,7 @@ title: "Contributing"
 description: "Contributing guidelines"
 ---
 
-Urunc is an open-source project licenced under the [Apache License 2.0](https://github.com/nubificus/urunc/blob/main/LICENSE).
+Urunc is an open-source project licenced under the [Apache License 2.0](https://github.com/urunc-dev/urunc/blob/main/LICENSE).
 We welcome anyone who would be interested in contributing to `urunc`.
 As a first step, please take a look at the following document.
 The current document provides a high level overview of `urunc`'s code structure, along with a few guidelines regarding contributions to the project.
@@ -103,7 +103,7 @@ Before creating a new PR, please follow the guidelines below:
 As soon as a new PR is created the following workflow will take place:
 
   1. The creator of the PR should invoke the tests by adding the `ok-to-test` label.
-  2. If the tests pass, request from one or more `urunc`'s [maintainers](https://github.com/nubificus/urunc/blob/main/MAINTAINERS) to review the PR.
+  2. If the tests pass, request from one or more `urunc`'s [maintainers](https://github.com/urunc-dev/urunc/blob/main/MAINTAINERS) to review the PR.
   3. The reviewers submit their review.
   4. The author of the PR should address all the comments from the reviewers.
   5. As soon as a reviewer approves the PR, an action will add the appropriate git trailers in the PR's commits.
@@ -178,7 +178,8 @@ Go provides the `gofmt` tool, which can be used for formatting your code.
 
 ## Contact
 
-Feel free to contact any of the [maintainers](https://github.com/nubificus/urunc/blob/main/MAINTAINERS) or using one of the below email addresses:
+Feel free to contact any of the authors directly using their emails in the
+commit messages or using one of the below email addresses:
 
 - urunc@nubificus.co.uk
 - urunc@nubis-pc.eu

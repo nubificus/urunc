@@ -98,7 +98,7 @@ $ kubectl get pods
 
 ## urunc-deploy
 
-[`urunc-deploy`](https://github.com/nubificus/urunc/tree/main/deployment/urunc-deploy) provides a Dockerfile, which contains all of the binaries
+[`urunc-deploy`](https://github.com/urunc-dev/urunc/tree/main/deployment/urunc-deploy) provides a Dockerfile, which contains all of the binaries
 and artifacts required to run `urunc`, as well as reference DaemonSets, which can
 be utilized to install `urunc` runtime  on a running Kubernetes cluster.
 
@@ -107,7 +107,7 @@ be utilized to install `urunc` runtime  on a running Kubernetes cluster.
 To install in a k3s cluster, first we need to create the RBAC:
 
 ```bash
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ cd urunc
 $ kubectl apply -f deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml
 ```
@@ -144,7 +144,7 @@ $ kubectl delete -f deployment/urunc-deploy/runtimeclasses/runtimeclass.yaml
 To install in a k8s cluster, first we need to create the RBAC:
 
 ```bash
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ cd urunc
 $ kubectl apply -f deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml
 ```
