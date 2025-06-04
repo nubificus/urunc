@@ -34,7 +34,7 @@ const (
 	maxArgs          // Checks for a maximum number of arguments.
 )
 
-var ErrEmptyContainerID = errors.New("Container ID can not be empty")
+var ErrEmptyContainerID = errors.New("container ID can not be empty")
 
 // checkArgs checks the number of arguments provided in the command-line context
 // against the expected number, based on the specified checkType.
@@ -127,6 +127,5 @@ func fatalWithCode(err error, ret int) {
 	if !logrusToStderr() {
 		fmt.Fprintln(os.Stderr, err)
 	}
-
 	os.Exit(ret)
 }

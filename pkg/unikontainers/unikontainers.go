@@ -43,8 +43,8 @@ import (
 
 var Log = logrus.WithField("subsystem", "unikontainers")
 
-var ErrQueueProxy = errors.New("This a queue proxy container")
-var ErrNotUnikernel = errors.New("This is not a unikernel container")
+var ErrQueueProxy = errors.New("this a queue proxy container")
+var ErrNotUnikernel = errors.New("this is not a unikernel container")
 
 // Unikontainer holds the data necessary to create, manage and delete unikernel containers
 type Unikontainer struct {
@@ -518,11 +518,11 @@ func (u Unikontainer) joinSandboxNetNs() error {
 	}).Info("Joining network namespace")
 	fd, err := unix.Open(netNsPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return fmt.Errorf("Error opening namespace path: %w", err)
+		return fmt.Errorf("error opening namespace path: %w", err)
 	}
 	err = unix.Setns(int(fd), unix.CLONE_NEWNET)
 	if err != nil {
-		return fmt.Errorf("Error joining namespace: %w", err)
+		return fmt.Errorf("error joining namespace: %w", err)
 	}
 	Log.Info("Joined network namespace")
 	return nil

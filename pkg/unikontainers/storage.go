@@ -26,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ErrMountpoint = errors.New("No FS is mounted in this mountpoint")
+var ErrMountpoint = errors.New("no FS is mounted in this mountpoint")
 
 // RootFs contains information regarding a mount
 type RootFs struct {
@@ -53,7 +53,7 @@ func getBlockDevice(path string) (RootFs, error) {
 		line := scanner.Text()
 		parts := strings.Split(line, " - ")
 		if len(parts) != 2 {
-			return result, fmt.Errorf("Invalid mountinfo line in /proc/self/mountinfo")
+			return result, fmt.Errorf("invalid mountinfo line in /proc/self/mountinfo")
 		}
 
 		fields := strings.Fields(parts[0])
