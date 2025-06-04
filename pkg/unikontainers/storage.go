@@ -65,7 +65,7 @@ func getBlockDevice(path string) (RootFs, error) {
 		fields = strings.Fields(parts[1])
 		result.FsType = fields[0]
 		result.Device = fields[1]
-		Log.WithFields(logrus.Fields{
+		uniklog.WithFields(logrus.Fields{
 			"mountpoint": result.Path,
 			"device":     result.Device,
 			"fstype":     result.FsType,
@@ -95,7 +95,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, ro
 	if err != nil {
 		err1 := os.RemoveAll(tmpDir)
 		if err1 != nil {
-			Log.Errorf("Could not remove directory %s", tmpDir)
+			uniklog.Errorf("Could not remove directory %s", tmpDir)
 		}
 		return "", err
 	}
@@ -108,7 +108,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, ro
 		if err != nil {
 			err1 := os.RemoveAll(tmpDir)
 			if err1 != nil {
-				Log.Errorf("Could not remove directory %s", tmpDir)
+				uniklog.Errorf("Could not remove directory %s", tmpDir)
 			}
 			return "", err
 		}
@@ -119,7 +119,7 @@ func extractFilesFromBlock(unikernel string, uruncJSON string, initrd string, ro
 	if err != nil {
 		err1 := os.RemoveAll(tmpDir)
 		if err1 != nil {
-			Log.Errorf("Could not remove directory %s", tmpDir)
+			uniklog.Errorf("Could not remove directory %s", tmpDir)
 		}
 		return "", err
 	}

@@ -220,7 +220,7 @@ func networkSetup(tapName string, ipAddress string, redirectLink netlink.Link, a
 	err := ensureEth0Exists()
 	// if eth0 does not exist in the namespace, the unikernel was spawned using ctr, so we skip the network setup
 	if err != nil {
-		netlog.Info("eth0 interface not found, assuming unikernel was spawned using ctr")
+		netlog.Warn("eth0 interface not found, assuming unikernel was spawned using ctr")
 		return nil, nil
 	}
 	newTapDevice, err := createTapDevice(tapName, redirectLink.Attrs().MTU, uid, gid)
@@ -262,7 +262,7 @@ func networkSetup(tapName string, ipAddress string, redirectLink netlink.Link, a
 }
 
 func Cleanup(tapDevice string) error {
-	netlog.Info("net cleanup called")
+	netlog.Debug("net cleanup called")
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return err

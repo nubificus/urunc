@@ -105,6 +105,6 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	cmdString += ukernel.MonitorCli(qemuString)
 	exArgs := strings.Split(cmdString, " ")
 	exArgs = append(exArgs, "-append", args.Command)
-	vmmLog.WithField("qemu command", exArgs).Info("Ready to execve qemu")
+	vmmLog.WithField("qemu command", exArgs).Debug("Ready to execve qemu")
 	return syscall.Exec(q.Path(), exArgs, args.Environment) //nolint: gosec
 }

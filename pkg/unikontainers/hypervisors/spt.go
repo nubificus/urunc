@@ -65,6 +65,6 @@ func (s *SPT) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	cmdString = appendNonEmpty(cmdString, " ", ukernel.MonitorCli(sptString))
 	cmdString += " " + args.UnikernelPath + " " + args.Command
 	cmdArgs := strings.Split(cmdString, " ")
-	vmmLog.WithField("spt command", cmdString).Error("Ready to execve spt")
+	vmmLog.WithField("spt command", cmdString).Debug("Ready to execve spt")
 	return syscall.Exec(s.binaryPath, cmdArgs, args.Environment) //nolint: gosec
 }

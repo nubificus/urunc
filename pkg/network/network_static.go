@@ -52,7 +52,7 @@ func setNATRule(iface string, sourceIP string) error {
 	if err != nil {
 		return fmt.Errorf("failed to enable IP forwarding: %w", err)
 	}
-	netlog.Debugf("Enabled IP forwarding")
+	netlog.Debug("Enabled IP forwarding")
 
 	args = append(args, path)
 	args = append(args, "-t")
@@ -84,7 +84,7 @@ func setNATRule(iface string, sourceIP string) error {
 		}
 	}
 
-	netlog.Infof("Applied iptables rule for NAT")
+	netlog.Debug("Applied iptables rule for NAT")
 
 	return nil
 }
