@@ -56,7 +56,7 @@ In the above file we specify the following:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f bunnyfile -t urunc/prebuilt/network-mirage-hvt:test .
 ```
 
@@ -86,7 +86,7 @@ In the above file:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f Containerfile -t urunc/prebuilt/network-mirage-hvt:test .
 ```
 

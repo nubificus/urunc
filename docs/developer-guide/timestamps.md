@@ -49,17 +49,17 @@ In order to capture the timestamps, a separate `containerd-shim` and container r
 To create the "timestamping" version of `containerd-shim-urunc-v2`:
 
 ```bash
-$ sudo tee -a /usr/local/bin/containerd-shim-uruncts-v2 > /dev/null << 'EOT'
+sudo tee -a /usr/local/bin/containerd-shim-uruncts-v2 > /dev/null << 'EOT'
 #!/bin/bash
 URUNC_TIMESTAMPS=1 /usr/local/bin/containerd-shim-urunc-v2 $@
 EOT
-$ sudo chmod +x /usr/local/bin/containerd-shim-uruncts-v2
+sudo chmod +x /usr/local/bin/containerd-shim-uruncts-v2
 ```
 
 To add the "timestamping" urunc to containerd config:
 
 ```bash
-$ sudo tee -a /etc/containerd/config.toml > /dev/null << 'EOT'
+sudo tee -a /etc/containerd/config.toml > /dev/null << 'EOT'
 # timestamping urunc
 [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.uruncts]
     runtime_type = "io.containerd.uruncts.v2"
@@ -67,7 +67,7 @@ $ sudo tee -a /etc/containerd/config.toml > /dev/null << 'EOT'
     pod_annotations = ["com.urunc.unikernel.*"]
     snapshotter = "devmapper"
 EOT
-$ sudo systemctl restart containerd.service
+sudo systemctl restart containerd.service
 ```
 
 ## How to gather timestamps
@@ -75,12 +75,12 @@ $ sudo systemctl restart containerd.service
 Now we need to run a unikernel using the new container runtime `uruncts`:
 
 ```bash
-$ sudo nerdctl run --rm --snapshotter devmapper --runtime io.containerd.uruncts.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest
+sudo nerdctl run --rm --snapshotter devmapper --runtime io.containerd.uruncts.v2 harbor.nbfc.io/nubificus/urunc/hello-hvt-rumprun:latest
 ```
 
 The timestamp logs are located at `/tmp/urunc.zlog`:
 
-```bash
+```console
 $ cat /tmp/urunc.zlog | grep TS
 {"containerID":"faaf830245ffab0df81927cebd7f11065e70c7703121fbc1b11d4bca49bab461","timestampID":"cTS00","time":1703676366849599657}
 {"containerID":"faaf830245ffab0df81927cebd7f11065e70c7703121fbc1b11d4bca49bab461","timestampID":"cTS01","time":1703676366853466038}
@@ -101,13 +101,13 @@ There are 3 Python utilities inside the `script/performance` directory to help g
 To gather the timestamps produced by a single unikernel container execution, you can use the `measure_single.py` script, passing the desired container id.
 
 ```bash
-$ cd urunc/script/performance
-$ python3 measure_single.py 15c769b9be14c59174626521f7964a8ae06e75c48c5cfd91e2829317c15d455b
+cd urunc/script/performance
+python3 measure_single.py 15c769b9be14c59174626521f7964a8ae06e75c48c5cfd91e2829317c15d455b
 ```
 
 If no container ID is specified, it will return an error:
 
-```bash
+```console
 $ python3 measure_single.py 
 Error: Container ID not specified!
 
@@ -117,7 +117,7 @@ Usage:
 
 Sample output:
 
-```
+```console
 $ python3 measure_single.py 1bd50216c1709b854f78d50ec36cbbc55e0d4bc2e1509344082b51edc974af6d
 TS00 -> TS01:   1086512 ns
 TS01 -> TS02:   97936 ns
@@ -136,7 +136,7 @@ sudo python3 measure.py 5
 
 If the amount of iterations is not specified, it will return an error:
 
-```bash
+```console
 $ sudo python3 measure.py 
 Error: Iterations not specified!
 
@@ -146,7 +146,7 @@ Usage:
 
 Sample output:
 
-```
+```console
 $ sudo python3 measure.py 2
 {'TS00 -> TS01': {'average': '11544405 ns',
                   'maximum': '22292698 ns',
@@ -163,7 +163,7 @@ $ sudo python3 measure.py 2
 
 The same functionality is provided by `measure_to_json.py`, but instead of `stdout` the results are saved in a .json file:
 
-```bash
+```console
 $ sudo python3 measure_to_json.py 5 ts.json
 $ cat ts.json | jq
 {
@@ -181,7 +181,7 @@ $ cat ts.json | jq
 
 If the amount of iterations or output file are not specified, it will return an error:
 
-```bash
+```console
 $ sudo python3 measure_to_json.py 5 
 Error: Iterations or output file not specified!
 

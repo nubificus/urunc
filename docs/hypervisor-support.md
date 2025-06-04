@@ -41,8 +41,8 @@ We can easily install [Qemu](https://www.qemu.org/) through almost all package
 managers. For more details check [Qemu's download
 page](https://www.qemu.org/download#linux). For instance, in the case of
 Ubuntu, we can simply run the following command:
-```console
-$ sudo apt-get install qemu-system
+```bash
+sudo apt-get install qemu-system
 ```
 
 #### Qemu and `urunc`
@@ -67,8 +67,8 @@ Supported unikernel frameworks with `urunc`:
 
 An example unikernel:
 
-```console
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
+```bash
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
 ```
 
 ### AWS Firecracker
@@ -95,14 +95,14 @@ we can fetch a
 [Firecracker](https://firecracker-microvm.github.io/) binary with the following
 commands:
 
-```console
-$ ARCH="$(uname -m)" 
-$ VERSION="v1.7.0"
-$ release_url="https://github.com/firecracker-microvm/firecracker/releases"
-$ curl -L ${release_url}/download/${VERSION}/firecracker-${VERSION}-${ARCH}.tgz | tar -xz
-$ # Rename the binary to "firecracker"
-$ sudo mv release-${VERSION}-$(uname -m)/firecracker-${VERSION}-${ARCH} /usr/local/bin/firecracker
-$ rm -fr release-${VERSION}-$(uname -m)
+```bash
+ARCH="$(uname -m)" 
+VERSION="v1.7.0"
+release_url="https://github.com/firecracker-microvm/firecracker/releases"
+curl -L ${release_url}/download/${VERSION}/firecracker-${VERSION}-${ARCH}.tgz | tar -xz
+# Rename the binary to "firecracker"
+sudo mv release-${VERSION}-$(uname -m)/firecracker-${VERSION}-${ARCH} /usr/local/bin/firecracker
+rm -fr release-${VERSION}-$(uname -m)
 ```
 
 It is important to note that `urunc` expects to find the `firecracker` binary
@@ -135,8 +135,8 @@ Supported unikernel frameworks with `urunc`:
 
 An example unikernel:
 
-```console
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
+```bash
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
 ```
 
 ### Solo5-hvt
@@ -157,23 +157,23 @@ and block I/O.
 Solo5 can be installed by building from source. However, in order to do that,
 we will need a few packages.
 
-```console
-$ sudo apt install libseccomp-dev pkg-config build-essential
+```bash
+sudo apt install libseccomp-dev pkg-config build-essential
 ```
 
 Next, we can clone and build `solo5-hvt`.
 
-```console
-$ git clone -b v0.9.0 https://github.com/Solo5/solo5.git
-$ cd solo5
-$ ./configure.sh && make -j$(nproc)
+```bash
+git clone -b v0.9.0 https://github.com/Solo5/solo5.git
+cd solo5
+./configure.sh && make -j$(nproc)
 ```
 
 It is important to note that `urunc` expects to find the `solo5-hvt` binary
 located in the `$PATH` and named as `solo5-hvt`. Therefore, to install it:
 
-```console
-$ sudo cp tenders/hvt/solo5-hvt /usr/local/bin
+```bash
+sudo cp tenders/hvt/solo5-hvt /usr/local/bin
 ```
 
 #### Solo5-hvt and `urunc`
@@ -201,8 +201,8 @@ Supported unikernel frameworks with `urunc`:
 
 An example unikernel with a block image inside the conntainer's rootfs:
 
-```console
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest unikernel
+```bash
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest unikernel
 ```
 
 ## Software-based isolation monitors
@@ -239,23 +239,23 @@ similar with the [Solo5-hvt](https://github.com/Solo5/solo5) one. In fact, both
 projects share the same repository. Hence we can follow the same steps as in
 Solo5-hvt. At first, make sure to install the necessary packages.
 
-```console
-$ sudo apt install libseccomp-dev pkg-config build-essential
+```bash
+sudo apt install libseccomp-dev pkg-config build-essential
 ```
 
 Next, we can clone and build `solo5-spt`.
 
-```console
-$ git clone -b v0.9.0 https://github.com/Solo5/solo5.git
-$ cd solo5
-$ ./configure.sh && make -j$(nproc)
+```bash
+git clone -b v0.9.0 https://github.com/Solo5/solo5.git
+cd solo5
+./configure.sh && make -j$(nproc)
 ```
 
 It is important to note that `urunc` expects to find the `solo5-spt` binary
 located in the `$PATH` and named `solo5-spt`. Therefore, to install it:
 
-```console
-$ sudo cp tenders/spt/solo5-spt /usr/local/bin
+```bash
+sudo cp tenders/spt/solo5-spt /usr/local/bin
 ```
 
 #### Solo5-spt and `urunc`
@@ -272,6 +272,6 @@ Supported unikernel frameworks with `urunc`:
 
 An example unikernel which utilizes devmapper for block storage:
 
-```console
-$ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
+```bash
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
 ```

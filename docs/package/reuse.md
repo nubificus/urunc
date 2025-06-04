@@ -50,7 +50,7 @@ In the above file we specify the followings:
 With the above file, `bunny` will fetch the OCI image and append the `urunc`
 annotations. We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f bunnyfile -t urunc/reuse/nginx-unikraft-qemu:test .
 ```
 
@@ -77,6 +77,6 @@ In the above file:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f Containerfile -t urunc/prebuilt/nginx-unikraft-qemu:test .
 ```
