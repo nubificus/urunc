@@ -195,8 +195,8 @@ During installation, the following steps take place:
     * Labels the Node with label `urunc.io/urunc-runtime=true`.
 - Finally, `urunc` is added as a runtime class in k8s.
 
-> Note: `urunc-deploy` will install a static version of QEMU along with the QEMU BIOS files, if QEMU is not installed in PATH. The QEMU BIOS files are placed
-under the `/usr/local/share` directory. If the host system already had installed the BIOS files in this directory, they might get overwritten.
+> Note: `urunc-deploy` will install a static version of QEMU along with the QEMU BIOS files. The QEMU BIOS files are placed
+under the `/usr/share` directory. If the host system already had installed QEMU, then QEMU binary and the BIOS files in `/usr/share`, will get overwritten.
 
 During cleanup, these changes are reverted:
 

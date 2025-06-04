@@ -53,6 +53,7 @@ func (q *Qemu) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 	qemuString := string(QemuVmm)
 	qemuMem := bytesToStringMB(args.MemSizeB)
 	cmdString := q.binaryPath + " -m " + qemuMem + "M"
+	cmdString += " -L /usr/share/qemu"   // Set the path for qemu bios/data
 	cmdString += " -cpu host"            // Choose CPU
 	cmdString += " -enable-kvm"          // Enable KVM to use CPU virt extensions
 	cmdString += " -nographic -vga none" // Disable graphic output
