@@ -160,10 +160,10 @@ func (fc *Firecracker) Execve(args ExecArgs, _ unikernels.Unikernel) error {
 	if err := os.WriteFile(JSONConfigFile, FCConfigJSON, 0o644); err != nil { //nolint: gosec
 		return fmt.Errorf("failed to save Firecracker json config: %w", err)
 	}
-	vmmLog.WithField("Json=", string(FCConfigJSON)).Info("Firecracker json config")
+	vmmLog.WithField("Json", string(FCConfigJSON)).Debug("Firecracker json config")
 
 	exArgs := strings.Split(cmdString, " ")
-	vmmLog.WithField("Firecracker command", exArgs).Info("Ready to execve Firecracker")
+	vmmLog.WithField("Firecracker command", exArgs).Debug("Ready to execve Firecracker")
 
 	return syscall.Exec(fc.Path(), exArgs, args.Environment) //nolint: gosec
 }

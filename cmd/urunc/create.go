@@ -68,8 +68,7 @@ var createCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		// FIXME: Remove or change level of log
-		logrus.WithField("args", os.Args).Info("urunc INVOKED")
+		logrus.WithField("command", "CREATE").WithField("args", os.Args).Debug("urunc INVOKED")
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}

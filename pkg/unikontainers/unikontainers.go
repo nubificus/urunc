@@ -41,7 +41,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var Log = logrus.WithField("subsystem", "unikontainers")
+var uniklog = logrus.WithField("subsystem", "unikontainers")
 
 var ErrQueueProxy = errors.New("this a queue proxy container")
 var ErrNotUnikernel = errors.New("this is not a unikernel container")
@@ -63,7 +63,7 @@ func New(bundlePath string, containerID string, rootDir string) (*Unikontainer, 
 
 	containerName := spec.Annotations["io.kubernetes.cri.container-name"]
 	if containerName == "queue-proxy" {
-		logrus.Info("This is a queue-proxy container. Adding IP env.")
+		uniklog.Warn("This is a queue-proxy container. Adding IP env.")
 		configFile := filepath.Join(bundlePath, configFilename)
 		err = handleQueueProxy(*spec, configFile)
 		if err != nil {
@@ -193,7 +193,7 @@ func (u *Unikontainer) Exec() error {
 
 	// Check if container is set to unconfined -- disable seccomp
 	if u.Spec.Linux.Seccomp == nil {
-		Log.Warn("Seccomp is disabled")
+		uniklog.Warn("Seccomp is disabled")
 		vmmArgs.Seccomp = false
 	}
 
@@ -216,14 +216,15 @@ func (u *Unikontainer) Exec() error {
 
 	// handle network
 	networkType := u.getNetworkType()
-	Log.WithField("network type", networkType).Info("Retrieved network type")
+	uniklog.WithField("network type", networkType).Debug("Retrieved network type")
 	netManager, err := network.NewNetworkManager(networkType)
 	if err != nil {
+		uniklog.Errorf("Failed to create network manager: %v", err)
 		return err
 	}
 	networkInfo, err := netManager.NetworkSetup(u.Spec.Process.User.UID, u.Spec.Process.User.GID)
 	if err != nil {
-		Log.Errorf("Failed to setup network :%v. Possibly due to ctr", err)
+		uniklog.Errorf("Failed to setup network :%v. Possibly due to ctr", err)
 	}
 	metrics.Capture(u.State.ID, "TS16")
 
@@ -268,7 +269,7 @@ func (u *Unikontainer) Exec() error {
 	useDevmapper := false
 	useDevmapper, err = strconv.ParseBool(u.State.Annotations[annotUseDMBlock])
 	if err != nil {
-		Log.Errorf("Invalid value in useDMBlock: %s. Urunc will try to use it",
+		uniklog.Errorf("Invalid value in useDMBlock: %s. Urunc will try to use it",
 			u.State.Annotations[annotUseDMBlock])
 		useDevmapper = true
 	}
@@ -303,7 +304,7 @@ func (u *Unikontainer) Exec() error {
 
 	err = unikernel.Init(unikernelParams)
 	if err == unikernels.ErrUndefinedVersion || err == unikernels.ErrVersionParsing {
-		Log.WithError(err).Error("an error occurred while initializing the unikernel")
+		uniklog.WithError(err).Error("an error occurred while initializing the unikernel")
 	} else if err != nil {
 		return err
 	}
@@ -360,7 +361,7 @@ func (u *Unikontainer) Exec() error {
 		return err
 	}
 
-	Log.Debug("calling vmm execve")
+	uniklog.Debug("calling vmm execve")
 	metrics.Capture(u.State.ID, "TS18")
 	// metrics.Wait()
 	return vmm.Execve(vmmArgs, unikernel)
@@ -415,13 +416,13 @@ func (u *Unikontainer) Kill() error {
 	// and delete the TC rules and TAP device
 	err = u.joinSandboxNetNs()
 	if err != nil {
-		Log.Errorf("failed to join sandbox netns: %v", err)
+		uniklog.Errorf("failed to join sandbox netns: %v", err)
 		return nil
 	}
 	// TODO: tap0_urunc should not be hardcoded
 	err = network.Cleanup("tap0_urunc")
 	if err != nil {
-		Log.Errorf("failed to delete tap0_urunc: %v", err)
+		uniklog.Errorf("failed to delete tap0_urunc: %v", err)
 	}
 	return nil
 }
@@ -513,9 +514,9 @@ func (u Unikontainer) joinSandboxNetNs() error {
 		}
 	}
 
-	Log.WithFields(logrus.Fields{
+	uniklog.WithFields(logrus.Fields{
 		"path": netNsPath,
-	}).Info("Joining network namespace")
+	}).Debug("Joining network namespace")
 	fd, err := unix.Open(netNsPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return fmt.Errorf("error opening namespace path: %w", err)
@@ -524,7 +525,7 @@ func (u Unikontainer) joinSandboxNetNs() error {
 	if err != nil {
 		return fmt.Errorf("error joining namespace: %w", err)
 	}
-	Log.Info("Joined network namespace")
+	uniklog.Debug("Joined network namespace")
 	return nil
 }
 
@@ -566,7 +567,7 @@ func (u *Unikontainer) executeHooksConcurrently(name string) error {
 
 	// More info for individual hooks can be found here:
 	// https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks
-	Log.Infof("Executing %s hooks", name)
+	uniklog.Debugf("Executing %s hooks", name)
 	if u.Spec.Hooks == nil {
 		return nil
 	}
@@ -581,7 +582,7 @@ func (u *Unikontainer) executeHooksConcurrently(name string) error {
 	}[name]
 
 	if len(hooks) == 0 {
-		Log.WithFields(logrus.Fields{
+		uniklog.WithFields(logrus.Fields{
 			"id":    u.State.ID,
 			"name:": name,
 		}).Debug("No hooks")
@@ -602,7 +603,7 @@ func (u *Unikontainer) executeHooksConcurrently(name string) error {
 	wg.Wait()
 	close(errChan)
 	for err := range errChan {
-		Log.WithField("error", err.Error()).Error("failed to execute hooks")
+		uniklog.WithField("error", err.Error()).Error("failed to execute hooks")
 		return err
 	}
 	return nil
@@ -621,15 +622,15 @@ func (u *Unikontainer) executeHook(hook specs.Hook, state []byte, wg *sync.WaitG
 		Stderr: &stderr,
 	}
 
-	Log.WithFields(logrus.Fields{
+	uniklog.WithFields(logrus.Fields{
 		"cmd":  cmd.String(),
 		"path": hook.Path,
 		"args": hook.Args,
 		"env":  hook.Env,
-	}).Info("executing hook")
+	}).Debug("executing hook")
 
 	if err := cmd.Run(); err != nil {
-		Log.WithFields(logrus.Fields{
+		uniklog.WithFields(logrus.Fields{
 			"id":     u.State.ID,
 			"error":  err.Error(),
 			"cmd":    cmd.String(),
@@ -647,7 +648,7 @@ func (u *Unikontainer) executeHooksSequentially(name string) error {
 
 	// More info for individual hooks can be found here:
 	// https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks
-	Log.Infof("Executing %s hooks", name)
+	uniklog.Debugf("Executing %s hooks", name)
 	if u.Spec.Hooks == nil {
 		return nil
 	}
@@ -662,10 +663,10 @@ func (u *Unikontainer) executeHooksSequentially(name string) error {
 		"Poststop":        u.Spec.Hooks.Poststop,
 	}[name]
 
-	Log.Infof("Found %d %s hooks", len(hooks), name)
+	uniklog.Debugf("Found %d %s hooks", len(hooks), name)
 
 	if len(hooks) == 0 {
-		Log.WithFields(logrus.Fields{
+		uniklog.WithFields(logrus.Fields{
 			"id":    u.State.ID,
 			"name:": name,
 		}).Debug("No hooks")
@@ -688,7 +689,7 @@ func (u *Unikontainer) executeHooksSequentially(name string) error {
 		}
 
 		if err := cmd.Run(); err != nil {
-			Log.WithFields(logrus.Fields{
+			uniklog.WithFields(logrus.Fields{
 				"id":     u.State.ID,
 				"name:":  name,
 				"error":  err.Error(),
@@ -845,8 +846,7 @@ func (u *Unikontainer) FormatNsenterInfo() (rdr io.Reader, retErr error) {
 				}
 			}
 		default:
-			Log.Warn("Unsupported namespace: ", ns.Type, " .It will get ignored")
-			continue
+			uniklog.Warnf("Unsupported namespace: %s. It will get ignored", ns.Type)
 		}
 		if ns.Path == "" {
 			writeFlags = true
@@ -935,13 +935,13 @@ func ListenAndAwaitMsg(sockAddr string, msg IPCMessage) error {
 	defer func() {
 		err = listener.Close()
 		if err != nil {
-			logrus.WithError(err).Error("failed to close listener")
+			uniklog.WithError(err).Error("failed to close listener")
 		}
 	}()
 	defer func() {
 		err = syscall.Unlink(sockAddr)
 		if err != nil {
-			logrus.WithError(err).Errorf("failed to unlink %s", sockAddr)
+			uniklog.WithError(err).Errorf("failed to unlink %s", sockAddr)
 		}
 	}()
 	return AwaitMessage(listener, msg)

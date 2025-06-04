@@ -44,7 +44,7 @@ status of "ubuntu01" as "stopped" the following will delete resources held for
 	Action: func(context *cli.Context) error {
 		runtime.GOMAXPROCS(1)
 		runtime.LockOSThread()
-		logrus.WithField("args", os.Args).Info("urunc INVOKED")
+		logrus.WithField("command", "DELETE").WithField("args", os.Args).Debug("urunc INVOKED")
 		if err := checkArgs(context, 1, exactArgs); err != nil {
 			return err
 		}

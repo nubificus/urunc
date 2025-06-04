@@ -104,18 +104,17 @@ func getConfigFromSpec(spec *specs.Spec) (*UnikernelConfig, error) {
 	block := spec.Annotations[annotBlock]
 	blkMntPoint := spec.Annotations[annotBlockMntPoint]
 	useDMBlock := spec.Annotations[annotUseDMBlock]
-
-	Log.WithFields(logrus.Fields{
-		"unikernelType":    unikernelType,
-		"unikernelVersion": unikernelVersion,
-		"unikernelCmd":     unikernelCmd,
-		"unikernelBinary":  unikernelBinary,
-		"hypervisor":       hypervisor,
-		"initrd":           initrd,
-		"block":            block,
-		"blkMntPoint":      blkMntPoint,
-		"useDMBlock":       useDMBlock,
-	}).Info("urunc annotations")
+	uniklog.WithFields(logrus.Fields{
+		"unikernelType":    tryDecode(unikernelType),
+		"unikernelVersion": tryDecode(unikernelVersion),
+		"unikernelCmd":     tryDecode(unikernelCmd),
+		"unikernelBinary":  tryDecode(unikernelBinary),
+		"hypervisor":       tryDecode(hypervisor),
+		"initrd":           tryDecode(initrd),
+		"block":            tryDecode(block),
+		"blkMntPoint":      tryDecode(blkMntPoint),
+		"useDMBlock":       tryDecode(useDMBlock),
+	}).WithField("source", "spec").Debug("urunc annotations")
 
 	// TODO: We need to use a better check to see if annotations were empty
 	conf := fmt.Sprintf("%s%s%s%s%s%s%s%s", unikernelType, unikernelVersion, unikernelCmd, unikernelBinary, hypervisor, initrd, block, blkMntPoint)
@@ -161,18 +160,28 @@ func getConfigFromJSON(jsonFilePath string) (*UnikernelConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	Log.WithFields(logrus.Fields{
-		"unikernelType":    conf.UnikernelType,
-		"unikernelVersion": conf.UnikernelVersion,
-		"unikernelCmd":     conf.UnikernelCmd,
-		"unikernelBinary":  conf.UnikernelBinary,
-		"hypervisor":       conf.Hypervisor,
-		"initrd":           conf.Initrd,
-		"block":            conf.Block,
-		"blkMntPoint":      conf.BlkMntPoint,
-		"useDMBlock":       conf.UseDMBlock,
-	}).Info(uruncJSONFilename + " annotations")
+	uniklog.WithFields(logrus.Fields{
+		"unikernelType":    tryDecode(conf.UnikernelType),
+		"unikernelVersion": tryDecode(conf.UnikernelVersion),
+		"unikernelCmd":     tryDecode(conf.UnikernelCmd),
+		"unikernelBinary":  tryDecode(conf.UnikernelBinary),
+		"hypervisor":       tryDecode(conf.Hypervisor),
+		"initrd":           tryDecode(conf.Initrd),
+		"block":            tryDecode(conf.Block),
+		"blkMntPoint":      tryDecode(conf.BlkMntPoint),
+		"useDMBlock":       tryDecode(conf.UseDMBlock),
+	}).WithField("source", uruncJSONFilename).Debug("urunc annotations")
+
 	return &conf, nil
+}
+
+func tryDecode(s string) string {
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		uniklog.WithError(err).Errorf("Failed to decode string: %s", s)
+		return s
+	}
+	return string(decoded)
 }
 
 // decode decodes the base64 encoded values of the Unikernel config

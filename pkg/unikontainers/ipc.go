@@ -65,7 +65,7 @@ func SockAddrExists(sockAddr string) bool {
 	if errors.Is(err, fs.ErrNotExist) {
 		return false
 	}
-	Log.WithError(err).Errorf("Failed to get file info for %s", sockAddr)
+	uniklog.WithError(err).Errorf("Failed to get file info for %s", sockAddr)
 	return false
 }
 

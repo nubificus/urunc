@@ -112,8 +112,8 @@ func applySeccompFilter() error {
 		return err
 	}
 
-	vmmLog.Info("Loaded seccomp filters")
-	vmmLog.Debug("Whitelisted system calls ", syscalls)
+	vmmLog.Debug("Loaded seccomp filters")
+	vmmLog.WithField("allowed syscalls", syscalls).Debug("Whitelisted system calls")
 
 	return nil
 }
@@ -157,6 +157,6 @@ func (h *HVT) Execve(args ExecArgs, ukernel unikernels.Unikernel) error {
 			return err
 		}
 	}
-	vmmLog.WithField("hvt command", cmdString).Error("Ready to execve hvt")
+	vmmLog.WithField("hvt command", cmdString).Debug("Ready to execve hvt")
 	return syscall.Exec(h.binaryPath, cmdArgs, args.Environment) //nolint: gosec
 }

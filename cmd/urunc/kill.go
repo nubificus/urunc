@@ -44,8 +44,7 @@ signal to the init process of the "ubuntu01" container:
 	Action: func(context *cli.Context) error {
 		runtime.GOMAXPROCS(1)
 		runtime.LockOSThread()
-		// FIXME: Remove or change level of log
-		logrus.WithField("args", os.Args).Info("urunc INVOKED")
+		logrus.WithField("command", "KILL").WithField("args", os.Args).Debug("urunc INVOKED")
 		if err := checkArgs(context, 1, minArgs); err != nil {
 			return err
 		}
