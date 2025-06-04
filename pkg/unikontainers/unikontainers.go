@@ -593,25 +593,35 @@ func (u *Unikontainer) executeHooksConcurrently(name string) error {
 	if err != nil {
 		return err
 	}
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(hooks))
 
+	var (
+		wg       sync.WaitGroup
+		errChan  = make(chan error, len(hooks))
+		firstErr error
+	)
 	for _, hook := range hooks {
 		wg.Add(1)
-		go u.executeHook(hook, s, &wg, errChan)
+		go func(h specs.Hook) {
+			defer wg.Done()
+			u.executeHook(h, s, errChan)
+		}(hook)
 	}
-	wg.Wait()
-	close(errChan)
+
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+
 	for err := range errChan {
-		uniklog.WithField("error", err.Error()).Error("failed to execute hooks")
-		return err
+		uniklog.WithField("error", err.Error()).Error("failed to execute hook")
+		if firstErr == nil {
+			firstErr = err
+		}
 	}
-	return nil
+	return firstErr
 }
 
-func (u *Unikontainer) executeHook(hook specs.Hook, state []byte, wg *sync.WaitGroup, errChan chan<- error) {
-	defer wg.Done()
-
+func (u *Unikontainer) executeHook(hook specs.Hook, state []byte, errChan chan<- error) {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Cmd{
 		Path:   hook.Path,
