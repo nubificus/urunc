@@ -186,8 +186,7 @@ for guidelines on how to report it responsibly.
 
 ## Contact
 
-Feel free to contact any of the authors directly using their emails in the
-commit messages or using one of the below email addresses:
-
-- urunc@nubificus.co.uk
-- urunc@nubis-pc.eu
+We kindly invite everyone interested in `urunc` to join our
+[Slack channel](https://cloud-native.slack.com/archives/C08V201G35J).
+To directly communicate with the maintainers, feel free to drop an email At
+[`urunc`'s maintainers' mailing list](cncf-urunc-maintainers@lists.cncf.io )

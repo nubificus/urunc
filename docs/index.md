@@ -66,6 +66,7 @@ Sandbox monitors, along with the unikernels that can run on top of them.
 
 ## Quick links
 
+- [Urunc Slack channel](https://cloud-native.slack.com/archives/C08V201G35J)
 - [Contributing](developer-guide/contribute/)
 - [Getting metrics from `urunc`](developer-guide/timestamps)
 - [Integration with k8s](tutorials/How-to-urunc-on-k8s/)
