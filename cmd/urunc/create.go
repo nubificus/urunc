@@ -27,7 +27,6 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/nubificus/urunc/pkg/unikontainers"
-	"github.com/opencontainers/runc/libcontainer/logs"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"golang.org/x/sys/unix"
@@ -161,7 +160,7 @@ func createUnikontainer(context *cli.Context) (err error) {
 	reexecCommand := createReexecCmd(initSockChild, logPipeChild)
 
 	// Create a go func to handle logs from nsenter
-	logsDone := logs.ForwardLogs(logPipeParent)
+	logsDone := ForwardLogs(logPipeParent)
 
 	// Start reexec process
 	metrics.Capture(containerID, "TS03")
