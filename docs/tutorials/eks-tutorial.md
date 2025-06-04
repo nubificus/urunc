@@ -1,7 +1,7 @@
 # EKS Setup for `urunc`
 In this tutorial, we’ll walk through the complete process of provisioning an Amazon EKS (Elastic Kubernetes Service) cluster from scratch using the AWS CLI, `eksctl`, and a few supporting tools.
 
-Our goal is to create a Kubernetes-native environment capable of securely running containers with [`urunc`](https://github.com/nubificus/urunc) — a unikernel container runtime. This tutorial sets up a production-grade EKS cluster, complete with custom networking, Calico CNI plugin for fine-grained pod networking, and node groups ready to schedule unikernel workloads.
+Our goal is to create a Kubernetes-native environment capable of securely running containers with [`urunc`](https://github.com/urunc-dev/urunc) — a unikernel container runtime. This tutorial sets up a production-grade EKS cluster, complete with custom networking, Calico CNI plugin for fine-grained pod networking, and node groups ready to schedule unikernel workloads.
 
 We’ll cover:
 
@@ -573,7 +573,7 @@ The easiest way to setup `urunc` in such a setting is to use `urunc-deploy`. Thi
 #### 1. Clone the repo
 
 ```console
-$ git clone https://github.com/nubificus/urunc
+$ git clone https://github.com/urunc-dev/urunc
 ```
 
 #### 2.  Apply the manifests

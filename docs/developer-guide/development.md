@@ -42,7 +42,7 @@ EOT
 The next step is to clone and build `urunc`:
 
 ```console
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ cd urunc
 $ make && sudo make install
 ```

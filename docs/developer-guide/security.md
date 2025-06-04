@@ -22,10 +22,10 @@ finding a proper fix.
 Please do not open public issues or PRs to report a vulnerability. Instead, use
 the private vulnerability reporting of the `urunc`'s Github repository. In
 particular, in `urunc`'s repository page, navigate to the [Security
-tab](https://github.com/nubificus/urunc/security), click
-[`Advisories`](https://github.com/nubificus/urunc/security/advisories) and then
+tab](https://github.com/urunc-dev/urunc/security), click
+[`Advisories`](https://github.com/urunc-dev/urunc/security/advisories) and then
 [`Report a
-vulnerability`](https://github.com/nubificus/urunc/security/advisories/new).
+vulnerability`](https://github.com/urunc-dev/urunc/security/advisories/new).
 Alternatively, the report can be filed via email at `security@urunc.io`. This
 address delivers your message securely to all maintainers.
 
@@ -75,7 +75,7 @@ _What kind of vulnerability is it? Who is impacted?_
 _Should be something related to Go, C, Github Actions etc._
 
 ### Package Name
-_eg. github.com/nubificus/urunc_
+_eg. github.com/urunc-dev/urunc_
 
 ### Affected Versions
 _eg. < 0.5.0_

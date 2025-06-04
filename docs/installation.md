@@ -13,7 +13,7 @@ We will be installing and setting up:
 - [nerdctl](https://github.com/containerd/nerdctl)
 - [devmapper](https://docs.docker.com/storage/storagedriver/device-mapper-driver/)
 - [Go 1.24.1](https://go.dev/doc/install)
-- [urunc](https://github.com/nubificus/urunc)
+- [urunc](https://github.com/urunc-dev/urunc)
 - [solo5-{hvt|spt}](https://github.com/Solo5/solo5)
 - [qemu](https://www.qemu.org/)
 - [firecracker](https://github.com/firecracker-microvm/firecracker)
@@ -119,10 +119,10 @@ $ rm -f nerdctl-$NERDCTL_VERSION-linux-$(dpkg --print-architecture).tar.gz
 In order to make use of directly passing the container's snapshot as block
 device in the unikernel, we will need to setup the devmapper snapshotter. We can
 do that by first creating a thinpool, using the respective [scripts in urunc's
-repo](https://github.com/nubificus/urunc/tree/main/script).
+repo](https://github.com/urunc-dev/urunc/tree/main/script).
 
 ```bash
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ sudo mkdir -p /usr/local/bin/scripts
 $ sudo mkdir -p /usr/local/lib/systemd/system/
 $ sudo cp urunc/script/dm_create.sh /usr/local/bin/scripts/dm_create.sh
@@ -230,7 +230,7 @@ $ rm -f go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz
 After installing Go, we can clone and build `urunc`:
 
 ```bash
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ cd urunc
 $ make && sudo make install
 $ cd ..
@@ -239,11 +239,11 @@ $ cd ..
 ### Option 2: Install latest release
 
 We can also install `urunc` from its latest
-[release](https://github.com/nubificus/urunc/releases):
+[release](https://github.com/urunc-dev/urunc/releases):
 
 ```bash
-$ URUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/nubificus/urunc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
-$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/urunc_$(dpkg --print-architecture)
+$ URUNC_VERSION=$(curl -L -s -o /dev/null -w '%{url_effective}' "https://github.com/urunc-dev/urunc/releases/latest" | grep -oP "v\d+\.\d+\.\d+" | sed 's/v//')
+$ wget -q https://github.com/urunc-dev/urunc/releases/download/v$URUNC_VERSION/urunc_$(dpkg --print-architecture)
 $ chmod +x urunc_$(dpkg --print-architecture)
 $ sudo mv urunc_$(dpkg --print-architecture) /usr/local/bin/urunc
 ```
@@ -251,7 +251,7 @@ $ sudo mv urunc_$(dpkg --print-architecture) /usr/local/bin/urunc
 And for `containerd-shim-urunc-v2`:
 
 ```bash
-$ wget -q https://github.com/nubificus/urunc/releases/download/v$URUNC_VERSION/containerd-shim-urunc-v2_$(dpkg --print-architecture)
+$ wget -q https://github.com/urunc-dev/urunc/releases/download/v$URUNC_VERSION/containerd-shim-urunc-v2_$(dpkg --print-architecture)
 $ chmod +x containerd-shim-urunc-v2_$(dpkg --print-architecture)
 $ sudo mv containerd-shim-urunc-v2_$(dpkg --print-architecture) /usr/local/bin/containerd-shim-urunc-v2
 ```

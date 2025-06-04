@@ -61,7 +61,7 @@ Install `urunc`:
 
 ```bash
 $ sudo apt-get install -y git
-$ git clone https://github.com/nubificus/urunc.git
+$ git clone https://github.com/urunc-dev/urunc.git
 $ docker run --rm -ti -v $PWD/urunc:/urunc -w /urunc golang:latest bash -c "git config --global --add safe.directory /urunc && make"
 $ sudo make -C urunc install
 ```
@@ -107,12 +107,12 @@ $ curl 172.17.0.2
 
 For a detailed installation guide please check [Documentation](#Documentation)
 and particularly the [installation guide
-page](https://nubificus.github.io/urunc/installation/).
+page](https://urunc.io/installation/).
 
 ## Documentation
 
 We keep an up to date documentation for `urunc` at 
-http://nubificus.github.io/urunc. We use [mkdocs](https://www.mkdocs.org/) to
+https://urunc.io/ . We use [mkdocs](https://www.mkdocs.org/) to
 render `urunc`'s documentation. Hence, you can also have a local preview of
 documentation by running either `make docs` or `make docs_container`.
 
@@ -149,7 +149,7 @@ technologies that you would like to see in `urunc`.
 
 To use `urunc` with an existing Kubernetes cluster, please follow the
 [instructions in the
-docs](https://nubificus.github.io/urunc/tutorials/How-to-urunc-on-k8s/).
+docs](https://urunc.io/tutorials/How-to-urunc-on-k8s/).
 
 ## Publications and talks
 
@@ -172,7 +172,7 @@ such as:
 
 We will be very happy to receive any feedback and any kind of contributions for
 `urunc`. For more details please take a look in [`urunc`'s contributing
-document](https://nubificus.github.io/urunc/developer-guide/contribute/).
+document](https://urunc.io/developer-guide/contribute/).
 
 ## Security policy
 

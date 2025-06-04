@@ -1,7 +1,7 @@
 # Knative + urunc: Deploying Serverless Unikernels
 
 This guide walks you through deploying [Knative Serving](https://knative.dev/)
-using [`urunc`](https://github.com/nubificus/urunc). You’ll build Knative from
+using [`urunc`](https://github.com/urunc-dev/urunc). You’ll build Knative from
 a custom branch and use [`ko`](https://github.com/ko-build/ko) for seamless
 image building and deployment.
 
