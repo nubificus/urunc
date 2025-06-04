@@ -115,7 +115,7 @@ Let's use as an example the `redis:alpine` container image using the Linux
 kernel from `harbor.nbfc.io/nubificus/urunc/linux-kernel-qemu:v6.14`. The
 respective `bunnyfile` would look like:
 
-```
+```yaml
 #syntax=harbor.nbfc.io/nubificus/bunny:latest
 version: v0.1
 
@@ -137,14 +137,14 @@ cmdline: "/usr/local/bin/redis-server"
 
 We can build the container with:
 
-```
-$ docker build -f bunnyfile -t redis/apline/linux/qemu:latest .
+```bash
+docker build -f bunnyfile -t redis/apline/linux/qemu:latest .
 ```
 
 Alternatively, if the Linux kernel was built locally, we can update the kernel
 section of the bunnyfile to reference the local binary:
 
-```
+```yaml
 kernel:
   from: local
   path: bzImage
@@ -168,7 +168,7 @@ COPY --from=init /urunit /urunit
 After building the above container, make sure to specify it in the `from` field
 of rootfs in `bunnyfile`:
 
-```
+```yaml
 rootfs:
   from: redis/urunit:alpine
   type: raw
@@ -177,7 +177,7 @@ rootfs:
 At last we need to modify the `cmdline` section of `bunnyfile` to execute
 [urunit](https://github.com/nubificus/urunit):
 
-```
+```yaml
 cmdline: "/urunit /usr/local/bin/redis-server"
 ```
 
@@ -189,19 +189,19 @@ snapshotter. To bypass this limitation, we will use
 with containerd and supports devmapper out of the box.
 
 First, transfer the container image from Docker’s image store to containerd:
-```
-$ docker save redis/apline/linux/qemu:latest | nerdctl load
+```bash
+docker save redis/apline/linux/qemu:latest | nerdctl load
 ```
 
 With the image now available in containerd, we’re ready to run the container
 using urunc and the devmapper snapshotter:
 
-```
-$ nerdctl run --rm -it --snapshotter devmapper --runtime "io.containerd.urunc.v2" redis/apline/linux/qemu:latest
+```bash
+nerdctl run --rm -it --snapshotter devmapper --runtime "io.containerd.urunc.v2" redis/apline/linux/qemu:latest
 ```
 
 Let's find the IP of the container:
-```
+```console
 $ nerdctl inspect <CONTAINER ID> | grep IPAddress
             "IPAddress": "10.4.0.2",
                     "IPAddress": "10.4.0.2",
@@ -210,8 +210,8 @@ $ nerdctl inspect <CONTAINER ID> | grep IPAddress
 
 and we should be able to ping it:
 
-```
-$ ping -c 3 10.4.0.2
+```bash
+ping -c 3 10.4.0.2
 ```
 
 ### Using a block image
@@ -225,16 +225,16 @@ To prepare the container image we will need to first create block image. For
 that purpose, we will use `nginx:alpine` image and we will choose to run it on
 top of Firecracker. We can create the block image with the following steps:
 
-```
-$ dd if=/dev/zero of=rootfs.ext2 bs=1 count=0 seek=60M
-$ mkfs.ext2 rootfs.ext2
-$ mkdir tmp_mnt
-$ mount rootfs.ext2 tmp_mnt
-$ docker export $(docker create nginx:alpine) -o nginx_alpine.tar
-$ tar -xf nginx_alpine.tar -C tmp_mnt
-$ wget -O tmp_mnt/urunit https://github.com/nubificus/urunit/releases/download/v0.1.0/urunit_x86_64 # If we want urunit as init
-$ chmod +x tmp_mnt/urunit # If we want urunit as init
-$ umount tmp_mnt
+```bash
+dd if=/dev/zero of=rootfs.ext2 bs=1 count=0 seek=60M
+mkfs.ext2 rootfs.ext2
+mkdir tmp_mnt
+mount rootfs.ext2 tmp_mnt
+docker export $(docker create nginx:alpine) -o nginx_alpine.tar
+tar -xf nginx_alpine.tar -C tmp_mnt
+wget -O tmp_mnt/urunit https://github.com/nubificus/urunit/releases/download/v0.1.0/urunit_x86_64 # If we want urunit as init
+chmod +x tmp_mnt/urunit # If we want urunit as init
+umount tmp_mnt
 ```
 
 Now we have a block image, `rootfs.ext2`, generated from the `nginx:alpine`
@@ -260,8 +260,8 @@ LABEL "com.urunc.unikernel.hypervisor"="firecracker"
 
 We can build the container with:
 
-```
-$ docker build -f Containerfile -t nginx/apline/linux/firecracker:latest .
+```bash
+docker build -f Containerfile -t nginx/apline/linux/firecracker:latest .
 ```
 
 #### Running the container
@@ -269,12 +269,12 @@ $ docker build -f Containerfile -t nginx/apline/linux/firecracker:latest .
 In this case, we can directly use docker to run the container, since there is no
 need for devmapper.
 
-```
-$ docker run --rm -it --runtime "io.containerd.urunc.v2" nginx/apline/linux/firecracker:latest
+```bash
+docker run --rm -it --runtime "io.containerd.urunc.v2" nginx/apline/linux/firecracker:latest
 ```
 
 Let's find the IP of the container:
-```
+```console
 $ docker inspect <CONTAINER ID> | grep IPAddress
             "SecondaryIPAddresses": null,
             "IPAddress": "172.17.0.2",
@@ -283,7 +283,7 @@ $ docker inspect <CONTAINER ID> | grep IPAddress
 
 and we should be able to curl it:
 
-```
+```console
 $ curl 172.17.0.2
 <!DOCTYPE html>
 <html>
@@ -320,13 +320,13 @@ image to use as the root filesystem. To demonstrate this, we will use the
 
 First let's create the initrd:
 
-```
-$ mkdir tmp_rootfs
-$ docker export $(docker create traefik/whoami) | tar -C tmp_rootfs/ -xvf -
-# wget -O tmp_rootfs/urunit https://github.com/nubificus/urunit/releases/download/v0.1.0/urunit_x86_64 # If we want urunit as init
-$ chmod +x tmp_rootfs/urunit
-$ cd tmp_rootfs
-$ find . | cpio -H newc -o > ../rootfs.initrd
+```bash
+mkdir tmp_rootfs
+docker export $(docker create traefik/whoami) | tar -C tmp_rootfs/ -xvf -
+wget -O tmp_rootfs/urunit https://github.com/nubificus/urunit/releases/download/v0.1.0/urunit_x86_64 # If we want urunit as init
+chmod +x tmp_rootfs/urunit
+cd tmp_rootfs
+find . | cpio -H newc -o > ../rootfs.initrd
 ```
 
 > **NOTE**: We are working towards enabling the creation of the initrd directly
@@ -361,8 +361,8 @@ cmdline: "/urunit /whoami"
 
 We can build the container with:
 
-```
-$ docker build -f bunnyfile -t traefik/whoami/linux/firecracker:latest .
+```bash
+docker build -f bunnyfile -t traefik/whoami/linux/firecracker:latest .
 ```
 
 #### Running the container
@@ -370,12 +370,12 @@ $ docker build -f bunnyfile -t traefik/whoami/linux/firecracker:latest .
 In this case, we can directly use docker to run the container, since there is no
 need for devmapper.
 
-```
-$ docker run --rm -it --runtime "io.containerd.urunc.v2" traefik/whoami/linux/firecracker:latest
+```bash
+docker run --rm -it --runtime "io.containerd.urunc.v2" traefik/whoami/linux/firecracker:latest
 ```
 
 Let's find the IP of the container:
-```
+```console
 $ docker inspect <CONTAINER ID> | grep IPAddress
             "SecondaryIPAddresses": null,
             "IPAddress": "172.17.0.2",
@@ -384,7 +384,7 @@ $ docker inspect <CONTAINER ID> | grep IPAddress
 
 and we should be able to curl it:
 
-```
+```console
 $ curl 172.17.0.2
 Hostname: urunc
 IP: 127.0.0.1

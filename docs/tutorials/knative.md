@@ -17,11 +17,11 @@ image building and deployment.
 Install [Docker](/quickstart/#install-docker), Go >= 1.21, and `ko`:
 
 ### Install Go 1.21  
-```console
-$ sudo mkdir /usr/local/go1.21
-$ wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
-$ sudo tar -zxvf go1.21.5.linux-amd64.tar.gz -C /usr/local/go1.21/
-$ rm go1.21.5.linux-amd64.tar.gz
+```bash
+sudo mkdir /usr/local/go1.21
+wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+sudo tar -zxvf go1.21.5.linux-amd64.tar.gz -C /usr/local/go1.21/
+rm go1.21.5.linux-amd64.tar.gz
 ```
 
 ### Verify Go installation (Should be 1.21.5)
@@ -35,11 +35,11 @@ go version go1.21.5 linux/amd64
 ```
 
 ### Install ko VERSION=0.15.1
-```console
-$ export OS=Linux
-$ export ARCH=x86_64
-$ curl -sSfL "https://github.com/ko-build/ko/releases/download/v${VERSION}/ko_${VERSION}_${OS}_${ARCH}.tar.gz" -o ko.tar.gz
-$ sudo tar -zxvf ko.tar.gz -C /usr/local/bin` 
+```bash
+export OS=Linux
+export ARCH=x86_64
+curl -sSfL "https://github.com/ko-build/ko/releases/download/v${VERSION}/ko_${VERSION}_${OS}_${ARCH}.tar.gz" -o ko.tar.gz
+sudo tar -zxvf ko.tar.gz -C /usr/local/bin` 
 ```
 
 ## Clone and Build Knative with the queue-proxy patch
@@ -48,25 +48,25 @@ $ sudo tar -zxvf ko.tar.gz -C /usr/local/bin`
 
 > Note: You should be able to use dockerhub for this. e.g. `<yourdockerhubid>/knative`
 
-```console
-$ export KO_DOCKER_REPO='harbor.nbfc.io/nubificus/knative-install-urunc'
+```bash
+export KO_DOCKER_REPO='harbor.nbfc.io/nubificus/knative-install-urunc'
 ```
 
 ### Clone urunc-enabled Knative Serving 
-```console
-$ git clone https://github.com/nubificus/serving -b feat_urunc 
-$ cd serving/
-$ ko resolve -Rf ./config/core/ > knative-custom.yaml
+```bash
+git clone https://github.com/nubificus/serving -b feat_urunc 
+cd serving/
+ko resolve -Rf ./config/core/ > knative-custom.yaml
 ```
 
 ### Apply knative's manifests to the local k8s
-```console
-$ kubectl apply -f knative-custom.yaml
+```bash
+kubectl apply -f knative-custom.yaml
 ```
 
 Alternatively, you could use our latest build:
-```console
-$ kubectl apply -f https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml
+```bash
+kubectl apply -f https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml
 ```
 
 > Note: There are cases where due to the large manifests, kubectl fails. Try a second time, or use `kubectl create -f https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml`
@@ -75,10 +75,11 @@ $ kubectl apply -f https://s3.nbfc.io/knative/knative-v1.17.0-urunc-5220308.yaml
 
 ### Install kourier, patch ingress and domain configs
 
-```console
-$ kubectl apply -f https://github.com/knative/net-kourier/releases/latest/download/kourier.yaml 
-$ kubectl patch configmap/config-network -n knative-serving --type merge -p \ 
-  '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}' kubectl patch configmap/config-domain -n knative-serving --type merge -p \ 
+```bash
+kubectl apply -f https://github.com/knative/net-kourier/releases/latest/download/kourier.yaml 
+kubectl patch configmap/config-network -n knative-serving --type merge -p \ 
+  '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'
+kubectl patch configmap/config-domain -n knative-serving --type merge -p \ 
   '{"data":{"127.0.0.1.nip.io":""}}'
 ```
 
@@ -92,7 +93,7 @@ You can follow the documentation to install `urunc` from: [Installing](https://u
 ### Enable runtimeClass for services, nodeSelector and affinity
 
 ```bash
-$ kubectl patch configmap/config-features --namespace knative-serving --type merge --patch '{"data":{
+kubectl patch configmap/config-features --namespace knative-serving --type merge --patch '{"data":{
   "kubernetes.podspec-affinity":"enabled",
   "kubernetes.podspec-runtimeclassname":"enabled",
   "kubernetes.podspec-nodeselector":"enabled"
@@ -102,20 +103,20 @@ $ kubectl patch configmap/config-features --namespace knative-serving --type mer
 ## Deploy a Sample urunc Service
 
 ```bash
-$ kubectl get ksvc -A -o wide
+kubectl get ksvc -A -o wide
 ```
 
 Should be empty. Create an simple httpreply
 [service](https://github.com/nubificus/c-httpreply/blob/main/service.yaml),
 based on a [simple C program](https://github.com/nubificus/c-httpreply):
 
-```console
-$ kubectl apply -f https://raw.githubusercontent.com/nubificus/c-httpreply/refs/heads/main/service.yaml
+```bash
+kubectl apply -f https://raw.githubusercontent.com/nubificus/c-httpreply/refs/heads/main/service.yaml
 ```
 
 ### Check Knative Service 
  
-```console
+```bash
 kubectl get ksvc -A -o wide 
 ```
 
@@ -127,8 +128,8 @@ curl -v -H "Host: hellocontainerc.default.127.0.0.1.nip.io" http://<INGRESS_IP>
 
 Now, let's create a `urunc`-compatible function. Create a [service](https://github.com/nubificus/app-httpreply/blob/fb0ec5c7f5e6b1fedbc589cdc96477c472fef2ca/service.yaml), based on Unikraft's [httreply example](https://github.com/nubificus/app-httpreply/tree/feat_generic): 
 
-```console
-$ kubectl apply -f https://raw.githubusercontent.com/nubificus/app-httpreply/refs/heads/feat_generic/service.yaml
+```bash
+kubectl apply -f https://raw.githubusercontent.com/nubificus/app-httpreply/refs/heads/feat_generic/service.yaml
 ```
 
 You should be able to see this being created:

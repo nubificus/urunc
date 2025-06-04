@@ -24,19 +24,19 @@ Used to interact with AWS services like IAM, EC2, CloudFormation, etc.
 
 Install AWS CLI (v2 recommended)
 ```bash
-$ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-$ unzip awscliv2.zip
-$ sudo ./aws/install
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
 ```
 
 Verify installation:
-```console
-$ aws --version
+```bash
+aws --version
 ```
 
 Configure it with your credentials:
-```console
-$ aws configure
+```bash
+aws configure
 ```
 
 You'll be prompted to enter:
@@ -52,12 +52,12 @@ The official CLI tool for managing EKS clusters.
 Download and install eksctl:
 
 ```bash
-$ curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-$ sudo mv /tmp/eksctl /usr/local/bin
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
 ```
 
 Verify the installation:
-```console
+```bash
 eksctl version
 ```
 
@@ -67,24 +67,24 @@ The Kubernetes CLI used to interact with your EKS cluster.
 
 Install kubectl (replace version as needed):
 
-```console
-$ curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
-$ chmod +x kubectl
-$ sudo mv kubectl /usr/local/bin/
+```bash
+curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
 ```
 
 Verify the installation:
-```console
-$ kubectl version --client
+```bash
+kubectl version --client
 ```
 
 #### 4. jq
 
 A lightweight and flexible command-line JSON processor, used in helper scripts.
 
-```console
-$ sudo apt-get update
-$ sudo apt-get install -y jq
+```bash
+sudo apt-get update
+sudo apt-get install -y jq
 ```
 
 #### 5. SSH Keypair (for Node Access)
@@ -92,12 +92,12 @@ $ sudo apt-get install -y jq
 Ensure you have a key pair uploaded to AWS for SSH access to EC2 instances.
 
 Generate an SSH key if you don’t have one:
-```console
+```bash
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/awseks -N ""
 ```
 Import the public key into AWS (or use an existing one)
 
-```console
+```bash
 aws ec2 import-key-pair \
   --key-name awseks \
   --public-key-material fileb://~/.ssh/awseks.pub
@@ -112,9 +112,9 @@ We begin by provisioning an Amazon EKS cluster with private subnets and Calico a
 We use the official EKS CloudFormation template to create a VPC with private subnets.
 
 ```bash
-$ export STACK_NAME="urunc-tutorial"
-$ export REGION="eu-central-1"
-$ aws cloudformation create-stack \
+export STACK_NAME="urunc-tutorial"
+export REGION="eu-central-1"
+aws cloudformation create-stack \
   --region $REGION \
   --stack-name $STACK_NAME \
   --template-url https://s3.us-west-2.amazonaws.com/amazon-eks/cloudformation/2020-10-29/amazon-eks-vpc-private-subnets.yaml
@@ -122,7 +122,7 @@ $ aws cloudformation create-stack \
 
 The output of the above command would verify the successful creation of the VPC:
 
-```console
+```json
 {
     "StackId": "arn:aws:cloudformation:eu-central-1:058264306458:stack/urunc-tutorial/ec8ae800-0fbc-11f0-bda2-0a29df3fde61"
 }
@@ -149,15 +149,15 @@ We define a trust policy allowing EKS to assume a role. Create a json file
 
 Create the role:
 
-```console
-$ aws iam create-role \
+```bash
+aws iam create-role \
   --role-name uruncTutorialRole \
   --assume-role-policy-document file://eks-cluster-role-trust-policy.json
 ```
 
 Attach the required EKS policy:
-```console
-$ aws iam attach-role-policy \
+```bash
+aws iam attach-role-policy \
   --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy \
   --role-name uruncTutorialRole
 ```
@@ -190,12 +190,12 @@ echo "$public_subnets_str"
 ```
 
 Run it to retrieve subnet IDs:
-```console
-$ bash get_pub_subnets.sh
+```bash
+bash get_pub_subnets.sh
 ```
 
 Example output:
-```console
+```
 subnet-02bcaca5ac39eca7a,subnet-0d0667e2156169998
 ```
 #### Create the EKS Cluster with Calico CNI
@@ -206,11 +206,11 @@ It is time to set up the cluster and managed node groups with Calico networking.
 
 Use the subnets from the command above.
 
-```console
-$ export CLUSTER_NAME="urunc-tutorial"
-$ export REGION="eu-central-1"
-$ export SUBNETS="subnet-02bcaca5ac39eca7a,subnet-0d0667e2156169998"
-$ eksctl create cluster \
+```bash
+export CLUSTER_NAME="urunc-tutorial"
+export REGION="eu-central-1"
+export SUBNETS="subnet-02bcaca5ac39eca7a,subnet-0d0667e2156169998"
+eksctl create cluster \
   --name ${CLUSTER_NAME} \
   --region $REGION \
   --version 1.30 \
@@ -219,7 +219,7 @@ $ eksctl create cluster \
 ```
 
 Example output:
-```console
+```
 2 sequential tasks: { create cluster control plane "urunc-tutorial", wait for control plane to become ready
 }
 2025-04-02 12:29:16 [ℹ]  building cluster stack "eksctl-urunc-tutorial-cluster"
@@ -240,26 +240,26 @@ Now, you should have the control-plane deployed and ready. The first thing to do
 
 ##### Step 2: Remove AWS CNI
 
-```console
-$ kubectl delete daemonset -n kube-system aws-node
+```bash
+kubectl delete daemonset -n kube-system aws-node
 ```
 
 Expected output:
-```console
+```
 daemonset.apps "aws-node" deleted
 ```
 
 ##### Step 3: Add Calico CNI:
 
 ```bash
-$ kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
 ```
 
 > Note: There are cases where a large set of manifests can cause a failure to
 > the above command. If it does, try to re-issue the command.
 
 Expected output:
-```console
+```
 namespace/tigera-operator created
 customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
 customresourcedefinition.apiextensions.k8s.io/bgpfilters.crd.projectcalico.org created
@@ -290,8 +290,8 @@ deployment.apps/tigera-operator created
 ```
 
 Create an installation resource to provision the `calico-node` daemonset:
-```console
-$ kubectl create -f - <<EOF
+```bash
+kubectl create -f - <<EOF
 kind: Installation
 apiVersion: operator.tigera.io/v1
 metadata:
@@ -307,7 +307,7 @@ EOF
 
 Expected output:
 
-```console
+```
 installation.operator.tigera.io/default created
 ```
 
@@ -316,8 +316,8 @@ installation.operator.tigera.io/default created
 Now, you are ready to provision nodes for the cluster. Use the following description to create two bare-metal nodes, one for each supported architecture (`amd64` and `arm64`):
 > Note: Make sure the `metadata.name` entry corresponds to the name you specified for your cluster above, and that the managedNodeGroups.[].subnets entry correspond to the ones specified above.
 
-```console
-$ eksctl create nodegroup -f - <<EOF
+```bash
+eksctl create nodegroup -f - <<EOF
 ---
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -365,7 +365,7 @@ EOF
 ```
 
 Example output:
-```console
+```
 2025-04-02 12:39:44 [ℹ]  will use version 1.30 for new nodegroup(s) based on control plane version
 2025-04-02 12:39:46 [!]  "aws-node" was not found
 2025-04-02 12:39:48 [ℹ]  nodegroup "a1-metal-cni" will use "ami-0eb5f4a5031f47d7b" [Ubuntu2204/1.30]
@@ -409,12 +409,12 @@ Example output:
 
 Finally, for debug purposes, enable external SSH access to the nodes:
 > Note: Example for one of the two security groups
-```console
-$ aws ec2 authorize-security-group-ingress --group-id sg-0d655f9002aec154e --protocol tcp --port 22 --cidr 0.0.0.0/0 --region eu-central-1
+```bash
+aws ec2 authorize-security-group-ingress --group-id sg-0d655f9002aec154e --protocol tcp --port 22 --cidr 0.0.0.0/0 --region eu-central-1
 ```
 
 Example output:
-```console
+```json
 {
     "Return": true,
     "SecurityGroupRules": [
@@ -454,7 +454,7 @@ done
 
 We have successfully setup the cluster. Let's see what we have using a simple `kubectl get pods -o wide -A`:
 
-```console
+```
 NAMESPACE         NAME                                       READY   STATUS    RESTARTS   AGE     IP                NODE                                               NOMINATED NODE   READINESS GATES
 calico-system     calico-kube-controllers-64cf794c44-jnggx   1/1     Running   0          3m52s   172.16.50.196     ip-192-168-32-137.eu-central-1.compute.internal    <none>           <none>
 calico-system     calico-node-xcqrj                          1/1     Running   0          3m47s   192.168.32.137    ip-192-168-32-137.eu-central-1.compute.internal    <none>           <none>
@@ -508,18 +508,18 @@ spec:
 ```
 
 And deploy it:
-```console
-$ kubectl apply -f nginx-test-deployment.yaml
+```bash
+kubectl apply -f nginx-test-deployment.yaml
 ```
 
 This should deploy 2 replicas of NGINX. Check the status:
 
-```console
-$ kubectl get pods -o wide
+```bash
+kubectl get pods -o wide
 ```
 
 Example output:
-```console
+```
 NAME                           READY   STATUS    RESTARTS   AGE     IP                NODE                                               NOMINATED NODE   READINESS GATES
 nginx-stock-7d54d66484-k9rj5   1/1     Running   0          42s     172.16.50.197     ip-192-168-32-137.eu-central-1.compute.internal    <none>           <none>
 nginx-stock-7d54d66484-nn696   1/1     Running   0          42s     172.16.139.2      ip-192-168-103-211.eu-central-1.compute.internal   <none>           <none>
@@ -527,18 +527,18 @@ nginx-stock-7d54d66484-nn696   1/1     Running   0          42s     172.16.139.2
 
 And let's try to check network connectivity between pods. Let's run a simple network debug container as a pod:
 
-```console
-$ kubectl run tmp-shell --rm -i --tty --image nicolaka/netshoot -- /bin/bash
+```bash
+kubectl run tmp-shell --rm -i --tty --image nicolaka/netshoot -- /bin/bash
 ```
 
 Expected output:
-```console
+```
 If you don't see a command prompt, try pressing enter.
 tmp-shell:~# 
 ```
 
 If we issue a simple `curl` command to one of the pods IPs, we should get a response from the NGINX server:
-```console
+```
 tmp-shell:~# curl 172.16.139.2
 <!DOCTYPE html>
 <html>
@@ -572,30 +572,30 @@ The easiest way to setup `urunc` in such a setting is to use `urunc-deploy`. Thi
 
 #### 1. Clone the repo
 
-```console
-$ git clone https://github.com/urunc-dev/urunc
+```bash
+git clone https://github.com/urunc-dev/urunc
 ```
 
 #### 2.  Apply the manifests
 
 First we need to create the RBAC
-```console
-$ kubectl apply -f deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml
+```bash
+kubectl apply -f deployment/urunc-deploy/urunc-rbac/urunc-rbac.yaml
 ```
 
 Then, we create the `urunc-deploy` daemonset:
-```console
-$ kubectl apply -f deployment/urunc-deploy/urunc-deploy/base/urunc-deploy.yaml
+```bash
+kubectl apply -f deployment/urunc-deploy/urunc-deploy/base/urunc-deploy.yaml
 ```
 
 Finally, we need to create the appropriate k8s runtime class:
-```console
-$ kubectl apply -f deployment/urunc-deploy/runtimeclasses/runtimeclass.yaml
+```bash
+kubectl apply -f deployment/urunc-deploy/runtimeclasses/runtimeclass.yaml
 ```
 
 Example output:
 
-```bash
+```
 serviceaccount/urunc-deploy-sa created
 clusterrole.rbac.authorization.k8s.io/urunc-deploy-role created
 clusterrolebinding.rbac.authorization.k8s.io/urunc-deploy-rb created
@@ -604,12 +604,12 @@ runtimeclass.node.k8s.io/urunc created
 ```
 
 Monitor the deploy pods once they change their status to `Running`:
-```console
-$ kubectl logs -f -n kube-system -l name=urunc-deploy
+```bash
+kubectl logs -f -n kube-system -l name=urunc-deploy
 ```
 
 Example output:
-```console
+```
 Installing qemu
 Installing solo5-hvt
 Installing solo5-spt
@@ -684,35 +684,35 @@ spec:
   type: ClusterIP
 ```
 Issuing the command below:
-```console
-$ kubectl apply -f nginx-urunc.yaml
+```bash
+kubectl apply -f nginx-urunc.yaml
 ```
 will produce the following output:
-```console
+```
 deployment.apps/nginx-urunc created
 service/nginx-urunc created
 ```
 and will create a deployment of an NGINX unikernel, from the container image pushed at `harbor.nbfc.io/nubificus/urunc/nginx-hvt-rumprun-block:latest`
 
 Inspecting the pods with `kubectl get pods -o wide` reveals the status:
-```console
+```
 default           nginx-urunc-998b889c4-x798f                1/1     Running             0          2s      172.16.50.225     ip-192-168-32-137.eu-central-1.compute.internal    <none>           <none>
 ```
 
 and following up on the previous test, we do:
 
-```console
-$ kubectl run tmp-shell --rm -i --tty --image nicolaka/netshoot -- /bin/bash
+```bash
+kubectl run tmp-shell --rm -i --tty --image nicolaka/netshoot -- /bin/bash
 ```
 To get a shell in a pod in the cluster:
-```console
+```
 If you don't see a command prompt, try pressing enter.
 tmp-shell:~# 
 ```
 
 and we `curl` the pod's IP:
 
-```console
+```
 tmp-shell:~# curl 172.16.50.225
 <html>
 <body style="font-size: 14pt;">

@@ -57,14 +57,14 @@ An example of [Unikraft](https://unikraft.org/) on top of
 [Qemu](https://qemu.org) with `urunc`:
 
 ```bash
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-unikraft-initrd:latest unikernel
 ```
 
 Another example of [Unikraft](https://unikraft.org/) on top of
 [Firecracker](https://github.com/firecracker-microvm/firecracker) with `urunc`:
 
 ```bash
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-firecracker-unikraft-initrd:latest unikernel
 ```
 
 ## Mirage
@@ -133,14 +133,14 @@ An example of [MirageOS](https://github.com/mirage/mirage) on top of
 container's rootfs with 'urunc':
 
 ```bash
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/net-mirage-hvt:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/net-mirage-hvt:latest unikernel
 ```
 
 An example of [MirageOS](https://github.com/mirage/mirage) on top of
 [Solo5](https://github.com/Solo5/solo5) with 'urunc':
 
 ```bash
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/net-mirage-spt:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/net-mirage-spt:latest unikernel
 ```
 
 ## Rumprun
@@ -211,14 +211,14 @@ An example of [Rumprun](https://github.com/cloudkernels/rumprun) on top of
 container's rootfs with 'urunc':
 
 ```bash
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest unikernel
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-hvt-rumprun-block:latest unikernel
 ```
 
 An example of [Rumprun](https://github.com/cloudkernels/rumprun) on top of
 [Solo5](https://github.com/Solo5/solo5) using devmapper with 'urunc':
 
 ```bash
-$ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
 ```
 
 ## Mewz
@@ -270,7 +270,7 @@ An example of [Mewz](https://github.com/Mewz-project/Mewz) on top of
 [Qemu](https://qemu.org) with 'urunc':
 
 ```bash
-$ sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-server-qemu-mewz:latest
+sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-server-qemu-mewz:latest
 ```
 
 > Note: As far as we understand, Mewz requires at least 512M of memory to properly boot.
@@ -331,7 +331,7 @@ An example of a Nginx alpine image on top of [Qemu](https://qemu.org) and
 snapshotter:
 
 ```bash
-$ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-linux:latest
+sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/nginx-qemu-linux:latest
 ```
 
 An example of a Redis alpine image transformed to a block file on top of
@@ -339,7 +339,7 @@ An example of a Redis alpine image transformed to a block file on top of
 [Linux](https://github.com/torvalds/linux) with 'urunc':
 
 ```bash
-$ sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-firecracker-linux-block:latest
+sudo nerdctl run --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-firecracker-linux-block:latest
 ```
 
 ## Future unikernels and frameworks:

@@ -80,7 +80,7 @@ In the above file we specify the following:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f bunnyfile -t urunc/prebuilt/redis-unikraft-qemu:test .
 ```
 
@@ -152,7 +152,7 @@ In the above file we specify the following:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f bunnyfile -t urunc/prebuilt/redis-rumprun-hvt:test .
 ```
 
@@ -187,7 +187,7 @@ In the above file:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f Containerfile -t urunc/prebuilt/redis-rumprun-hvt:test .
 ```
 
@@ -292,7 +292,7 @@ In the above file we specify the following:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f bunnyfile -t urunc/prebuilt/chttp-unikraft-qemu:test .
 ```
 
@@ -323,7 +323,7 @@ In the above file:
 
 We can build the OCI image with the following command:
 
-```
+```bash
 docker build -f Containerfile -t urunc/prebuilt/chttp-unikraft-qemu:test .
 ```
 
