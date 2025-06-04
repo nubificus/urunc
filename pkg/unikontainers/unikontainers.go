@@ -154,6 +154,8 @@ func (u *Unikontainer) Exec() error {
 	unikernelType := u.State.Annotations[annotType]
 	unikernelVersion := u.State.Annotations[annotVersion]
 
+	var mountSpecs []hypervisors.MountSpec
+
 	// TODO: Remove this when we chroot
 	unikernelPath, err := filepath.Rel("/", u.State.Annotations[annotBinary])
 	if err != nil {
@@ -184,6 +186,7 @@ func (u *Unikontainer) Exec() error {
 		BlockDevice:   "",
 		Seccomp:       true, // Enable Seccomp by default
 		MemSizeB:      0,
+		NinePFSVols:   []hypervisors.MountSpec{},
 		Environment:   os.Environ(),
 	}
 
@@ -274,6 +277,24 @@ func (u *Unikontainer) Exec() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Handle custom support for 9pfs
+	// If the POD specifies the magic 'com.urunc.unikernel.9pfsMntPoint, urunc
+	// will search the list of Mounts in u.Spec and will determine the location
+	// on the worker node. That location will then be passed to 9pfs to mount it
+	// inside the unikernel.
+	ninePFSMntPoint := u.Spec.Annotations[annotNinePFSMntPoint]
+	if ninePFSMntPoint != "" {
+		for _, v := range u.Spec.Mounts {
+			if v.Destination == ninePFSMntPoint {
+				mountSpec := hypervisors.MountSpec{Src: v.Source, Dst: v.Destination}
+				// TODO: figure out if we can use a list of mount points or we should limit to just one
+				mountSpecs = append(mountSpecs, mountSpec)
+				unikernelParams.NinePFSMntPoint = ninePFSMntPoint
+			}
+		}
+		vmmArgs.NinePFSVols = mountSpecs
 	}
 
 	if unikernel.SupportsBlock() && vmmArgs.BlockDevice == "" && useDevmapper {
@@ -524,9 +545,9 @@ func (u *Unikontainer) ExecuteHooks(name string) error {
 	// the sequential and concurrent hook execution. By default the hooks are executed concurrently.
 	// To execute hooks sequentially, change the following line to:
 	// if false
-	if true {
-		return u.executeHooksConcurrently(name)
-	}
+	//if true {
+	//	return u.executeHooksConcurrently(name)
+	//}
 	return u.executeHooksSequentially(name)
 }
 

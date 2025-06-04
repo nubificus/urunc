@@ -44,7 +44,7 @@ type UnikraftNet struct {
 }
 
 type UnikraftVFS struct {
-	RootFS string
+	VfsString string
 }
 
 func (u *Unikraft) CommandString() (string, error) {
@@ -59,7 +59,7 @@ func (u *Unikraft) CommandString() (string, error) {
 		u.Net.Address,
 		u.Net.Gateway,
 		u.Net.Mask,
-		u.VFS.RootFS,
+		u.VFS.VfsString,
 		u.Command), nil
 }
 
@@ -103,10 +103,10 @@ func (u *Unikraft) Init(data UnikernelParams) error {
 		u.Command = strings.Join(data.CmdLine[1:], " ")
 	}
 
-	return u.configureUnikraftArgs(data.RootFSType, data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask)
+	return u.configureUnikraftArgs(data.RootFSType, data.EthDeviceIP, data.EthDeviceGateway, data.EthDeviceMask, data.NinePFSMntPoint)
 }
 
-func (u *Unikraft) configureUnikraftArgs(rootFsType, ethDeviceIP, ethDeviceGateway, ethDeviceMask string) error {
+func (u *Unikraft) configureUnikraftArgs(rootFsType, ethDeviceIP, ethDeviceGateway, ethDeviceMask string, ninePFSMntPoint string) error {
 	setCompatArgs := func() {
 		u.Net.Address = "netdev.ipv4_addr=" + ethDeviceIP
 		u.Net.Gateway = "netdev.ipv4_gw_addr=" + ethDeviceGateway
@@ -114,13 +114,14 @@ func (u *Unikraft) configureUnikraftArgs(rootFsType, ethDeviceIP, ethDeviceGatew
 		// TODO: We need to add support for actual block devices (e.g. virtio-blk)
 		// and sharedfs or any other Unikraft related ways to pass data to guest.
 		if rootFsType == "initrd" {
-			u.VFS.RootFS = "vfs.rootfs=" + "initrd"
+			u.VFS.VfsString = "vfs.rootfs=" + "initrd"
 		} else {
-			u.VFS.RootFS = ""
+			u.VFS.VfsString = ""
 		}
 	}
 
 	setCurrentArgs := func() {
+		u.VFS.VfsString += "vfs.fstab=[ "
 		u.Net.Address = "netdev.ip=" + ethDeviceIP + "/24:" + ethDeviceGateway + ":8.8.8.8"
 		// TODO: We need to add support for actual block devices (e.g. virtio-blk)
 		// and sharedfs or any other Unikraft related ways to pass data to guest.
@@ -128,10 +129,12 @@ func (u *Unikraft) configureUnikraftArgs(rootFsType, ethDeviceIP, ethDeviceGatew
 			// TODO: This needs better handling. We need to revisit this
 			// when we better understand all the available options for
 			// passing info inside unikraft unikernels.
-			u.VFS.RootFS = "vfs.fstab=[ \"initrd0:/:extract:::\" ]"
-		} else {
-			u.VFS.RootFS = ""
+			u.VFS.VfsString += "\"initrd0:/:extract:::\""
 		}
+		if len(ninePFSMntPoint) > 0 {
+			u.VFS.VfsString += "\"fs1:" + ninePFSMntPoint + ":9pfs:::mkmp\""
+		}
+		u.VFS.VfsString += " ]"
 	}
 
 	if u.Version == "" {

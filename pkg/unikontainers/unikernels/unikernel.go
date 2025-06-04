@@ -38,6 +38,7 @@ type UnikernelParams struct {
 	RootFSType       string   // The rootfs type of the Unikernel
 	BlockMntPoint    string   // The mount point for the block device
 	Version          string   // The version of the unikernel
+	NinePFSMntPoint  string   // Mount point inside unikernel of the 9pfs theshared volume
 }
 
 var ErrNotSupportedUnikernel = errors.New("unikernel is not supported")

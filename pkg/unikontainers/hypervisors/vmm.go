@@ -25,20 +25,27 @@ import (
 
 const DefaultMemory uint64 = 256 // The default memory for every hypervisor: 256 MB
 
+// MountSpec defines a specification for mounting a path from the host on the guest
+type MountSpec struct {
+	Src string
+	Dst string
+}
+
 // ExecArgs holds the data required by Execve to start the VMM
 // FIXME: add extra fields if required by additional VMM's
 type ExecArgs struct {
-	Container     string   // The container ID
-	UnikernelPath string   // The path of the unikernel inside rootfs
-	TapDevice     string   // The TAP device name
-	BlockDevice   string   // The block device path
-	InitrdPath    string   // The path to the initrd of the unikernel
-	Command       string   // The unikernel's command line
-	IPAddress     string   // The IP address of the TAP device
-	GuestMAC      string   // The MAC address of the guest network device
-	Seccomp       bool     // Enable or disable seccomp filters for the VMM
-	MemSizeB      uint64   // The size of the memory provided to the VM in bytes
-	Environment   []string // Environment
+	Container     string      // The container ID
+	UnikernelPath string      // The path of the unikernel inside rootfs
+	TapDevice     string      // The TAP device name
+	BlockDevice   string      // The block device path
+	InitrdPath    string      // The path to the initrd of the unikernel
+	Command       string      // The unikernel's command line
+	IPAddress     string      // The IP address of the TAP device
+	GuestMAC      string      // The MAC address of the guest network device
+	Seccomp       bool        // Enable or disable seccomp filters for the VMM
+	MemSizeB      uint64      // The size of the memory provided to the VM in bytes
+	Environment   []string    // Environment
+	NinePFSVols   []MountSpec // Spec for mounting volumes via 9pfs, (source, destination)
 }
 
 type VmmType string
