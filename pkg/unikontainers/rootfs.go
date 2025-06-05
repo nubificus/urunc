@@ -109,7 +109,7 @@ func changeRoot(rootfsDir string, pivot bool) error {
 // essentially sets up the devices (KVM, snapshotter block device) that are required
 // for the guest execution and any other files (e.g. binaries).
 func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needsKVM bool, needsTAP bool) error {
-	err := fileFromHost(monRootfs, monitorPath, false)
+	err := fileFromHost(monRootfs, monitorPath, "", false)
 	if err != nil {
 		return err
 	}
@@ -117,17 +117,17 @@ func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needs
 	// TODO: Remove these when we switch to static binaries
 	monitorName := filepath.Base(monitorPath)
 	if monitorName != "firecracker" {
-		err = fileFromHost(monRootfs, "/lib", false)
+		err = fileFromHost(monRootfs, "/lib", "", false)
 		if err != nil {
 			return err
 		}
 
-		err = fileFromHost(monRootfs, "/lib64", false)
+		err = fileFromHost(monRootfs, "/lib64", "", false)
 		if err != nil {
 			return err
 		}
 
-		err = fileFromHost(monRootfs, "/usr/lib", false)
+		err = fileFromHost(monRootfs, "/usr/lib", "", false)
 		if err != nil {
 			return err
 		}
@@ -135,14 +135,25 @@ func prepareMonRootfs(monRootfs string, monitorPath string, dmPath string, needs
 
 	// TODO: Remove these when we switch to static binaries
 	if len(monitorName) >= 4 && monitorName[:4] == "qemu" {
-		err = fileFromHost(monRootfs, "/usr/share/qemu", false)
+		qDataPath, err := findQemuDataDir("qemu")
+		fmt.Println(qDataPath)
 		if err != nil {
 			return err
 		}
 
-		err = fileFromHost(monRootfs, "/usr/share/seabios", false)
+		err = fileFromHost(monRootfs, qDataPath, "/usr/share/qemu", false)
 		if err != nil {
 			return err
+		}
+
+		// In urunc-deploy, we do not install seabios and hence
+		// we do not need it. SO if we do not find, just ignore it.
+		sBiosPath, err := findQemuDataDir("seabios")
+		if err == nil {
+			err = fileFromHost(monRootfs, sBiosPath, "/usr/share/seabios", false)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -299,7 +310,7 @@ func setupDev(monRootfs string, devPath string) error {
 // none of the monitor processes will share memory with other processes
 // of the same monitor. On the other hand, a copy is slower and consumes
 // more space.
-func fileFromHost(monRootfs string, hostPath string, withCopy bool) error {
+func fileFromHost(monRootfs string, hostPath string, target string, withCopy bool) error {
 	// Get the info of the original file
 	var fileInfo unix.Stat_t
 	err := unix.Stat(hostPath, &fileInfo)
@@ -308,12 +319,14 @@ func fileFromHost(monRootfs string, hostPath string, withCopy bool) error {
 	}
 	mode := fileInfo.Mode
 
-	// Set the correct path
-	relHostPath, err := filepath.Rel("/", hostPath)
-	if err != nil {
-		return fmt.Errorf("failed to get relative path of %s to /: %w", hostPath, err)
+	if target == "" {
+		// Set the correct path
+		target, err = filepath.Rel("/", hostPath)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path of %s to /: %w", hostPath, err)
+		}
 	}
-	dstPath := filepath.Join(monRootfs, relHostPath)
+	dstPath := filepath.Join(monRootfs, target)
 
 	if (mode & unix.S_IFMT) != unix.S_IFDIR {
 		dstDir := filepath.Dir(dstPath)
@@ -458,4 +471,28 @@ func containsNS(namespaces []specs.LinuxNamespace, nsType specs.LinuxNamespaceTy
 	}
 
 	return false
+}
+
+// findQemuDataDir tries to find the location of data and BIOS files for Qemu.
+// At first checks /usr/local/share and if it does not exist, it falls back to
+// /usr/share. If /usr/local/share is a soft link, it will find its target.
+func findQemuDataDir(basename string) (string, error) {
+	qdPath := filepath.Join("/usr/local/share/", basename)
+	info, err := os.Lstat(qdPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("failed to get info of %s: %w", qdPath, err)
+		}
+		return filepath.Join("/usr/share/", basename), nil
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		qdPath, err = os.Readlink(qdPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to get target of %s %w", qdPath, err)
+		}
+	} else {
+		qdPath = filepath.Join("/usr/share/", basename)
+	}
+
+	return qdPath, nil
 }

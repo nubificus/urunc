@@ -460,6 +460,11 @@ func (u *Unikontainer) Delete() error {
 	if err != nil {
 		return fmt.Errorf("cannot remove /dev: %v", err)
 	}
+	cntrTmp := filepath.Join(rootfsDir, "/tmp")
+	err = os.RemoveAll(cntrTmp)
+	if err != nil {
+		return fmt.Errorf("cannot remove /tmp: %v", err)
+	}
 	cntrLib := filepath.Join(rootfsDir, "/lib")
 	err = os.RemoveAll(cntrLib)
 	if err != nil {
