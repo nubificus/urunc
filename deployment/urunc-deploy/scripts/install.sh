@@ -58,9 +58,9 @@ function install_artifacts() {
             if which "qemu-system-$(uname -m)" >/dev/null 2>&1; then
                 echo "QEMU is already installed."
             else
-                install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-$(uname -m)
-                mkdir -p /host/usr/share/qemu/
-                cp -r /urunc-artifacts/opt/kata/share/kata-qemu/qemu /host/usr/share
+                install_artifact /urunc-artifacts/hypervisors/qemu-system-$(uname -m) /host/usr/local/bin/qemu-system-$(uname -m)
+                mkdir -p /host/usr/local/share/qemu/
+                cp -r /urunc-artifacts/opt/kata/share/kata-qemu/qemu /host/usr/local/share
             fi
             ;;
         firecracker)
@@ -91,10 +91,6 @@ function remove_artifacts() {
         qemu)
             if [ -e "/host/usr/local/bin/qemu-system-$(uname -m)" ]; then
                 rm -f "/host/usr/local/bin/qemu-system-$(uname -m)"
-            fi
-
-            if [ -e "/host/usr/local/bin/qemu-urunc" ]; then
-                rm -f /host/usr/local/bin/qemu-urunc
                 rm -rf /host/usr/local/share/qemu
             fi
             ;;
