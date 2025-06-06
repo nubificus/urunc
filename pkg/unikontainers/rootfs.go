@@ -496,3 +496,89 @@ func findQemuDataDir(basename string) (string, error) {
 
 	return qdPath, nil
 }
+
+func mountVolumes(rootfsPath string, mounts []specs.Mount) error {
+	for _, m := range mounts {
+		var mountFlags int
+		var propFlag int
+		mountFlags = 0
+		propFlag = 0
+		if m.Type == "bind" {
+			for _, o := range m.Options {
+				f, err := mapMountFlag(o)
+				if err == nil {
+					mountFlags |= f
+					continue
+				}
+				f, err = mapRootfsPropagationFlag(o)
+				if err == nil {
+					propFlag = f
+				}
+			}
+			dstPath := filepath.Join(rootfsPath, m.Destination)
+			err := os.MkdirAll(dstPath, 0755)
+			if err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", dstPath, err)
+			}
+
+			err = unix.Mount(m.Source, dstPath, "", uintptr(mountFlags), "")
+			if err != nil {
+				return fmt.Errorf("Failed to mount %s: %w", m.Source, err)
+			}
+
+			err = unix.Mount(dstPath, dstPath, "", uintptr(propFlag), "")
+			if err != nil {
+				return fmt.Errorf("Failed to set propagation flag for  %s: %w", m.Source, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// mapMountFlag retrieves the mount flags of a mount entry
+// from the container's configuration
+func mapMountFlag(value string) (int, error) {
+	mountFlagsMapping := map[string]int{
+		"async":         unix.MS_SYNCHRONOUS,
+		"atime":         unix.MS_NOATIME,
+		"bind":          unix.MS_BIND,
+		"defaults":      0,
+		"dev":           unix.MS_NODEV,
+		"diratime":      unix.MS_NODIRATIME,
+		"dirsync":       unix.MS_DIRSYNC,
+		"exec":          unix.MS_NOEXEC,
+		"iversion":      unix.MS_I_VERSION,
+		"lazytime":      unix.MS_LAZYTIME,
+		"loud":          unix.MS_SILENT,
+		"mand":          unix.MS_MANDLOCK,
+		"noatime":       unix.MS_NOATIME,
+		"nodev":         unix.MS_NODEV,
+		"nodiratime":    unix.MS_NODIRATIME,
+		"noexec":        unix.MS_NOEXEC,
+		"noiversion":    unix.MS_I_VERSION,
+		"nolazytime":    unix.MS_LAZYTIME,
+		"nomand":        unix.MS_MANDLOCK,
+		"norelatime":    unix.MS_RELATIME,
+		"nostrictatime": unix.MS_STRICTATIME,
+		"nosuid":        unix.MS_NOSUID,
+		"nosymfollow":   unix.MS_NOSYMFOLLOW,
+		"rbind":         unix.MS_BIND | unix.MS_REC,
+		"relatime":      unix.MS_RELATIME,
+		"remount":       unix.MS_REMOUNT,
+		"ro":            unix.MS_RDONLY,
+		"rw":            unix.MS_RDONLY,
+		"silent":        unix.MS_SILENT,
+		"strictatime":   unix.MS_STRICTATIME,
+		"suid":          unix.MS_NOSUID,
+		"sync":          unix.MS_SYNCHRONOUS,
+		"symfollow":     unix.MS_NOSYMFOLLOW,
+	}
+
+	flag, exists := mountFlagsMapping[value]
+	if !exists {
+		return 0, fmt.Errorf("mount flag =%s is not supported", value)
+	}
+
+	return flag, nil
+}
