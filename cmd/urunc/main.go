@@ -96,10 +96,6 @@ func main() {
 			Value: "auto",
 			Usage: "ignore cgroup permission errors ('true', 'false', or 'auto')",
 		},
-		cli.BoolFlag{
-			Name:  "syslog",
-			Usage: "send log messages to syslog",
-		},
 	}
 	app.Commands = []cli.Command{
 		createCommand,
@@ -178,6 +174,13 @@ func configLogrus(context *cli.Context) error {
 				return function, fileLine
 			},
 		})
+
+		// If debug is enabled, add a syslog hook for easier debugging
+		hook, err := lSyslog.NewSyslogHook("", "", syslog.LOG_DEBUG, "")
+		if err != nil {
+			log.Fatal(err)
+		}
+		logrus.AddHook(hook)
 	}
 
 	switch f := context.GlobalString("log-format"); f {
@@ -189,14 +192,6 @@ func configLogrus(context *cli.Context) error {
 		logrus.SetFormatter(new(logrus.JSONFormatter))
 	default:
 		return errors.New("invalid log-format: " + f)
-	}
-
-	if context.GlobalBool("syslog") {
-		hook, err := lSyslog.NewSyslogHook("", "", syslog.LOG_DEBUG, "")
-		if err != nil {
-			log.Fatal(err)
-		}
-		logrus.AddHook(hook)
 	}
 
 	if file := context.GlobalString("log"); file != "" {
