@@ -63,19 +63,18 @@ func getInitPid(filePath string) (float64, error) {
 
 // copy sourceFile to targetDir
 // creates targetDir and all necessary parent directories
-func copyFile(sourceFile string, targetDir string) error {
+func copyFile(sourceFile string, targetPath string) error {
 	source, err := os.Open(sourceFile)
 	if err != nil {
 		return err
 	}
 	defer source.Close()
+	targetDir, _ := filepath.Split(targetPath)
 	err = os.MkdirAll(targetDir, 0755)
 	if err != nil {
 		return err
 	}
 
-	_, filename := filepath.Split(sourceFile)
-	targetPath := filepath.Join(targetDir, filename)
 	target, err := os.Create(targetPath)
 	if err != nil {
 		return err
@@ -91,7 +90,9 @@ func copyFile(sourceFile string, targetDir string) error {
 // move sourceFile to targetDir
 // creates targetDir and all necessary parent directories
 func moveFile(sourceFile string, targetDir string) error {
-	err := copyFile(sourceFile, targetDir)
+	_, fileName := filepath.Split(sourceFile)
+	targetPath := filepath.Join(targetDir, fileName)
+	err := copyFile(sourceFile, targetPath)
 	if err != nil {
 		return err
 	}

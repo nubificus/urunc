@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	"golang.org/x/sys/unix"
+	"github.com/sirupsen/logrus"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -311,6 +312,13 @@ func setupDev(monRootfs string, devPath string) error {
 // of the same monitor. On the other hand, a copy is slower and consumes
 // more space.
 func fileFromHost(monRootfs string, hostPath string, target string, withCopy bool) error {
+	uniklog.WithFields(logrus.Fields{
+		"hostPath":  hostPath,
+		"target":    target,
+		"monRootfs": monRootfs,
+		"withCopy":  withCopy,
+	}).Debug("Preparing file from host")
+
 	// Get the info of the original file
 	var fileInfo unix.Stat_t
 	err := unix.Stat(hostPath, &fileInfo)
@@ -330,15 +338,23 @@ func fileFromHost(monRootfs string, hostPath string, target string, withCopy boo
 
 	if (mode & unix.S_IFMT) != unix.S_IFDIR {
 		dstDir := filepath.Dir(dstPath)
+		uniklog.WithFields(logrus.Fields{
+			"hostPath":  hostPath,
+			"dstDir":    dstDir,
+			"dstPath": dstPath,
+			"withCopy":  withCopy,
+		}).Debug("in IF")
+		uniklog.WithField("fileInfo", fileInfo).Debugf("File info for host file: %+v", fileInfo)
+
 		if withCopy {
-			err = copyFile(hostPath, dstDir)
+			err = copyFile(hostPath, dstPath)
 			if err != nil {
-				return fmt.Errorf("failed to copy file %s: %w", hostPath, err)
+				return fmt.Errorf("failed to copy file %s -> %s: %w", hostPath, dstPath, err)
 			}
 		} else {
 			err = bindMountFile(hostPath, dstDir, dstPath, fileInfo.Mode, false)
 			if err != nil {
-				return fmt.Errorf("failed to bind mount file %s: %w", hostPath, err)
+				return fmt.Errorf("failed to bind mount file in if %s: %w", hostPath, err)
 			}
 		}
 	} else {
@@ -347,6 +363,7 @@ func fileFromHost(monRootfs string, hostPath string, target string, withCopy boo
 			return fmt.Errorf("failed to bind mount file %s: %w", hostPath, err)
 		}
 	}
+
 
 	// Set up the permissions and ownership of the original file.
 	err = unix.Chmod(dstPath, fileInfo.Mode)
@@ -364,6 +381,14 @@ func fileFromHost(monRootfs string, hostPath string, target string, withCopy boo
 
 // bindMountFile bind mounts a file/directory to a new path
 func bindMountFile(hostPath string, dstDir string, dstPath string, perm uint32, isDir bool) error {
+	uniklog.WithFields(logrus.Fields{
+		"hostPath":  hostPath,
+		"dstDir":    dstDir,
+		"dstPath":    dstPath,
+		"perm": perm,
+		"isDir":  isDir,
+	}).Debug("bindMountFile")
+
 	err := os.MkdirAll(dstDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dstDir, err)
@@ -499,36 +524,50 @@ func findQemuDataDir(basename string) (string, error) {
 
 func mountVolumes(rootfsPath string, mounts []specs.Mount) error {
 	for _, m := range mounts {
+		// skip non-bind mounts
+		if m.Type != "bind" {
+			continue
+		}
+
 		var mountFlags int
 		var propFlag int
-		mountFlags = 0
-		propFlag = 0
-		if m.Type == "bind" {
-			for _, o := range m.Options {
-				f, err := mapMountFlag(o)
-				if err == nil {
-					mountFlags |= f
-					continue
-				}
-				f, err = mapRootfsPropagationFlag(o)
-				if err == nil {
-					propFlag = f
-				}
-			}
-			dstPath := filepath.Join(rootfsPath, m.Destination)
-			err := os.MkdirAll(dstPath, 0755)
-			if err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", dstPath, err)
-			}
+		var makeCopy bool
 
-			err = unix.Mount(m.Source, dstPath, "", uintptr(mountFlags), "")
-			if err != nil {
-				return fmt.Errorf("Failed to mount %s: %w", m.Source, err)
+		// Parse flags
+		for _, o := range m.Options {
+			if f, err := mapMountFlag(o); err == nil {
+				mountFlags |= f
+			} else if f, err := mapRootfsPropagationFlag(o); err == nil {
+				propFlag = f
+				// apply only if its private
+				if o == "private" || o == "rprivate" {
+					makeCopy = true
+				}
 			}
+		}
 
-			err = unix.Mount(dstPath, dstPath, "", uintptr(propFlag), "")
-			if err != nil {
-				return fmt.Errorf("Failed to set propagation flag for  %s: %w", m.Source, err)
+		// Determine if source is a file or directory
+		var stat unix.Stat_t
+		if err := unix.Stat(m.Source, &stat); err != nil {
+			return fmt.Errorf("failed to stat %s: %w", m.Source, err)
+		}
+
+		isDir := (stat.Mode & unix.S_IFMT) == unix.S_IFDIR
+		// apply only if its a file & the mountflag is private
+		withCopy := makeCopy && !isDir
+
+
+		// Mount the file or dir
+		err := fileFromHost(rootfsPath, m.Source, m.Destination, withCopy)
+		if err != nil {
+			return fmt.Errorf("failed to process bind mount %s -> %s: %w", m.Source, m.Destination, err)
+		}
+
+		// Apply propagation flag (if any)
+		if (isDir && propFlag != 0) {
+			dst := filepath.Join(rootfsPath, m.Destination)
+			if err := unix.Mount(dst, dst, "", uintptr(propFlag), ""); err != nil {
+				return fmt.Errorf("failed to set propagation flag %d for %s: %w", propFlag, dst, err)
 			}
 		}
 	}

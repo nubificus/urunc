@@ -137,13 +137,15 @@ func TestCopyFile(t *testing.T) {
 		// Create a temporary target directory
 		targetDir := t.TempDir()
 
+		// Get the final path
+		targetPath := filepath.Join(targetDir, srcFile.Name())
 		// Call the function
-		err = copyFile(srcFile.Name(), targetDir)
+		err = copyFile(srcFile.Name(), targetPath)
 		assert.NoError(t, err, "Expected no error in copying file")
 
 		// Verify the file was copied
-		_, filename := filepath.Split(srcFile.Name())
-		copiedFilePath := filepath.Join(targetDir, filename)
+		_, fileName := filepath.Split(srcFile.Name())
+		copiedFilePath := filepath.Join(targetDir, fileName)
 		copiedContent, err := os.ReadFile(copiedFilePath)
 		assert.NoError(t, err, "Expected no error in reading copied file")
 		assert.Equal(t, content, string(copiedContent), "Expected copied content to match original")
@@ -154,8 +156,11 @@ func TestCopyFile(t *testing.T) {
 		// Create a temporary target directory
 		targetDir := t.TempDir()
 
+		// Get the final path
+		targetPath := filepath.Join(targetDir, "nonexistent.txt")
+
 		// Call the function with a non-existent source file
-		err := copyFile("nonexistent.txt", targetDir)
+		err := copyFile("nonexistent.txt", targetPath)
 		assert.Error(t, err, "Expected an error for non-existent source file")
 	})
 
@@ -195,14 +200,14 @@ func TestCopyFile(t *testing.T) {
 
 		// Create a temporary target directory and a read-only file with the same name as the source file
 		targetDir := t.TempDir()
-		_, filename := filepath.Split(srcFile.Name())
-		targetFilePath := filepath.Join(targetDir, filename)
+		_, fileName := filepath.Split(srcFile.Name())
+		targetFilePath := filepath.Join(targetDir, fileName)
 		targetFile, err := os.OpenFile(targetFilePath, os.O_RDONLY|os.O_CREATE, 0444)
 		assert.NoError(t, err)
 		targetFile.Close()
 
 		// Call the function
-		err = copyFile(srcFile.Name(), targetDir)
+		err = copyFile(srcFile.Name(), targetFilePath)
 		assert.Error(t, err, "Expected an error for read-only target file")
 	})
 }
@@ -229,8 +234,8 @@ func TestMoveFile(t *testing.T) {
 		assert.NoError(t, err, "Expected no error in moving file")
 
 		// Verify the file was moved
-		_, filename := filepath.Split(srcFile.Name())
-		movedFilePath := filepath.Join(targetDir, filename)
+		_, fileName := filepath.Split(srcFile.Name())
+		movedFilePath := filepath.Join(targetDir, fileName)
 		movedContent, err := os.ReadFile(movedFilePath)
 		assert.NoError(t, err, "Expected no error in reading moved file")
 		assert.Equal(t, content, string(movedContent), "Expected moved content to match original")
@@ -290,8 +295,8 @@ func TestMoveFile(t *testing.T) {
 
 		// Create a temporary target directory and a read-only file with the same name as the source file
 		targetDir := t.TempDir()
-		_, filename := filepath.Split(srcFile.Name())
-		targetFilePath := filepath.Join(targetDir, filename)
+		_, fileName := filepath.Split(srcFile.Name())
+		targetFilePath := filepath.Join(targetDir, fileName)
 		targetFile, err := os.OpenFile(targetFilePath, os.O_RDONLY|os.O_CREATE, 0444)
 		assert.NoError(t, err)
 		targetFile.Close()

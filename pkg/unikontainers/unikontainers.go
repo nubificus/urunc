@@ -337,6 +337,7 @@ func (u *Unikontainer) Exec() error {
 
 	// Make sure that rootfs is mounted with the correct propagation
 	// flags so we can later pivot if needed.
+	uniklog.Debugf("my ROOTFSDIR is: %s", rootfsDir)
 	err = prepareRoot(rootfsDir, u.Spec.Linux.RootfsPropagation)
 	if err != nil {
 		return err
