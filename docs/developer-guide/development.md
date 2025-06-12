@@ -61,15 +61,15 @@ with `sudo GO=$(which go) make`.
 ## Debugging
 
 To enable debugging logs, we need to pass the `--debug` flag when calling `urunc`. Also, to facilitate easier
-debugging, the `--syslog` flag can be set to ensure that all logs are propagated to the syslog.
+debugging, when the `debug` flag is true all logs are propagated to the syslog.
 
 An easy way to achieve this is to create a Bash wrapper for `urunc`:
 
 ```bash
 sudo mv /usr/local/bin/urunc /usr/local/bin/urunc.default
 sudo tee /usr/local/bin/urunc > /dev/null <<'EOT'
-/usr/bin/env bash
-ec /usr/local/bin/urunc.default --debug --syslog "$@"
-T
+#!/usr/bin/env bash
+exec /usr/local/bin/urunc.default --debug "$@"
+EOT
 sudo chmod +x /usr/local/bin/urunc
 ```
