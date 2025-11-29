@@ -62,6 +62,7 @@ Supported unikernel frameworks with `urunc`:
 
 - [Unikraft](../unikernel-support#unikraft)
 - [MirageOS](../unikernel-support#mirage)
+- [Mewz](../unikernel-support#mewz)
 
 An example unikernel:
 

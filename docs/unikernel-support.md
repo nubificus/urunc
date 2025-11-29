@@ -203,12 +203,63 @@ Solo5-spt using devmapper with 'urunc':
 $ sudo nerdctl run --rm -ti --snapshotter devmapper --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/redis-spt-rumprun:latest unikernel
 ```
 
+## Mewz
+
+[Mewz](https://github.com/Mewz-project/Mewz) is a unikernel framework written
+from scratch in Zig, targeting WASM workloads. In contrast to other WASM
+runtimes that execute on top of general purpose operating systems,
+[Mewz](https://github.com/Mewz-project/Mewz) is designed as a specialized
+kernel where WASM applications can execute. In this way,
+[Mewz](https://github.com/Mewz-project/Mewz) provides the minimal required
+features and environment for executing WASM workloads. In addition, every WASM
+application executes on a separate [Mewz](https://github.com/Mewz-project/Mewz)
+instance, maintaining the single-purpose notion of unikernels.
+
+According to the design of [Mewz](https://github.com/Mewz-project/Mewz), the
+WASM application is transformed to an object file which is directly linked
+against the [Mewz](https://github.com/Mewz-project/Mewz) kernel. Therefore,
+when the [Mewz](https://github.com/Mewz-project/Mewz) kernel boots, it executes
+the linked WASM application. [Mewz](https://github.com/Mewz-project/Mewz) has
+partial support for [WASI](https://github.com/WebAssembly/WASI) and it provides
+support for networking and an in-memory, read-only filesystem. In addition,
+[Mewz](https://github.com/Mewz-project/Mewz) has socket compatibility with
+[WasmEdge](https://github.com/WasmEdge/WasmEdge),
+
+A few examples of [Mewz](https://github.com/Mewz-project/Mewz) unikernels can
+be found in the [examples directory of Mewz's
+repository](https://github.com/mewz-project/mewz/tree/main/examples).
+
+### VMMs and other sandbox monitors
+
+[Mewz](https://github.com/Mewz-project/Mewz) can execute only on top of
+[Qemu](https://www.qemu.org/).  It can access the network through a virtio-net
+PCI device. In the case of storage,
+[Mewz](https://github.com/Mewz-project/Mewz) only supports an in-memory
+read-only filesystem, which is directly linked along with the kernel.
+
+### Mewz and `urunc`
+
+In the case of [Mewz](https://github.com/Mewz-project/Mewz), `urunc` provides
+support for [Qemu](https://www.qemu.org/). If the container is configured with
+network access, then `urunc` will use a virtio-net PCI device to provide
+network access to [Mewz](https://github.com/Mewz-project/Mewz) unikernels.
+
+For more information on packaging
+[Mewz](https://github.com/Mewz-project/Mewz) unikernels for `urunc` take
+a look at our [packaging](../image-building/) page.
+
+An example of [Mewz](https://github.com/Mewz-project/Mewz) on top of
+Qemu using with 'urunc':
+
+```bash
+$ sudo nerdctl run -m 512M --rm -ti --runtime io.containerd.urunc.v2 harbor.nbfc.io/nubificus/urunc/hello-server-qemu-mewz:latest
+```
+
+> Note: As far as we understand, Mewz requires at least 512M of memory to properly boot.
+
 ## Future unikernels and frameworks:
 
 In the near future, we plan to add support for the following frameworks:
-
-[Mewz](https://github.com/mewz-project/mewz): A unikernel designed
-specifically for running Wasm applications and compatible with WASI.
 
 [Linux](https://github.com/mewz-project/mewz): The widely known kernel that runs
 almost everywhere. In the case of `urunc` we will support minimal Linux
@@ -218,4 +269,3 @@ configurations where the init process is the application.
 run as a single application on top of a hypervisor. OSv is known for its
 performance optimization and supports a wide range of programming languages,
 including Java, Node.js, and Python.
-
